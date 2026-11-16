@@ -1,7 +1,6 @@
-import type { FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Button, Notice } from '../atoms';
-import { FormField } from '../molecules';
+import { ActionForm, FormField } from '../molecules';
 import { useAction } from '@/hooks/useAction';
 import { authClient } from '@/lib/auth-client';
 
@@ -21,14 +20,18 @@ export function LoginForm() {
     // so there is no bounce back to /login while the session is still refreshing.
   });
 
-  function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const data = new FormData(e.currentTarget);
-    void run(String(data.get('email')), String(data.get('password')));
-  }
-
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+    <ActionForm
+      onSubmit={(data) => void run(String(data.get('email')), String(data.get('password')))}
+      submitLabel="Sign in"
+      pending={pending}
+      error={error}
+      after={
+        <Button asChild variant="link" className="self-center text-sm">
+          <Link to="/forgot-password">Forgot password?</Link>
+        </Button>
+      }
+    >
       {params.has('reset') && <Notice tone="success">Password updated. Sign in with it.</Notice>}
       <FormField label="Email" name="email" type="email" autoComplete="email" required />
       <FormField
@@ -38,13 +41,6 @@ export function LoginForm() {
         autoComplete="current-password"
         required
       />
-      {error && <Notice tone="error">{error}</Notice>}
-      <Button type="submit" variant="primary" loading={pending}>
-        Sign in
-      </Button>
-      <Button asChild variant="link" className="self-center text-sm">
-        <Link to="/forgot-password">Forgot password?</Link>
-      </Button>
-    </form>
+    </ActionForm>
   );
 }

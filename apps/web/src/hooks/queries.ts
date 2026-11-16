@@ -85,10 +85,11 @@ export function useAddDevice() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: DeviceCreate) => api.post<{ device: DeviceView }>('/api/devices', body),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: queryKeys.devices });
-      // Picks depend on the device list.
-      await qc.invalidateQueries({ queryKey: ['recommendations'] });
-    },
+    // Picks depend on the device list.
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.devices }),
+        qc.invalidateQueries({ queryKey: queryKeys.recommendationsAll }),
+      ]),
   });
 }

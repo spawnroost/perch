@@ -1,7 +1,5 @@
-import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router';
-import { Button, Notice } from '../atoms';
-import { FormField } from '../molecules';
+import { ActionForm, FormField } from '../molecules';
 import { useAction } from '@/hooks/useAction';
 import { appUrl, authClient, unwrapAuth } from '@/lib/auth-client';
 
@@ -16,14 +14,15 @@ export function SignupForm() {
     },
   );
 
-  function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const data = new FormData(e.currentTarget);
-    void run(String(data.get('name')), String(data.get('email')), String(data.get('password')));
-  }
-
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+    <ActionForm
+      onSubmit={(data) =>
+        void run(String(data.get('name')), String(data.get('email')), String(data.get('password')))
+      }
+      submitLabel="Create account"
+      pending={pending}
+      error={error}
+    >
       <FormField label="Name" name="name" autoComplete="name" required />
       <FormField label="Email" name="email" type="email" autoComplete="email" required />
       <FormField
@@ -35,10 +34,6 @@ export function SignupForm() {
         hint="At least 8 characters."
         required
       />
-      {error && <Notice tone="error">{error}</Notice>}
-      <Button type="submit" variant="primary" loading={pending}>
-        Create account
-      </Button>
-    </form>
+    </ActionForm>
   );
 }

@@ -1,7 +1,6 @@
-import type { FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Button, Notice } from '../atoms';
-import { FormField } from '../molecules';
+import { ActionForm, FormField } from '../molecules';
 import { useAction } from '@/hooks/useAction';
 import { authClient, unwrapAuth } from '@/lib/auth-client';
 
@@ -26,13 +25,13 @@ export function ResetPasswordForm() {
     );
   }
 
-  function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    void run(String(new FormData(e.currentTarget).get('password')));
-  }
-
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+    <ActionForm
+      onSubmit={(data) => void run(String(data.get('password')))}
+      submitLabel="Update password"
+      pending={pending}
+      error={error}
+    >
       <FormField
         label="New password"
         name="password"
@@ -42,10 +41,6 @@ export function ResetPasswordForm() {
         hint="At least 8 characters."
         required
       />
-      {error && <Notice tone="error">{error}</Notice>}
-      <Button type="submit" variant="primary" loading={pending}>
-        Update password
-      </Button>
-    </form>
+    </ActionForm>
   );
 }

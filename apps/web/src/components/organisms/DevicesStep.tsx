@@ -6,14 +6,11 @@ import { PcDeviceForm } from './PcDeviceForm';
 import { useAddDevice, useDevicePresets, useDevices } from '@/hooks/queries';
 
 const HANDHELDS = new Set(['steam-deck', 'rog-ally', 'switch', 'switch-2']);
-const iconFor = (id: string) =>
-  id === 'mac' ? (
-    <Laptop size={16} />
-  ) : HANDHELDS.has(id) ? (
-    <Gamepad2 size={16} />
-  ) : (
-    <Tv size={16} />
-  );
+function iconFor(id: string) {
+  if (id === 'mac') return <Laptop size={16} />;
+  if (HANDHELDS.has(id)) return <Gamepad2 size={16} />;
+  return <Tv size={16} />;
+}
 
 export function DevicesStep() {
   const presets = useDevicePresets();

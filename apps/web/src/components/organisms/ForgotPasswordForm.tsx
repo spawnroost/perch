@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from 'react';
-import { Button, Notice } from '../atoms';
-import { FormField } from '../molecules';
+import { useState } from 'react';
+import { Notice } from '../atoms';
+import { ActionForm, FormField } from '../molecules';
 import { useAction } from '@/hooks/useAction';
 import { appUrl, authClient, unwrapAuth } from '@/lib/auth-client';
 
@@ -19,18 +19,14 @@ export function ForgotPasswordForm() {
     );
   }
 
-  function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    void run(String(new FormData(e.currentTarget).get('email')));
-  }
-
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+    <ActionForm
+      onSubmit={(data) => void run(String(data.get('email')))}
+      submitLabel="Send reset link"
+      pending={pending}
+      error={error}
+    >
       <FormField label="Email" name="email" type="email" autoComplete="email" required />
-      {error && <Notice tone="error">{error}</Notice>}
-      <Button type="submit" variant="primary" loading={pending}>
-        Send reset link
-      </Button>
-    </form>
+    </ActionForm>
   );
 }
