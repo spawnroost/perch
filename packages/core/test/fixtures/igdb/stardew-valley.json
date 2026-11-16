@@ -1,0 +1,305 @@
+{
+  "name": "Stardew Valley",
+  "igdbId": 17000,
+  "search": [
+    {
+      "id": 17000,
+      "first_release_date": 1456444800,
+      "name": "Stardew Valley",
+      "slug": "stardew-valley",
+      "total_rating_count": 1855
+    },
+    {
+      "id": 210537,
+      "first_release_date": 1554681600,
+      "name": "Stardew Valley Expanded",
+      "slug": "stardew-valley-expanded",
+      "total_rating_count": 11
+    },
+    {
+      "id": 42895,
+      "first_release_date": 1491868800,
+      "name": "Stardew Valley: Collector's Edition",
+      "slug": "stardew-valley-collectors-edition",
+      "total_rating_count": 1
+    },
+    {
+      "id": 284039,
+      "first_release_date": 1682121600,
+      "name": "Pico Valley",
+      "slug": "pico-valley"
+    }
+  ],
+  "game": [
+    {
+      "id": 17000,
+      "cover": {
+        "id": 478349,
+        "image_id": "coa93h"
+      },
+      "external_games": [
+        {
+          "id": 1937683,
+          "uid": "B004UOWX1Q",
+          "external_game_source": 20
+        },
+        {
+          "id": 1933748,
+          "uid": "B00EY3FC48",
+          "external_game_source": 20
+        },
+        {
+          "id": 1931325,
+          "uid": "B07CZHRDG2",
+          "external_game_source": 20
+        },
+        {
+          "id": 189129,
+          "uid": "UCdA5b9jfGKAM53cqKn3snuA",
+          "external_game_source": 10
+        },
+        {
+          "id": 110317,
+          "uid": "50899",
+          "external_game_source": 3
+        },
+        {
+          "id": 1933955,
+          "uid": "B07HLZKDDJ",
+          "external_game_source": 20
+        },
+        {
+          "id": 1934257,
+          "uid": "B07KJ1FM1Y",
+          "external_game_source": 20
+        },
+        {
+          "id": 1937499,
+          "uid": "B07KKGWVQ6",
+          "external_game_source": 20
+        },
+        {
+          "id": 2072448,
+          "uid": "B08F8KRRGL",
+          "external_game_source": 20
+        },
+        {
+          "id": 2010967,
+          "uid": "B08F8KRRGL",
+          "external_game_source": 20
+        },
+        {
+          "id": 1941507,
+          "uid": "B08FJQBCXY",
+          "external_game_source": 20
+        },
+        {
+          "id": 78112,
+          "uid": "1453375253",
+          "external_game_source": 5
+        },
+        {
+          "id": 1941902,
+          "uid": "B08F8KRRGL",
+          "external_game_source": 20
+        },
+        {
+          "id": 2434725,
+          "uid": "B08LFSJP1R",
+          "external_game_source": 20
+        },
+        {
+          "id": 1942829,
+          "uid": "B08FJSQKXD",
+          "external_game_source": 20
+        },
+        {
+          "id": 1932098,
+          "uid": "B07D1X81VB",
+          "external_game_source": 20
+        },
+        {
+          "id": 1943112,
+          "uid": "B08LFSJP1R",
+          "external_game_source": 20
+        },
+        {
+          "id": 2446512,
+          "uid": "com.chucklefish.stardewvalley",
+          "external_game_source": 15
+        },
+        {
+          "id": 210932,
+          "uid": "C3D891Z6TNQM",
+          "external_game_source": 11
+        },
+        {
+          "id": 2179418,
+          "uid": "9MWR1NC6VQ6L",
+          "external_game_source": 11
+        },
+        {
+          "id": 2944312,
+          "uid": "227229",
+          "external_game_source": 36
+        },
+        {
+          "id": 6873,
+          "uid": "413150",
+          "external_game_source": 1
+        },
+        {
+          "id": 245765,
+          "uid": "490744",
+          "external_game_source": 14
+        },
+        {
+          "id": 2924226,
+          "uid": "amzn1.adg.product.dbb1daf2-e325-4271-a27a-3eba9b54fbfb",
+          "external_game_source": 23
+        },
+        {
+          "id": 3142001,
+          "uid": "C3D891Z6TNQM",
+          "external_game_source": 54
+        }
+      ],
+      "first_release_date": 1456444800,
+      "game_modes": [
+        1,
+        2,
+        3
+      ],
+      "genres": [
+        12,
+        13,
+        15,
+        31,
+        32
+      ],
+      "keywords": [
+        98,
+        153,
+        182,
+        227,
+        274,
+        288,
+        509,
+        510,
+        758,
+        770,
+        1103,
+        1181,
+        1293,
+        1494,
+        1566,
+        1608,
+        1705,
+        1710,
+        1780,
+        2016,
+        2074,
+        2084,
+        2177,
+        2251,
+        2347,
+        2452,
+        2657,
+        4004,
+        4135,
+        4150,
+        4247,
+        4272,
+        4341,
+        4465,
+        4882,
+        5408,
+        5425,
+        6962,
+        8305,
+        10114,
+        12556,
+        14051,
+        16877,
+        24235,
+        24697,
+        27179,
+        29055,
+        34588,
+        38085,
+        38716,
+        38887,
+        39028,
+        40736,
+        40904,
+        41929,
+        42074,
+        42095,
+        42156,
+        42298,
+        42581,
+        42663,
+        43276,
+        44307,
+        44629,
+        44930,
+        46619,
+        47045,
+        47103,
+        47576,
+        48851,
+        48929,
+        49372,
+        49513,
+        50913
+      ],
+      "name": "Stardew Valley",
+      "platforms": [
+        48,
+        3,
+        508,
+        34,
+        6,
+        39,
+        14,
+        41,
+        46,
+        49,
+        130
+      ],
+      "player_perspectives": [
+        3
+      ],
+      "similar_games": [
+        27384,
+        203722,
+        143061,
+        123783,
+        115289,
+        23733,
+        226035,
+        245733,
+        152127,
+        236664
+      ],
+      "slug": "stardew-valley",
+      "themes": [
+        17,
+        28,
+        33,
+        44
+      ],
+      "total_rating": 88.26113243172301,
+      "total_rating_count": 1855
+    }
+  ],
+  "timeToBeat": [
+    {
+      "id": 1009,
+      "hastily": 180000,
+      "normally": 324000,
+      "completely": 747900,
+      "count": 11
+    }
+  ]
+}

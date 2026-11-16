@@ -18,6 +18,7 @@
   "include": [
     "packages/*/src",
     "packages/*/test",
+    "packages/*/scripts",
     "apps/*/src",
     "perch.config.ts",
     "vitest.config.ts",

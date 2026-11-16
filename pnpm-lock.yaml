@@ -257,15 +257,18 @@ importers:
 
   packages/core:
     dependencies:
+      '@perch/db':
+        specifier: workspace:*
+        version: link:../db
+      drizzle-orm:
+        specifier: ^0.45.4
+        version: 0.45.4(postgres@4.1.1)
       zod:
         specifier: ^4.6.7
         version: 4.6.7
 
   packages/db:
     dependencies:
-      '@perch/core':
-        specifier: workspace:*
-        version: link:../core
       drizzle-orm:
         specifier: ^0.45.4
         version: 0.45.4(postgres@4.1.1)

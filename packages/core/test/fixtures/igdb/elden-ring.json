@@ -1,0 +1,534 @@
+{
+  "name": "Elden Ring",
+  "igdbId": 119133,
+  "search": [
+    {
+      "id": 325591,
+      "first_release_date": 1748563200,
+      "name": "Elden Ring Nightreign",
+      "slug": "elden-ring-nightreign",
+      "total_rating_count": 111
+    },
+    {
+      "id": 119133,
+      "first_release_date": 1645747200,
+      "name": "Elden Ring",
+      "slug": "elden-ring",
+      "total_rating_count": 2356
+    },
+    {
+      "id": 338079,
+      "first_release_date": 1787875200,
+      "name": "Elden Ring: Tarnished Edition",
+      "slug": "elden-ring-tarnished-edition",
+      "total_rating_count": 4
+    },
+    {
+      "id": 180258,
+      "first_release_date": 1645747200,
+      "name": "Elden Ring: Collector's Edition",
+      "slug": "elden-ring-collectors-edition"
+    },
+    {
+      "id": 206519,
+      "first_release_date": 1654214400,
+      "name": "Elden Ring GB",
+      "slug": "elden-ring-gb"
+    },
+    {
+      "id": 290894,
+      "first_release_date": 1718928000,
+      "name": "Elden Ring: Shadow of the Erdtree - Premium Bundle",
+      "slug": "elden-ring-shadow-of-the-erdtree-premium-bundle"
+    },
+    {
+      "id": 408334,
+      "name": "Elden Ring Demake",
+      "slug": "elden-ring-demake--1"
+    },
+    {
+      "id": 296157,
+      "first_release_date": 1648944000,
+      "name": "Elden Ring Reforged",
+      "slug": "elden-ring-reforged"
+    },
+    {
+      "id": 398157,
+      "name": "Elden Ring: Golden Age",
+      "slug": "elden-ring-golden-age"
+    },
+    {
+      "id": 214788,
+      "first_release_date": 1661126400,
+      "name": "Elden Ring: Ascended",
+      "slug": "elden-ring-ascended"
+    },
+    {
+      "id": 309346,
+      "first_release_date": 1669766400,
+      "name": "Elden Ring: Dark Moon",
+      "slug": "elden-ring-dark-moon"
+    },
+    {
+      "id": 180259,
+      "first_release_date": 1645747200,
+      "name": "Elden Ring: Launch Edition",
+      "slug": "elden-ring-launch-edition"
+    },
+    {
+      "id": 186227,
+      "first_release_date": 1645747200,
+      "name": "Elden Ring: Deluxe Edition",
+      "slug": "elden-ring-deluxe-edition"
+    },
+    {
+      "id": 415376,
+      "first_release_date": 1787788800,
+      "name": "Elden Ring: Tarnished Pack",
+      "slug": "elden-ring-tarnished-pack--1"
+    },
+    {
+      "id": 381683,
+      "name": "Elden Ring Seamless Co-op",
+      "slug": "elden-ring-seamless-co-op"
+    },
+    {
+      "id": 260990,
+      "first_release_date": 1682640000,
+      "name": "Elden Ring: The Convergence",
+      "slug": "elden-ring-the-convergence"
+    },
+    {
+      "id": 240009,
+      "first_release_date": 1718928000,
+      "name": "Elden Ring: Shadow of the Erdtree",
+      "slug": "elden-ring-shadow-of-the-erdtree",
+      "total_rating_count": 133
+    },
+    {
+      "id": 331166,
+      "first_release_date": 1748563200,
+      "name": "Elden Ring Nightreign: Deluxe Edition",
+      "slug": "elden-ring-nightreign-deluxe-edition"
+    }
+  ],
+  "game": [
+    {
+      "id": 119133,
+      "cover": {
+        "id": 212094,
+        "image_id": "co4jni"
+      },
+      "external_games": [
+        {
+          "id": 3190333,
+          "uid": "B09MG5LQ18",
+          "external_game_source": 20
+        },
+        {
+          "id": 2062011,
+          "uid": "B09743F8P6",
+          "external_game_source": 20
+        },
+        {
+          "id": 2063046,
+          "uid": "B0977MY2WM",
+          "external_game_source": 20
+        },
+        {
+          "id": 2062942,
+          "uid": "B0977QP5L6",
+          "external_game_source": 20
+        },
+        {
+          "id": 1930111,
+          "uid": "B07SPYK271",
+          "external_game_source": 20
+        },
+        {
+          "id": 1932061,
+          "uid": "B07SMBNTSJ",
+          "external_game_source": 20
+        },
+        {
+          "id": 1775842,
+          "uid": "73745",
+          "external_game_source": 3
+        },
+        {
+          "id": 1933890,
+          "uid": "B07T8J15JQ",
+          "external_game_source": 20
+        },
+        {
+          "id": 2270864,
+          "uid": "9P3J32CTXLRZ",
+          "external_game_source": 11
+        },
+        {
+          "id": 2271018,
+          "uid": "B09QPYZ6R2",
+          "external_game_source": 20
+        },
+        {
+          "id": 2271058,
+          "uid": "B09QPZHJH9",
+          "external_game_source": 20
+        },
+        {
+          "id": 2225572,
+          "uid": "B09QQYB8D9",
+          "external_game_source": 20
+        },
+        {
+          "id": 2635204,
+          "uid": "B097M66Y91",
+          "external_game_source": 20
+        },
+        {
+          "id": 2088476,
+          "uid": "B09D4KSL1B",
+          "external_game_source": 20
+        },
+        {
+          "id": 2254892,
+          "uid": "B09QPYZ6R2",
+          "external_game_source": 20
+        },
+        {
+          "id": 2254895,
+          "uid": "B09SMC6J15",
+          "external_game_source": 20
+        },
+        {
+          "id": 2254935,
+          "uid": "B09SQ6VGTB",
+          "external_game_source": 20
+        },
+        {
+          "id": 2184011,
+          "uid": "B09P1LTGH5",
+          "external_game_source": 20
+        },
+        {
+          "id": 2233957,
+          "uid": "B09R3BZHXX",
+          "external_game_source": 20
+        },
+        {
+          "id": 2241900,
+          "uid": "B09QPYY5HJ",
+          "external_game_source": 20
+        },
+        {
+          "id": 2682210,
+          "uid": "B0B7RSBXFT",
+          "external_game_source": 20
+        },
+        {
+          "id": 3232857,
+          "uid": "B07T8J27XQ",
+          "external_game_source": 20
+        },
+        {
+          "id": 2254996,
+          "uid": "B09QPYY5HJ",
+          "external_game_source": 20
+        },
+        {
+          "id": 2682054,
+          "uid": "B0B7RSBXFT",
+          "external_game_source": 20
+        },
+        {
+          "id": 2882831,
+          "uid": "B09R3C1QHH",
+          "external_game_source": 20
+        },
+        {
+          "id": 2635202,
+          "uid": "B097M66Y91",
+          "external_game_source": 20
+        },
+        {
+          "id": 2062880,
+          "uid": "B0977PVNYX",
+          "external_game_source": 20
+        },
+        {
+          "id": 2225478,
+          "uid": "B09QQT2NWG",
+          "external_game_source": 20
+        },
+        {
+          "id": 2183928,
+          "uid": "B09P1LBC7K",
+          "external_game_source": 20
+        },
+        {
+          "id": 2254918,
+          "uid": "B09QPZHJH9",
+          "external_game_source": 20
+        },
+        {
+          "id": 2233934,
+          "uid": "B09R3HR7NY",
+          "external_game_source": 20
+        },
+        {
+          "id": 2636625,
+          "uid": "B09SMC6J15",
+          "external_game_source": 20
+        },
+        {
+          "id": 2167564,
+          "uid": "B09L1C64SN",
+          "external_game_source": 20
+        },
+        {
+          "id": 2682308,
+          "uid": "B0B7RSBXFT",
+          "external_game_source": 20
+        },
+        {
+          "id": 2271134,
+          "uid": "B09QPYY5HJ",
+          "external_game_source": 20
+        },
+        {
+          "id": 2233945,
+          "uid": "B09R3DSJMS",
+          "external_game_source": 20
+        },
+        {
+          "id": 2857523,
+          "uid": "B09R3HR7NY",
+          "external_game_source": 20
+        },
+        {
+          "id": 2636627,
+          "uid": "B09SMC6J15",
+          "external_game_source": 20
+        },
+        {
+          "id": 2233921,
+          "uid": "B09R3C1QHH",
+          "external_game_source": 20
+        },
+        {
+          "id": 2184002,
+          "uid": "B09P1MVC4J",
+          "external_game_source": 20
+        },
+        {
+          "id": 2062922,
+          "uid": "B0977LKSQ6",
+          "external_game_source": 20
+        },
+        {
+          "id": 2241788,
+          "uid": "B09QPYZ6R2",
+          "external_game_source": 20
+        },
+        {
+          "id": 3219800,
+          "uid": "B0H7Q922M5",
+          "external_game_source": 20
+        },
+        {
+          "id": 2063058,
+          "uid": "B0979YW1Z9",
+          "external_game_source": 20
+        },
+        {
+          "id": 2084186,
+          "uid": "1245620",
+          "external_game_source": 1
+        },
+        {
+          "id": 2064411,
+          "uid": "B097M66Y91",
+          "external_game_source": 20
+        },
+        {
+          "id": 2636628,
+          "uid": "B09SMC6J15",
+          "external_game_source": 20
+        },
+        {
+          "id": 2241810,
+          "uid": "B09QPZHJH9",
+          "external_game_source": 20
+        },
+        {
+          "id": 2062924,
+          "uid": "B097B15N2T",
+          "external_game_source": 20
+        },
+        {
+          "id": 2167628,
+          "uid": "B09L19LT8Q",
+          "external_game_source": 20
+        },
+        {
+          "id": 3223289,
+          "uid": "B09W9WGSVL",
+          "external_game_source": 20
+        },
+        {
+          "id": 1914490,
+          "uid": "512953",
+          "external_game_source": 14
+        },
+        {
+          "id": 3190344,
+          "uid": "B09MG3FTNC",
+          "external_game_source": 20
+        },
+        {
+          "id": 2172221,
+          "uid": "10000333",
+          "external_game_source": 36
+        }
+      ],
+      "first_release_date": 1645747200,
+      "game_modes": [
+        1,
+        2,
+        3
+      ],
+      "genres": [
+        12,
+        31
+      ],
+      "keywords": [
+        72,
+        98,
+        105,
+        109,
+        151,
+        162,
+        226,
+        227,
+        250,
+        332,
+        558,
+        623,
+        701,
+        905,
+        1032,
+        1065,
+        1293,
+        1317,
+        1320,
+        1333,
+        1345,
+        1494,
+        1524,
+        3433,
+        3486,
+        4004,
+        4135,
+        4150,
+        4272,
+        4359,
+        4392,
+        4397,
+        4580,
+        4613,
+        4759,
+        4770,
+        4777,
+        4843,
+        4850,
+        4852,
+        4855,
+        4886,
+        4891,
+        4897,
+        5018,
+        5019,
+        5323,
+        5541,
+        5840,
+        5999,
+        6648,
+        6716,
+        7080,
+        7369,
+        7423,
+        7653,
+        9533,
+        9777,
+        9781,
+        9782,
+        12083,
+        16877,
+        17326,
+        17689,
+        24287,
+        38778,
+        39010,
+        39011,
+        39025,
+        39034,
+        39041,
+        39046,
+        39049,
+        39942,
+        40744,
+        42105,
+        43613,
+        44373,
+        44629,
+        47799,
+        48013,
+        48014,
+        48097,
+        48116,
+        48594
+      ],
+      "name": "Elden Ring",
+      "platforms": [
+        169,
+        48,
+        508,
+        6,
+        167,
+        49
+      ],
+      "player_perspectives": [
+        2
+      ],
+      "similar_games": [
+        2155,
+        2368,
+        23733,
+        5619,
+        1942,
+        103329,
+        115289,
+        1887,
+        6142,
+        3025
+      ],
+      "slug": "elden-ring",
+      "themes": [
+        1,
+        17,
+        38
+      ],
+      "total_rating": 95.18909276014008,
+      "total_rating_count": 2356
+    }
+  ],
+  "timeToBeat": [
+    {
+      "id": 2585,
+      "hastily": 156960,
+      "normally": 420631,
+      "completely": 623880,
+      "count": 28
+    }
+  ]
+}

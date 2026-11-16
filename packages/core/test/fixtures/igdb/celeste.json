@@ -1,0 +1,347 @@
+{
+  "name": "Celeste",
+  "igdbId": 26226,
+  "search": [
+    {
+      "id": 26226,
+      "first_release_date": 1516838400,
+      "name": "Celeste",
+      "slug": "celeste",
+      "total_rating_count": 1490
+    },
+    {
+      "id": 91484,
+      "first_release_date": 473299200,
+      "name": "Marie Celeste",
+      "slug": "marie-celeste"
+    },
+    {
+      "id": 76427,
+      "first_release_date": 1510531200,
+      "name": "Celeste Witch",
+      "slug": "celeste-witch"
+    },
+    {
+      "id": 370630,
+      "first_release_date": 1528329600,
+      "name": "Celeste Classic",
+      "slug": "celeste-classic--3"
+    },
+    {
+      "id": 86148,
+      "first_release_date": 1439164800,
+      "name": "Celeste Classic",
+      "slug": "celeste-classic",
+      "total_rating_count": 18
+    },
+    {
+      "id": 267178,
+      "first_release_date": 1680652800,
+      "name": "Celeste Classic",
+      "slug": "celeste-classic--2"
+    },
+    {
+      "id": 215762,
+      "first_release_date": 1564704000,
+      "name": "Celeste Classic",
+      "slug": "celeste-classic--1"
+    },
+    {
+      "id": 364546,
+      "first_release_date": 1612137600,
+      "name": "Celeste Advance",
+      "slug": "celeste-advance"
+    },
+    {
+      "id": 122556,
+      "first_release_date": 1567987200,
+      "name": "Celeste: Farewell",
+      "slug": "celeste-farewell",
+      "total_rating_count": 13
+    },
+    {
+      "id": 360339,
+      "first_release_date": 1690156800,
+      "name": "Celeste Classic PSX",
+      "slug": "celeste-classic-psx"
+    },
+    {
+      "id": 358282,
+      "name": "Celeste Fusion Collab",
+      "slug": "celeste-fusion-collab"
+    },
+    {
+      "id": 235102,
+      "first_release_date": 1676592000,
+      "name": "Celeste Strawberry Jam",
+      "slug": "celeste-strawberry-jam"
+    },
+    {
+      "id": 353715,
+      "first_release_date": 1623456000,
+      "name": "Celeste: Into The Jungle",
+      "slug": "celeste-into-the-jungle"
+    },
+    {
+      "id": 206229,
+      "first_release_date": 1250553600,
+      "name": "The Mystery of the Mary Celeste",
+      "slug": "the-mystery-of-the-mary-celeste"
+    },
+    {
+      "id": 383293,
+      "first_release_date": 1793836800,
+      "name": "Celeste Blue Wizard Luna",
+      "slug": "celeste-blue-wizard-luna"
+    },
+    {
+      "id": 281897,
+      "first_release_date": 1542931200,
+      "name": "Celeste: The D-Sides Pack",
+      "slug": "celeste-the-d-sides-pack"
+    },
+    {
+      "id": 255899,
+      "first_release_date": 1688515200,
+      "name": "Celeste Mario's Zap & Dash!",
+      "slug": "celeste-marios-zap-and-dash"
+    },
+    {
+      "id": 142841,
+      "first_release_date": 1611532800,
+      "name": "Celeste Classic 2: Lani's Trek",
+      "slug": "celeste-classic-2-lanis-trek"
+    }
+  ],
+  "game": [
+    {
+      "id": 26226,
+      "cover": {
+        "id": 525365,
+        "image_id": "cob9dh"
+      },
+      "external_games": [
+        {
+          "id": 1935497,
+          "uid": "B08346VD7L",
+          "external_game_source": 20
+        },
+        {
+          "id": 1931014,
+          "uid": "B08346Q9QV",
+          "external_game_source": 20
+        },
+        {
+          "id": 1931771,
+          "uid": "B07Z9Q6Q25",
+          "external_game_source": 20
+        },
+        {
+          "id": 103381,
+          "uid": "58634",
+          "external_game_source": 3
+        },
+        {
+          "id": 1928423,
+          "uid": "B079Z1LPSP",
+          "external_game_source": 20
+        },
+        {
+          "id": 2656754,
+          "uid": "B0BT4QQ2JG",
+          "external_game_source": 20
+        },
+        {
+          "id": 2719041,
+          "uid": "B0BTDK4K3J",
+          "external_game_source": 20
+        },
+        {
+          "id": 2728031,
+          "uid": "BWMQL2RPWBHB",
+          "external_game_source": 54
+        },
+        {
+          "id": 2656722,
+          "uid": "B0BT1Z9R1T",
+          "external_game_source": 20
+        },
+        {
+          "id": 2718993,
+          "uid": "B0BTDHSDRN",
+          "external_game_source": 20
+        },
+        {
+          "id": 2682143,
+          "uid": "B0BT1ZXDWW",
+          "external_game_source": 20
+        },
+        {
+          "id": 2682192,
+          "uid": "B0BT4MRY9K",
+          "external_game_source": 20
+        },
+        {
+          "id": 2682278,
+          "uid": "B0BT4P6S6N",
+          "external_game_source": 20
+        },
+        {
+          "id": 2747852,
+          "uid": "B0BTDHSDRN",
+          "external_game_source": 20
+        },
+        {
+          "id": 2682066,
+          "uid": "B0BTDK4K3J",
+          "external_game_source": 20
+        },
+        {
+          "id": 3888,
+          "uid": "504230",
+          "external_game_source": 1
+        },
+        {
+          "id": 2656745,
+          "uid": "B0BT1ZQBMG",
+          "external_game_source": 20
+        },
+        {
+          "id": 2682084,
+          "uid": "B0BT1ZMFVF",
+          "external_game_source": 20
+        },
+        {
+          "id": 2656664,
+          "uid": "B0BT4P2R5T",
+          "external_game_source": 20
+        },
+        {
+          "id": 2747854,
+          "uid": "B0BTDHSDRN",
+          "external_game_source": 20
+        },
+        {
+          "id": 2564895,
+          "uid": "49e49e24-9dec-43e3-8968-fd8b92688293",
+          "external_game_source": 26
+        },
+        {
+          "id": 2682358,
+          "uid": "B0BTDHSDRN",
+          "external_game_source": 20
+        },
+        {
+          "id": 307120,
+          "uid": "BWMQL2RPWBHB",
+          "external_game_source": 11
+        },
+        {
+          "id": 2627282,
+          "uid": "544c18ccadf8466691d8f2a335721b14",
+          "external_game_source": 26
+        },
+        {
+          "id": 2158381,
+          "uid": "216996",
+          "external_game_source": 30
+        },
+        {
+          "id": 252144,
+          "uid": "492535",
+          "external_game_source": 14
+        },
+        {
+          "id": 2225067,
+          "uid": "231477",
+          "external_game_source": 36
+        }
+      ],
+      "first_release_date": 1516838400,
+      "game_modes": [
+        1
+      ],
+      "genres": [
+        8,
+        31,
+        32
+      ],
+      "keywords": [
+        72,
+        126,
+        158,
+        288,
+        744,
+        905,
+        962,
+        1059,
+        1387,
+        1697,
+        1705,
+        1710,
+        1780,
+        1912,
+        2093,
+        2426,
+        3403,
+        3749,
+        4134,
+        4154,
+        4527,
+        5411,
+        12083,
+        23856,
+        24875,
+        25831,
+        39029,
+        39049,
+        45142,
+        46884,
+        47174,
+        49437,
+        54748
+      ],
+      "name": "Celeste",
+      "platforms": [
+        170,
+        48,
+        3,
+        6,
+        14,
+        49,
+        130
+      ],
+      "player_perspectives": [
+        4
+      ],
+      "similar_games": [
+        18182,
+        117023,
+        18927,
+        191435,
+        141490,
+        3222,
+        115289,
+        90055,
+        22917,
+        80885
+      ],
+      "slug": "celeste",
+      "themes": [
+        1,
+        17
+      ],
+      "total_rating": 89.00663041838494,
+      "total_rating_count": 1490
+    }
+  ],
+  "timeToBeat": [
+    {
+      "id": 1275,
+      "hastily": 38296,
+      "normally": 76556,
+      "completely": 195750,
+      "count": 17
+    }
+  ]
+}
