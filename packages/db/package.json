@@ -8,6 +8,15 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@perch/core": "workspace:*"
+    "@perch/core": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "postgres": "^4.1.0"
+  },
+  "scripts": {
+    "generate": "drizzle-kit generate",
+    "migrate": "tsx --env-file-if-exists=../../.env src/migrate-cli.ts"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.11"
   }
 }
