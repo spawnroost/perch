@@ -18,6 +18,11 @@ export type AddArgs = z.output<typeof addArgsSchema>;
 export const userCreateSchema = z
   .object({
     email: z.email().transform((e) => e.toLowerCase()),
+    password: z.string().min(8).max(128),
     name: z.string().trim().min(1).optional(),
   })
-  .transform(({ email, name }) => ({ email, name: name ?? email.split('@')[0]! }));
+  .transform(({ email, password, name }) => ({
+    email,
+    password,
+    name: name ?? email.split('@')[0]!,
+  }));

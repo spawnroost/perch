@@ -5,7 +5,7 @@ import {
   addGame,
   createIgdbCache,
   createIgdbClientFromEnv,
-  createUser,
+  createVerifiedUser,
   findUserId,
   formatError,
   NoMatchError,
@@ -13,6 +13,7 @@ import {
   rebuildProfile,
   userCreateSchema,
 } from '@perch/core';
+import { hashPassword } from 'better-auth/crypto';
 import { createDb } from '@perch/db';
 import { mapGame } from '@perch/taste-vocab';
 
@@ -42,11 +43,15 @@ export async function userCreateCommand(argv: string[]): Promise<void> {
     allowPositionals: true,
     options: { name: { type: 'string' } },
   });
-  const args = userCreateSchema.parse({ email: positionals[0], name: values.name });
+  const args = userCreateSchema.parse({
+    email: positionals[0],
+    password: positionals[1],
+    name: values.name,
+  });
   const db = createDb(dbUrl());
   try {
-    const { id, created } = await createUser(db, args);
-    console.log(`${created ? 'created' : 'exists'}: ${args.email} (${id})`);
+    const { id, created } = await createVerifiedUser(db, args, hashPassword);
+    console.log(`${created ? 'created' : 'updated'}: ${args.email} (${id}), verified`);
   } finally {
     await db.$client.end();
   }

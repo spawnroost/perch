@@ -8,7 +8,7 @@ export { parseImportFile, parseImportLine } from './parse.js';
 export type { ImportEntry, ParsedLine } from './parse.js';
 export { buildGameRow, buildLibraryRow } from './rows.js';
 export type { LibraryInput } from './rows.js';
-export { addGame, createUser, findUserId, NoMatchError } from './db.js';
+export { addGame, createUser, createVerifiedUser, findUserId, NoMatchError } from './db.js';
 export type { AddedGame, AddGameDeps } from './db.js';
 export { formatError } from './errors.js';
 export { rebuildVocab } from './vocab-rebuild.js';

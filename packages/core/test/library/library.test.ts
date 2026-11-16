@@ -132,9 +132,17 @@ describe('addArgsSchema', () => {
 });
 
 describe('userCreateSchema', () => {
-  it('requires a valid email and defaults the name', () => {
-    expect(userCreateSchema.parse({ email: 'A@B.com' })).toEqual({ email: 'a@b.com', name: 'a' });
-    expect(userCreateSchema.safeParse({ email: 'nope' }).success).toBe(false);
+  it('requires a valid email and password, and defaults the name', () => {
+    expect(userCreateSchema.parse({ email: 'A@B.com', password: 'longenough1' })).toEqual({
+      email: 'a@b.com',
+      password: 'longenough1',
+      name: 'a',
+    });
+    expect(userCreateSchema.safeParse({ email: 'nope', password: 'longenough1' }).success).toBe(
+      false,
+    );
+    expect(userCreateSchema.safeParse({ email: 'a@b.com' }).success).toBe(false);
+    expect(userCreateSchema.safeParse({ email: 'a@b.com', password: 'short' }).success).toBe(false);
   });
 });
 

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { eq } from 'drizzle-orm';
-import { games, libraryEntries, users, type Db } from '@perch/db';
+import { and, eq } from 'drizzle-orm';
+import { accounts, games, libraryEntries, users, type Db } from '@perch/db';
 import type { IgdbCache } from '../igdb/cache.js';
 import type { IgdbClient } from '../igdb/client.js';
 import type { Game } from '../igdb/schemas.js';
@@ -20,6 +20,44 @@ export async function createUser(
     .returning({ id: users.id });
   if (inserted[0]) return { id: inserted[0].id, created: true };
   return { id: await findUserId(db, email), created: false };
+}
+
+/**
+ * Creates (or updates) an email-verified user with a password login. `hash` is injected so core
+ * does not depend on the auth library; it must produce better-auth's password hash format.
+ */
+export async function createVerifiedUser(
+  db: Db,
+  { email, password, name }: { email: string; password: string; name?: string },
+  hash: (password: string) => Promise<string>,
+): Promise<{ id: string; created: boolean }> {
+  const passwordHash = await hash(password);
+  return db.transaction(async (tx) => {
+    const inserted = await tx
+      .insert(users)
+      .values({ id: randomUUID(), email, name: name ?? email.split('@')[0]!, emailVerified: true })
+      .onConflictDoNothing({ target: users.email })
+      .returning({ id: users.id });
+    const created = Boolean(inserted[0]);
+    const id = inserted[0]?.id ?? (await findUserId(tx as unknown as Db, email));
+    if (!created) await tx.update(users).set({ emailVerified: true }).where(eq(users.id, id));
+    const [existing] = await tx
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(and(eq(accounts.userId, id), eq(accounts.providerId, 'credential')));
+    if (existing) {
+      await tx.update(accounts).set({ password: passwordHash }).where(eq(accounts.id, existing.id));
+    } else {
+      await tx.insert(accounts).values({
+        id: randomUUID(),
+        accountId: id,
+        providerId: 'credential',
+        userId: id,
+        password: passwordHash,
+      });
+    }
+    return { id, created };
+  });
 }
 
 export async function findUserId(db: Db, email: string): Promise<string> {

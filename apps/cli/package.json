@@ -7,6 +7,7 @@
   "dependencies": {
     "@perch/core": "workspace:*",
     "@perch/db": "workspace:*",
-    "@perch/taste-vocab": "workspace:*"
+    "@perch/taste-vocab": "workspace:*",
+    "better-auth": "^1.7.25"
   }
 }

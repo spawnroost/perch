@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { bestFit, deviceFit, type FilterDevice, type FitRequirements } from '../../src/engine/filters.js';
+import {
+  bestFit,
+  deviceFit,
+  type FilterDevice,
+  type FitRequirements,
+} from '../../src/engine/filters.js';
 import { IGDB_PLATFORM as P } from '../../src/devices/presets.js';
 
 const pcGame = { platforms: [P.windows, P.ps5] };

@@ -117,7 +117,8 @@ export function bestFit(
   let best: BestFit = { status: 'hidden', deviceId: null };
   for (const d of devices) {
     const status = deviceFit(game, d, infoFor(d), opts);
-    if (best.deviceId === null || RANK[status] > RANK[best.status]) best = { status, deviceId: d.id };
+    if (best.deviceId === null || RANK[status] > RANK[best.status])
+      best = { status, deviceId: d.id };
   }
   return best;
 }
