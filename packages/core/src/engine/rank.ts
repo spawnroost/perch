@@ -8,6 +8,8 @@ export const MAX_RECENCY_BOOST = 0.05;
 export const RECENCY_YEARS = 10;
 export const DIVERSITY_WINDOW = 5;
 export const DIVERSITY_MAX_SAME = 2;
+/** With a limit, diversify only this many times the limit. */
+export const DIVERSITY_POOL_FACTOR = 3;
 /** IGDB genre ids that say nothing about the kind of game (Indie). */
 const GENERIC_GENRES = new Set([32]);
 const YEAR_MS = 365.25 * 86_400_000;
@@ -56,7 +58,7 @@ export function diversify<T extends { game: Pick<EngineGame, 'genres'> }>(
   const rest = [...sorted];
   const out: T[] = [];
   while (rest.length > 0) {
-    const recent = out.slice(-(window - 1)).map((o) => primaryGenre(o.game));
+    const recent = (window > 1 ? out.slice(-(window - 1)) : []).map((o) => primaryGenre(o.game));
     let pick = rest.findIndex((r) => {
       const g = primaryGenre(r.game);
       return g === undefined || recent.filter((x) => x === g).length < maxSame;
@@ -71,14 +73,18 @@ export interface RankedCandidate extends Candidate {
   score: number;
 }
 
-/** Scores every candidate, sorts best first, then applies the diversity rule. */
+/**
+ * Scores every candidate, sorts best first, then applies the diversity rule. With `limit`, only
+ * the top limit x 3 are diversified and returned (the greedy pass is quadratic).
+ */
 export function rankCandidates(
   profile: TasteProfile,
   candidates: readonly Candidate[],
   now: Date,
+  limit?: number,
 ): RankedCandidate[] {
   const scored = candidates
     .map((c) => ({ ...c, score: scoreCandidate(profile, c, now) }))
     .sort((a, b) => b.score - a.score);
-  return diversify(scored);
+  return diversify(limit === undefined ? scored : scored.slice(0, limit * DIVERSITY_POOL_FACTOR));
 }

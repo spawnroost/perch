@@ -44,7 +44,7 @@ export async function recommendCommand(argv: string[], dbUrl: () => string): Pro
   try {
     const userId = await findUserId(db, email);
     const client = createIgdbClientFromEnv();
-    const cache = createIgdbCache({ db, client });
+    const cache = createIgdbCache({ db, client, mapVocab: mapGame });
     const { library, feedback } = await loadRecommendInput(db, userId, mapGame);
     const recs = await recommend(
       {

@@ -56,17 +56,18 @@ export async function buildCandidates(input: CandidateInput): Promise<Candidate[
 
   const genres = topKeys(profile.genres, TAG_TOP);
   const themes = topKeys(profile.themes, TAG_TOP);
-  const [similar, tagged] = await Promise.all([
-    similarIds.length > 0 ? deps.getGames(similarIds) : [],
+  // One after the other: both upsert into `games`, and concurrent multi-row upserts that
+  // overlap in different orders can deadlock Postgres.
+  const similar = similarIds.length > 0 ? await deps.getGames(similarIds) : [];
+  const tagged =
     genres.length + themes.length > 0
-      ? deps.queryByTags({
+      ? await deps.queryByTags({
           genres,
           themes,
           minRatingCount: TAG_MIN_RATING_COUNT,
           limit: TAG_LIMIT,
         })
-      : [],
-  ]);
+      : [];
 
   const out = [...backlog];
   const seen = new Set(out.map((c) => c.game.igdbId));

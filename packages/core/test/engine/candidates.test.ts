@@ -33,9 +33,10 @@ function setup(over: Partial<Parameters<typeof buildCandidates>[0]> = {}) {
 
 describe('isBacklog', () => {
   const g = game(1, 'A', {});
-  it('owned and (status backlog or under 2 h)', () => {
+  it('owned and under 2 h played (null counts as 0), whatever the status', () => {
     expect(isBacklog(item(g, 0, null, 'backlog'))).toBe(true);
     expect(isBacklog(item(g, null, null, 'backlog'))).toBe(true);
+    expect(isBacklog(item(g, 30, null, 'backlog'))).toBe(false);
     expect(isBacklog(item(g, 1.5, 3, 'playing'))).toBe(true);
     expect(isBacklog(item(g, 2, 3, 'playing'))).toBe(false);
     expect(isBacklog(item(g, 40, 3, 'finished'))).toBe(false);
@@ -113,6 +114,26 @@ describe('buildCandidates', () => {
     const out = await run();
     expect(out).toHaveLength(300);
     expect(out.filter((c) => c.backlog)).toHaveLength(5);
+  });
+
+  it('looks up similar games before the tag query, never both at once', async () => {
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const track =
+      <T>(v: T) =>
+      async () => {
+        maxInFlight = Math.max(maxInFlight, ++inFlight);
+        await new Promise((r) => setTimeout(r, 5));
+        inFlight--;
+        return v;
+      };
+    const { run, getGames, queryByTags } = setup();
+    getGames.mockImplementation(track([raw(101)]));
+    queryByTags.mockImplementation(track([raw(500)]));
+    await run();
+    expect(getGames).toHaveBeenCalled();
+    expect(queryByTags).toHaveBeenCalled();
+    expect(maxInFlight).toBe(1);
   });
 
   it('skips the network lookups when there is nothing to ask', async () => {

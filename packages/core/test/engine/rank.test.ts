@@ -79,6 +79,11 @@ describe('diversify', () => {
     expect(diversify(clumped).map((o) => o.game.igdbId)).toEqual([1, 2, 4, 5, 3]);
   });
 
+  it('window 1 puts no limit on repeats', () => {
+    const items = [mk(1, 1), mk(2, 1), mk(3, 1), mk(4, 2)];
+    expect(diversify(items, 1, 1).map((o) => o.game.igdbId)).toEqual([1, 2, 3, 4]);
+  });
+
   it('falls back to score order when only one genre is left', () => {
     const out = diversify([1, 2, 3, 4, 5].map((i) => mk(i, 1)));
     expect(out.map((o) => o.game.igdbId)).toEqual([1, 2, 3, 4, 5]);
@@ -128,6 +133,20 @@ describe('rankCandidates on the fixed 12-game library', () => {
       }
       expect(Math.max(0, ...counts.values())).toBeLessThanOrEqual(2);
     }
+  });
+
+  it('with a limit, diversifies only the top limit x 3 (rest is dropped)', () => {
+    const limited = rankCandidates(
+      profile,
+      CANDIDATES.map((game) => ({ game, backlog: false })),
+      NOW,
+      4,
+    );
+    expect(limited).toHaveLength(12);
+    const byScore = [...ranked].sort((a, b) => b.score - a.score).slice(0, 12);
+    expect(new Set(limited.map((r) => r.game.igdbId))).toEqual(
+      new Set(byScore.map((r) => r.game.igdbId)),
+    );
   });
 
   it('the backlog bonus lifts a backlog game above an otherwise equal one', () => {

@@ -278,8 +278,9 @@ describe('queryByTags', () => {
     expect(list.map((g) => g.igdbId)).toEqual([hades.igdbId]);
     const { body } = net.apiCalls()[0]!;
     expect(body).toContain('(genres = (12,31) | themes = (17))');
-    expect(body).toContain('total_rating_count > 50');
-    expect(body).toContain('sort total_rating_count desc');
+    expect(body).toContain('total_rating_count >= 50');
+    expect(body).toContain('game_type = 0');
+    expect(body).toContain('sort total_rating desc');
     expect(body).toContain('limit 100;');
   });
 

@@ -72,7 +72,7 @@ export interface IgdbClient {
   getGame(igdbId: number): Promise<Game | null>;
   /** Batched lookup (<= 500 ids per query). Unknown ids are omitted; order is not preserved. */
   getGames(igdbIds: readonly number[]): Promise<Game[]>;
-  /** Most-rated games matching any of the genres/themes, best first. */
+  /** Best-rated main games (game_type 0) matching any genre/theme, with at least minRatingCount ratings. */
   queryByTags(q: TagQuery): Promise<Game[]>;
   getTimeToBeat(igdbId: number): Promise<TimeToBeat | null>;
 }
@@ -202,8 +202,8 @@ export function createIgdbClient(opts: IgdbClientOptions): IgdbClient {
       if (tags.length === 0) return [];
       const rows = await query(
         'games',
-        `fields ${GAME_FIELDS}; where (${tags.join(' | ')}) & total_rating_count > ${Math.trunc(minRatingCount)}; ` +
-          `sort total_rating_count desc; limit ${Math.min(Math.max(Math.trunc(limit), 1), IGDB_MAX_LIMIT)};`,
+        `fields ${GAME_FIELDS}; where (${tags.join(' | ')}) & total_rating_count >= ${Math.trunc(minRatingCount)} & game_type = 0; ` +
+          `sort total_rating desc; limit ${Math.min(Math.max(Math.trunc(limit), 1), IGDB_MAX_LIMIT)};`,
         igdbGamesResponseSchema,
       );
       return rows.map(toGame);

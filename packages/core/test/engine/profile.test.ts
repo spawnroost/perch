@@ -88,7 +88,7 @@ describe('buildProfile weights', () => {
     expect(weightOf(p, 3)).toBeCloseTo(base, 10);
   });
 
-  it('missing hours weigh nothing; weights are sorted high to low', () => {
+  it('missing hours count as 1 h; weights are sorted high to low', () => {
     const p = buildProfile({ library: LIBRARY, feedback: [], now: NOW });
     expect(p.weights[0]!.igdbId).toBe(1); // Hades: most hours, most recent
     const ws = p.weights.map((w) => w.weight);
@@ -98,7 +98,14 @@ describe('buildProfile weights', () => {
       feedback: [],
       now: NOW,
     });
-    expect(weightOf(q, 1)).toBe(0);
+    // null hours: base weight log1p(1) (x0.5^(1/45) recency, x1.5 last-3 boost); 0 h is still 0.
+    expect(weightOf(q, 1)).toBeCloseTo(Math.log1p(1) * 0.5 ** (1 / 45) * 1.5, 10);
+    const z = buildProfile({
+      library: [item(game(1, 'A', { x: 1 }), 0, 1)],
+      feedback: [],
+      now: NOW,
+    });
+    expect(weightOf(z, 1)).toBe(0);
   });
 });
 

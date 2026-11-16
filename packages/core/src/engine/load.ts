@@ -4,8 +4,8 @@ import type { Status } from '../library/fields.js';
 import type { FeedbackItem, LibraryItem, Vocab } from './types.js';
 
 /**
- * Loads a user's library (joined with games) and feedback. Stored `games.vocab` is used when
- * present; `mapVocab` fills in rows whose vocab was never computed.
+ * Loads a user's library (joined with games) and feedback. Vocab is always computed fresh with
+ * `mapVocab`, so a vocab table change never leaves library games on stale stored vectors.
  */
 export async function loadRecommendInput(
   db: Db,
@@ -32,7 +32,7 @@ export async function loadRecommendInput(
         similarIds: game.similarIds,
         rating: game.rating,
         ratingCount: game.ratingCount,
-        vocab: Object.keys(game.vocab).length > 0 ? game.vocab : mapVocab(game),
+        vocab: mapVocab(game),
       },
       hours: entry.hoursPlayed,
       lastPlayed: entry.lastPlayed,

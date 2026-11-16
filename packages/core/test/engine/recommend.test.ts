@@ -44,6 +44,45 @@ describe('recommend', () => {
     expect(ids).not.toContain(second);
   });
 
+  it('hides games with played feedback', async () => {
+    const all = await recommend(deps, { library: LIBRARY, feedback: [], limit: 50 });
+    const top = all[0]!.game.igdbId;
+    const recs = await recommend(deps, {
+      library: LIBRARY,
+      feedback: [{ igdbId: top, kind: 'played' }],
+      limit: 50,
+    });
+    expect(recs.map((r) => r.game.igdbId)).not.toContain(top);
+  });
+
+  it('explains only from library games that count as taste signal', async () => {
+    const seen: (readonly { igdbId: number }[])[] = [];
+    const spy = {
+      name: 'spy',
+      explain: async (reqs: readonly { library: readonly { igdbId: number }[] }[]) => {
+        seen.push(...reqs.map((r) => r.library));
+        return reqs.map(() => 'r');
+      },
+    };
+    const dropped = item({ ...LIBRARY[0]!.game, igdbId: 20, name: 'D' }, 50, 3, 'dropped');
+    const downed = item({ ...LIBRARY[0]!.game, igdbId: 21, name: 'V' }, 50, 3, 'finished');
+    const unplayed = item({ ...LIBRARY[0]!.game, igdbId: 22, name: 'U' }, 0, null, 'backlog');
+    const recs = await recommend(
+      { ...deps, explain: spy },
+      {
+        library: [...LIBRARY, dropped, downed, unplayed],
+        feedback: [{ igdbId: 21, kind: 'down' }],
+        limit: 3,
+      },
+    );
+    expect(recs).toHaveLength(3);
+    // Dropped games are weighted but excluded as a "similar to" source.
+    const libIds = new Set(seen[0]!.map((g) => g.igdbId));
+    for (const id of [20, 21, 22]) expect(libIds.has(id)).toBe(false);
+    expect(libIds.has(1)).toBe(true);
+    expect(seen[1]).toBe(seen[0]); // built once, shared by every request
+  });
+
   it('surfaces an owned backlog game with the bonus and merges duplicate platform rows', async () => {
     const waiting = { ...CANDIDATES[3]!, igdbId: 900, name: 'Waiting Game' };
     const library = [

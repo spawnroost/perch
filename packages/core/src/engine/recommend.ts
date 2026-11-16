@@ -3,7 +3,7 @@ import type { ExplainProvider } from './explain.js';
 import { buildProfile } from './profile.js';
 import { rankCandidates } from './rank.js';
 import type { FeedbackItem, LibraryItem, Recommendation } from './types.js';
-import { hiddenIds } from './visibility.js';
+import { hiddenIds, isBacklog } from './visibility.js';
 
 export interface RecommendDeps extends CandidateDeps {
   explain: ExplainProvider;
@@ -52,9 +52,21 @@ export async function recommend(
     deps,
     now,
   });
-  const top = rankCandidates(profile, candidates, now).slice(0, input.limit);
+  const top = rankCandidates(profile, candidates, now, input.limit).slice(0, input.limit);
+  // Reasons only cite games that really say something about the user's taste.
+  const weight = new Map(profile.weights.map((w) => [w.igdbId, w.weight]));
+  const downed = new Set(input.feedback.filter((f) => f.kind === 'down').map((f) => f.igdbId));
+  const similarSources = library
+    .filter(
+      (l) =>
+        (weight.get(l.game.igdbId) ?? 0) > 0 &&
+        l.status !== 'dropped' &&
+        !downed.has(l.game.igdbId) &&
+        !isBacklog(l),
+    )
+    .map((l) => l.game);
   const reasons = await deps.explain.explain(
-    top.map((t) => ({ game: t.game, profile, library: library.map((l) => l.game) })),
+    top.map((t) => ({ game: t.game, profile, library: similarSources })),
   );
   return top.map((t, i) => ({
     rank: i + 1,

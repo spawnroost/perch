@@ -32,7 +32,10 @@ describe.skipIf(!url)('igdb db cache', () => {
     );
   });
 
-  function setup(intercept?: Parameters<typeof fakeFetch>[0] extends infer O ? O : never) {
+  function setup(
+    intercept?: Parameters<typeof fakeFetch>[0] extends infer O ? O : never,
+    mapVocab?: (g: { genres: number[] }) => Record<string, number>,
+  ) {
     const net = fakeFetch(intercept);
     const client = createIgdbClient({
       clientId: 'id',
@@ -41,7 +44,7 @@ describe.skipIf(!url)('igdb db cache', () => {
       maxPerSecond: 1000,
     });
     let now = T0;
-    const cache = createIgdbCache({ db, client, now: () => now });
+    const cache = createIgdbCache({ db, client, now: () => now, mapVocab });
     return {
       net,
       cache,
@@ -134,6 +137,68 @@ describe.skipIf(!url)('igdb db cache', () => {
       await cache.getGames([hades.igdbId]);
       const [row] = await db.select().from(games).where(eq(games.igdbId, hades.igdbId));
       expect(row?.vocab).toEqual({ roguelike: 1 });
+    });
+
+    it('writes freshly computed vocab on every upsert path, overwriting stale vocab', async () => {
+      const mapVocab = (g: { genres: number[] }) => ({ [`g${g.genres[0]}`]: 1 });
+      const { cache, setNow } = setup(
+        {
+          intercept: ({ body, ...rest }) =>
+            body.includes('genres =') ? json(hades.game) : serve({ body, ...rest }),
+        },
+        mapVocab,
+      );
+      const vocabOf = async (id: number) =>
+        (await db.select().from(games).where(eq(games.igdbId, id)))[0]?.vocab;
+      const one = await cache.getGame(hades.igdbId);
+      expect(await vocabOf(hades.igdbId)).toEqual(mapVocab(one!));
+      await db.update(games).set({ vocab: { old: 1 } });
+      setNow(new Date(T0.getTime() + CACHE_TTL_MS + DAY));
+      const both = await cache.getGames([hades.igdbId, celeste.igdbId]);
+      for (const g of both) expect(await vocabOf(g.igdbId)).toEqual(mapVocab(g));
+      await db.update(games).set({ vocab: { old: 1 } });
+      const [viaTags] = await cache.queryByTags({
+        genres: [1],
+        themes: [],
+        minRatingCount: 1,
+        limit: 1,
+      });
+      expect(await vocabOf(viaTags!.igdbId)).toEqual(mapVocab(viaTags!));
+    });
+
+    describe('stale fallback', () => {
+      type Mode = 'ok' | 'miss-hades' | 'fail';
+      function stale() {
+        let mode: Mode = 'ok';
+        const s = setup({
+          intercept: ({ body }) => {
+            if (mode === 'fail') return new Response('', { status: 400 });
+            const res = serve({ body });
+            if (mode === 'ok') return res;
+            return json(celeste.game);
+          },
+        });
+        return { ...s, setMode: (m: Mode) => (mode = m) };
+      }
+      const ids = [hades.igdbId, celeste.igdbId];
+
+      it('serves the stale row when IGDB misses the id', async () => {
+        const { cache, setNow, setMode } = stale();
+        await cache.getGames(ids);
+        setNow(new Date(T0.getTime() + CACHE_TTL_MS + DAY));
+        setMode('miss-hades');
+        const list = await cache.getGames(ids);
+        expect(list.map((g) => g.igdbId)).toEqual(ids);
+      });
+
+      it('serves the stale rows when the refetch fails, but still throws with no row to fall back on', async () => {
+        const { cache, setNow, setMode } = stale();
+        await cache.getGames(ids);
+        setNow(new Date(T0.getTime() + CACHE_TTL_MS + DAY));
+        setMode('fail');
+        expect((await cache.getGames(ids)).map((g) => g.igdbId)).toEqual(ids);
+        await expect(cache.getGames([...ids, 99999999])).rejects.toThrow(/IGDB/);
+      });
     });
 
     it('queryByTags: upserts every result', async () => {

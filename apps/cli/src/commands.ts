@@ -70,7 +70,12 @@ export async function addCommand(argv: string[]): Promise<void> {
   try {
     const userId = await findUserId(db, email);
     const client = createIgdbClientFromEnv();
-    const deps = { db, client, cache: createIgdbCache({ db, client }), mapVocab: mapGame };
+    const deps = {
+      db,
+      client,
+      cache: createIgdbCache({ db, client, mapVocab: mapGame }),
+      mapVocab: mapGame,
+    };
     const added = await addGame(deps, userId, args, 'manual');
     console.log(`added "${added.name}" (igdb ${added.igdbId}) for ${email}`);
   } finally {
@@ -100,7 +105,12 @@ export async function importCommand(argv: string[]): Promise<number> {
   try {
     const userId = await findUserId(db, email);
     const client = createIgdbClientFromEnv();
-    const deps = { db, client, cache: createIgdbCache({ db, client }), mapVocab: mapGame };
+    const deps = {
+      db,
+      client,
+      cache: createIgdbCache({ db, client, mapVocab: mapGame }),
+      mapVocab: mapGame,
+    };
     for (const { line, value } of entries) {
       try {
         const added = await addGame(deps, userId, { ...common, ...value }, 'import');

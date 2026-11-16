@@ -10,6 +10,8 @@ export interface IgdbCacheOptions {
   client: IgdbClient;
   ttlMs?: number;
   now?: () => Date;
+  /** Taste-vocab mapper; when set, every upsert writes freshly computed `games.vocab`. */
+  mapVocab?: (game: Game) => Record<string, number>;
 }
 
 export interface IgdbCache {
@@ -44,7 +46,7 @@ function toGame(row: typeof games.$inferSelect): Game {
 }
 
 export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
-  const { db, client, ttlMs = CACHE_TTL_MS, now = () => new Date() } = opts;
+  const { db, client, ttlMs = CACHE_TTL_MS, now = () => new Date(), mapVocab } = opts;
   const isFresh = (at: Date) => now().getTime() - at.getTime() < ttlMs;
 
   async function getGame(igdbId: number): Promise<Game | null> {
@@ -54,23 +56,23 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
     }
     const game = await client.getGame(igdbId);
     if (!game) return null;
-    // `vocab` is derived elsewhere; an upsert must not reset it.
-    await db
-      .insert(games)
-      .values({ ...game, fetchedAt: now() })
-      .onConflictDoUpdate({ target: games.igdbId, set: { ...game, fetchedAt: now() } });
+    await upsertGames([game]);
     return game;
   }
 
   async function upsertGames(list: Game[]): Promise<void> {
     if (list.length === 0) return;
     const fetchedAt = now();
+    // Sorted so concurrent upserts lock rows in the same order.
+    list = [...list].sort((a, b) => a.igdbId - b.igdbId);
     // Chunked: Postgres caps bind parameters per statement.
     for (let i = 0; i < list.length; i += 200) {
       const chunk = list.slice(i, i + 200);
       await db
         .insert(games)
-        .values(chunk.map((g) => ({ ...g, fetchedAt })))
+        .values(
+          chunk.map((g) => ({ ...g, fetchedAt, ...(mapVocab ? { vocab: mapVocab(g) } : {}) })),
+        )
         .onConflictDoUpdate({
           target: games.igdbId,
           set: {
@@ -89,6 +91,8 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
             ratingCount: sql`excluded.rating_count`,
             steamAppId: sql`excluded.steam_app_id`,
             fetchedAt: sql`excluded.fetched_at`,
+            // Without a mapper, vocab is derived elsewhere and an upsert must not reset it.
+            ...(mapVocab ? { vocab: sql`excluded.vocab` } : {}),
           },
         });
     }
@@ -98,18 +102,31 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
     const ids = [...new Set(igdbIds)];
     if (ids.length === 0) return [];
     const found = new Map<number, Game>();
+    const stale = new Map<number, Game>();
     for (let i = 0; i < ids.length; i += 1000) {
       const rows = await db
         .select()
         .from(games)
         .where(inArray(games.igdbId, ids.slice(i, i + 1000)));
-      for (const row of rows) if (isFresh(row.fetchedAt)) found.set(row.igdbId, toGame(row));
+      for (const row of rows) {
+        (isFresh(row.fetchedAt) ? found : stale).set(row.igdbId, toGame(row));
+      }
     }
     const missing = ids.filter((id) => !found.has(id));
-    const fetched = await client.getGames(missing);
-    await upsertGames(fetched);
-    for (const g of fetched) found.set(g.igdbId, g);
-    return ids.flatMap((id) => found.get(id) ?? []);
+    if (missing.length > 0) {
+      let fetched: Game[];
+      try {
+        fetched = await client.getGames(missing);
+        await upsertGames(fetched);
+      } catch (e) {
+        // A failed refetch is fine only if every missing id has a stale row to serve instead.
+        if (missing.some((id) => !stale.has(id))) throw e;
+        fetched = [];
+      }
+      for (const g of fetched) found.set(g.igdbId, g);
+    }
+    // IGDB missed it or the refetch failed: a stale row beats nothing.
+    return ids.flatMap((id) => found.get(id) ?? stale.get(id) ?? []);
   }
 
   async function queryByTags(q: TagQuery): Promise<Game[]> {

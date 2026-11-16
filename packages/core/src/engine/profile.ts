@@ -6,6 +6,8 @@ export const DROPPED_FACTOR = 0.3;
 export const LAST_PLAYED_BOOST = 1.5;
 export const LAST_PLAYED_COUNT = 3;
 export const PROFILE_TOP_N = 15;
+/** Unknown hours count as one hour: the game is in the library, so it says something. */
+export const NULL_HOURS = 1;
 const DAY_MS = 86_400_000;
 
 export interface ProfileInput {
@@ -36,7 +38,7 @@ export function weighGames({ library, feedback, now }: ProfileInput): WeightedGa
   return library
     .map((l): WeightedGame => {
       const base =
-        Math.log1p(Math.max(0, l.hours ?? 0)) *
+        Math.log1p(Math.max(0, l.hours ?? NULL_HOURS)) *
         recency(l.lastPlayed, now) *
         (l.status === 'dropped' ? DROPPED_FACTOR : 1) *
         (recent.has(l) ? LAST_PLAYED_BOOST : 1);
