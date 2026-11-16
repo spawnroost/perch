@@ -112,6 +112,15 @@ describe('matchGpu', () => {
     expect(gpuKey('GeForce GTX 1660 Ti Mobile')).toBe('gtx 1660 ti laptop');
   });
 
+  it('discounts discrete laptop fallbacks by 20% but not integrated ones', () => {
+    expect(gpuScore('GeForce RTX 3090 Ti Mobile')).toBe(Math.round(gpuScore('rtx 3090 ti') * 0.8));
+    expect(gpuScore('Radeon RX 6600 Mobile')).toBe(Math.round(gpuScore('rx 6600') * 0.8));
+    expect(gpuScore('Intel HD Graphics 4000 Mobile')).toBe(gpuScore('hd 4000'));
+    expect(gpuScore('AMD Radeon Vega 8 Mobile Graphics')).toBe(gpuScore('vega 8'));
+    // tabled laptop keys are not discounted again
+    expect(gpuScore('GeForce RTX 3060 Laptop GPU')).toBe(13400);
+  });
+
   it('keeps alternatives that follow a w/ clause', () => {
     expect(gpuKey('Intel HD 4000 w/ 1GB or AMD Radeon RX 580')).toBe('hd 4000');
     expect(gpuKey('Intel Graphics w/ shared memory or AMD Radeon RX 580')).toBe('rx 580');

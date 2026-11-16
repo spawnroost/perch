@@ -41,6 +41,9 @@ const VARIANT_TOKENS = new Set([
 /** Tokens that make a bare key (e.g. "780m") part of a longer, different model name. */
 const PREFIX_TOKENS = new Set(['gtx', 'gt', 'gts', 'rtx', 'rx', 'hd', 'uhd', 'titan', 'mx']);
 
+const DISCRETE_GPU = /^(?:gtx|rtx|rx|gts|gt)\b/;
+const LAPTOP_FALLBACK_FACTOR = 0.8;
+
 /** Noise common to Steam requirement lists, WebGL renderer strings and CPU brand strings. */
 function stripCommon(raw: string): string {
   return raw
@@ -138,13 +141,17 @@ function candidates(raw: string): string[] {
 export function matchGpu(raw: string): TierMatch | null {
   for (const part of candidates(raw)) {
     const norm = normaliseGpu(part);
-    const found =
-      findInTable(GPU_TABLE, norm) ??
-      // No laptop key: fall back to the base part.
-      (/\blaptop\b/.test(norm)
-        ? findInTable(GPU_TABLE, norm.replace(/\s*\blaptop\b/g, '').trim())
-        : null);
+    const found = findInTable(GPU_TABLE, norm);
     if (found) return found;
+    if (!/\blaptop\b/.test(norm)) continue;
+    // No laptop key: fall back to the base part, discounting discrete GPUs
+    // because desktop scores overstate their laptop versions.
+    const base = norm.replace(/\s*\blaptop\b/g, '').trim();
+    const fallback = findInTable(GPU_TABLE, base);
+    if (!fallback) continue;
+    return DISCRETE_GPU.test(base)
+      ? { key: fallback.key, score: Math.round(fallback.score * LAPTOP_FALLBACK_FACTOR) }
+      : fallback;
   }
   return null;
 }
