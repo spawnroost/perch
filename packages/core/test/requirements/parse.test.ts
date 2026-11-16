@@ -103,6 +103,26 @@ describe('scoreRequirements', () => {
   });
 });
 
+describe('per-field scoring', () => {
+  it('a recommended block with only some fields keeps the rest null', () => {
+    const s = scoreRequirements({
+      min: { gpuRaw: 'GTX 1060', cpuRaw: 'i5-8400', ramGb: 8 },
+      rec: { ramGb: 16 },
+    });
+    expect([s.recGpuScore, s.recCpuScore]).toEqual([null, null]);
+    expect(s.recRamGb).toBe(16);
+    expect(s.minGpuScore).toBeGreaterThan(0);
+  });
+
+  it('keeps a recommended block that only has a CPU', () => {
+    const { rec } = parseSteamRequirements({
+      minimum: '<ul><li><strong>Memory:</strong> 4 GB RAM</li></ul>',
+      recommended: '<ul><li><strong>Processor:</strong> Core i7-6700</li></ul>',
+    });
+    expect(rec).toEqual({ cpuRaw: 'Core i7-6700' });
+  });
+});
+
 describe('LLM fallback', () => {
   it('the none provider leaves everything unknown', async () => {
     await expect(noneLlm.parse('Needs a decent PC')).resolves.toBeNull();
@@ -138,23 +158,36 @@ const EXPECTED: Record<number, Expect> = {
   },
   1237970: {
     min: { gpu: 'gtx 660', cpu: 'i3-6300', ram: 8 },
-    rec: { gpu: 'gtx 1060', cpu: null, ram: 16 },
+    rec: { gpu: 'gtx 1060', cpu: 'i5-6600', ram: 16 },
   },
   1145360: { min: { gpu: null, cpu: null, ram: 4 }, rec: { gpu: null, cpu: null, ram: 8 } },
-  504230: { min: { gpu: 'hd 4000', cpu: null, ram: 2 }, rec: null },
+  504230: { min: { gpu: 'hd 4000', cpu: 'i3-m380', ram: 2 }, rec: null },
   413150: { min: { gpu: null, cpu: null, ram: 2 }, rec: null },
   220: { min: { gpu: null, cpu: null, ram: 0.5 }, rec: null },
   620: { min: { gpu: 'hd 2000', cpu: null, ram: 2 }, rec: null },
   105600: { min: { gpu: null, cpu: null, ram: 2.5 }, rec: { gpu: null, cpu: null, ram: 4 } },
-  632470: { min: { gpu: null, cpu: null, ram: 2 }, rec: { gpu: null, cpu: null, ram: 8 } },
+  632470: { min: { gpu: null, cpu: null, ram: 2 }, rec: { gpu: 'gtx 1060', cpu: null, ram: 8 } },
   975370: { min: { gpu: 'hd 3000', cpu: null, ram: 4 }, rec: { gpu: null, cpu: null, ram: 4 } },
   427520: {
     min: { gpu: 'gtx 750 ti', cpu: null, ram: 8 },
     rec: { gpu: 'gtx 1050 ti', cpu: null, ram: 16 },
   },
   945360: {
-    min: { gpu: 'hd 4600', cpu: null, ram: 1 },
-    rec: { gpu: 'gtx 650', cpu: null, ram: 4 },
+    min: { gpu: 'hd 4600', cpu: 'i3-4330', ram: 1 },
+    rec: { gpu: 'gtx 650', cpu: 'i3-4330', ram: 4 },
+  },
+  271590: {
+    min: { gpu: '9800 gt', cpu: 'core2 quad q6600', ram: 4 },
+    rec: { gpu: 'gtx 660', cpu: 'i5-3470', ram: 8 },
+  },
+  570: { min: { gpu: '8600 gt', cpu: null, ram: 4 }, rec: null },
+  377160: {
+    min: { gpu: 'gtx 550 ti', cpu: 'i5-2300', ram: 8 },
+    rec: { gpu: 'gtx 780', cpu: 'i7-4790', ram: 8 },
+  },
+  289070: {
+    min: { gpu: 'gtx 450', cpu: null, ram: 4 },
+    rec: { gpu: 'gtx 770', cpu: 'fx-8350', ram: 8 },
   },
 };
 

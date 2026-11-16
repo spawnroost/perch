@@ -209,3 +209,59 @@ describe('tier tables', () => {
     expect(matchCpu('steam deck cpu')?.key).toBe('steam deck cpu');
   });
 });
+
+describe('Steam requirement strings', () => {
+  it('matches old NVIDIA cards written number-first', () => {
+    expect(gpuKey('NVIDIA 9800 GT 1GB / AMD HD 4870 1GB (DX 10, 10.1, 11)')).toBe('9800 gt');
+    expect(gpuKey('AMD HD 4870 1GB')).toBe('hd 4870');
+    expect(gpuKey('NVIDIA GeForce 8600/9600GT, ATI/AMD Radeon HD2600/3600')).toBe('8600 gt');
+    expect(gpuKey('9600GT')).toBe('9600 gt');
+    expect(gpuKey('ATI Radeon HD2600')).toBe('hd 2600');
+  });
+
+  it('adds the series prefix to a bare NVIDIA model number', () => {
+    expect(gpuKey('2060 Super')).toBe('rtx 2060 super');
+    expect(gpuKey('Nvidia 2060 Super / RX 5700 XT')).toBe('rtx 2060 super');
+    expect(gpuKey('NVIDIA Geforce 1060 or equivalent')).toBe('gtx 1060');
+    expect(gpuKey('1 GB & AMD 5570 or nVidia 450')).toBe('gtx 450');
+    expect(gpuKey('2GB & AMD 7970 or nVidia 770 or greater')).toBe('gtx 770');
+  });
+
+  it('does not guess a prefix for bare AMD / ambiguous numbers', () => {
+    expect(gpuKey('AMD 5570')).toBeNull();
+    expect(gpuKey('AMD 7970')).toBeNull();
+    expect(gpuKey('580')).toBeNull();
+    expect(gpuKey('9999')).toBeNull();
+  });
+
+  it('strips "(4 CPUs)" and the word CPU', () => {
+    expect(cpuKey('Intel Core 2 Quad CPU Q6600 @ 2.40GHz (4 CPUs) / AMD Phenom 9850')).toBe(
+      'core2 quad q6600',
+    );
+    expect(cpuKey('Intel Core i5 3470 @ 3.2GHz (4 CPUs) / AMD X8 FX-8350 @ 4GHz (8 CPUs)')).toBe(
+      'i5-3470',
+    );
+  });
+
+  it('knows CPUs that Steam lists', () => {
+    expect(cpuKey('Intel Core i5-6600 or equivalent')).toBe('i5-6600');
+    expect(cpuKey('Intel Core i5-2300 2.8 GHz/AMD Phenom II X4 945 3.0 GHz or equivalent')).toBe(
+      'i5-2300',
+    );
+    expect(cpuKey('AMD Phenom II X4 945 3.0 GHz')).toBe('phenom ii x4 945');
+    expect(cpuKey('Intel Core i3 M380')).toBe('i3-m380');
+    expect(cpuKey('INTEL i3-4330')).toBe('i3-4330');
+  });
+
+  it('orders the new keys sensibly', () => {
+    expect(gpuScore('GTX 450')).toBeGreaterThan(gpuScore('9800 GT'));
+    expect(gpuScore('HD 4870')).toBeGreaterThan(gpuScore('9600 GT'));
+    expect(gpuScore('9600 GT')).toBeGreaterThan(gpuScore('8600 GT'));
+    expect(cpuScore('i5-6600')).toBeGreaterThan(cpuScore('i5-6500'));
+    expect(cpuScore('i5-6600k')).toBeGreaterThan(cpuScore('i5-6600'));
+    expect(cpuScore('i5-2400')).toBeGreaterThan(cpuScore('i5-2300'));
+    expect(cpuScore('i3-2100')).toBeGreaterThan(cpuScore('i3-m380'));
+    expect(cpuScore('i3-4330')).toBeGreaterThan(cpuScore('i3-4160'));
+    expect(cpuScore('phenom ii x4 955')).toBeGreaterThan(cpuScore('phenom ii x4 945'));
+  });
+});
