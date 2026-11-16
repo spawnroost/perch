@@ -27,3 +27,8 @@ export function parseQuery<T extends z.ZodType>(c: Context, schema: T): z.infer<
 function formatZodError(err: z.ZodError): string {
   return err.issues.map((i) => `${i.path.join('.') || 'body'}: ${i.message}`).join('; ');
 }
+
+/** Credential-handling requests (sign-in, sign-up, reset, ...): POST /api/auth/*. */
+export function isAuthPost(c: Context): boolean {
+  return c.req.method === 'POST' && c.req.path.startsWith('/api/auth/');
+}

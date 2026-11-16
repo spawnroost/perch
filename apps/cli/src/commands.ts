@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { createInterface } from 'node:readline/promises';
 import { parseArgs } from 'node:util';
 import {
   addArgsSchema,
@@ -37,21 +38,43 @@ export function userEmail(flag: string | undefined): string {
   return email.toLowerCase();
 }
 
+/** PERCH_PASSWORD, else a prompt on a TTY with no echo. Never an argv value (visible in `ps`). */
+async function readPassword(): Promise<string> {
+  const fromEnv = process.env.PERCH_PASSWORD;
+  if (fromEnv) return fromEnv;
+  if (!process.stdin.isTTY) throw new Error('no password: set PERCH_PASSWORD or run on a terminal');
+  const rl = createInterface({ input: process.stdin, output: process.stderr, terminal: true });
+  const muted = rl as unknown as { _writeToOutput: (s: string) => void };
+  muted._writeToOutput = () => {};
+  process.stderr.write('Password: ');
+  try {
+    return await rl.question('');
+  } finally {
+    rl.close();
+    process.stderr.write('\n');
+  }
+}
+
 export async function userCreateCommand(argv: string[]): Promise<void> {
   const { values, positionals } = parseArgs({
     args: argv,
     allowPositionals: true,
-    options: { name: { type: 'string' } },
+    options: { name: { type: 'string' }, 'reset-password': { type: 'boolean' } },
   });
+  if (positionals.length > 1) {
+    throw new Error('the password is not an argument: set PERCH_PASSWORD or enter it when asked');
+  }
   const args = userCreateSchema.parse({
     email: positionals[0],
-    password: positionals[1],
+    password: await readPassword(),
     name: values.name,
   });
   const db = createDb(dbUrl());
   try {
-    const { id, created } = await createVerifiedUser(db, args, hashPassword);
-    console.log(`${created ? 'created' : 'updated'}: ${args.email} (${id}), verified`);
+    const { id, created } = await createVerifiedUser(db, args, hashPassword, {
+      resetPassword: values['reset-password'] ?? false,
+    });
+    console.log(`${created ? 'created' : 'password reset'}: ${args.email} (${id}), verified`);
   } finally {
     await db.$client.end();
   }

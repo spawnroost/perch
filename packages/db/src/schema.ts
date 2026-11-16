@@ -46,6 +46,7 @@ export const sessions = pgTable(
     token: text('token').notNull().unique(),
     createdAt: ts('created_at').defaultNow().notNull(),
     updatedAt: ts('updated_at')
+      .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
     ipAddress: text('ip_address'),
@@ -75,10 +76,14 @@ export const accounts = pgTable(
     password: text('password'),
     createdAt: ts('created_at').defaultNow().notNull(),
     updatedAt: ts('updated_at')
+      .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (t) => [index('accounts_user_id_idx').on(t.userId)],
+  (t) => [
+    index('accounts_user_id_idx').on(t.userId),
+    uniqueIndex('accounts_user_provider_uniq').on(t.userId, t.providerId),
+  ],
 );
 
 export const verifications = pgTable(

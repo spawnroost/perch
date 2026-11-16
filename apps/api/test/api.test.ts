@@ -181,4 +181,39 @@ describe.skipIf(!testUrl)('api rate limiting', () => {
       await ctx.cleanup();
     }
   });
+
+  it('keeps GET /api/auth/* on the normal bucket', async () => {
+    const ctx = await setupApi({
+      api: { limit: 100, windowMs: 60_000 },
+      auth: { limit: 1, windowMs: 60_000 },
+    });
+    try {
+      for (let i = 0; i < 3; i++) {
+        expect((await ctx.app.request('/api/auth/get-session')).status).toBe(200);
+      }
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+
+  it('ignores a spoofed X-Forwarded-For unless TRUST_PROXY is set', async () => {
+    const limits = { api: { limit: 2, windowMs: 60_000 }, auth: { limit: 100, windowMs: 60_000 } };
+    const hit = (ctx: Awaited<ReturnType<typeof setupApi>>, xff: string) =>
+      ctx.app.request('/api/health', { headers: { 'x-forwarded-for': xff } });
+    const untrusted = await setupApi(limits);
+    const trusted = await setupApi(limits, { TRUST_PROXY: true });
+    try {
+      await hit(untrusted, '1.1.1.1');
+      await hit(untrusted, '2.2.2.2');
+      expect((await hit(untrusted, '3.3.3.3')).status).toBe(429);
+      // Trusted: the rightmost hop is the key, whatever the client put first.
+      await hit(trusted, 'a, 9.9.9.9');
+      await hit(trusted, 'b, 9.9.9.9');
+      expect((await hit(trusted, 'c, 9.9.9.9')).status).toBe(429);
+      expect((await hit(trusted, 'c, 8.8.8.8')).status).toBe(200);
+    } finally {
+      await untrusted.cleanup();
+      await trusted.cleanup();
+    }
+  });
 });

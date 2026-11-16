@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq } from 'drizzle-orm';
-import { accounts, games, libraryEntries, users, type Db } from '@perch/db';
+import { eq } from 'drizzle-orm';
+import { accounts, games, libraryEntries, sessions, users, type Db } from '@perch/db';
 import type { IgdbCache } from '../igdb/cache.js';
 import type { IgdbClient } from '../igdb/client.js';
 import type { Game } from '../igdb/schemas.js';
@@ -9,27 +9,23 @@ import { pickBestMatch, type Suggestion } from './match.js';
 import type { ImportEntry } from './parse.js';
 import { buildGameRow, buildLibraryRow } from './rows.js';
 
-export async function createUser(
-  db: Db,
-  { email, name }: { email: string; name: string },
-): Promise<{ id: string; created: boolean }> {
-  const inserted = await db
-    .insert(users)
-    .values({ id: randomUUID(), email, name })
-    .onConflictDoNothing({ target: users.email })
-    .returning({ id: users.id });
-  if (inserted[0]) return { id: inserted[0].id, created: true };
-  return { id: await findUserId(db, email), created: false };
+export class UserExistsError extends Error {
+  constructor(email: string) {
+    super(`user ${email} already exists (pass --reset-password to reset their password)`);
+    this.name = 'UserExistsError';
+  }
 }
 
 /**
  * Creates (or updates) an email-verified user with a password login. `hash` is injected so core
  * does not depend on the auth library; it must produce better-auth's password hash format.
+ * An existing user is only touched with `resetPassword`, which also signs them out everywhere.
  */
 export async function createVerifiedUser(
   db: Db,
   { email, password, name }: { email: string; password: string; name?: string },
   hash: (password: string) => Promise<string>,
+  { resetPassword = false }: { resetPassword?: boolean } = {},
 ): Promise<{ id: string; created: boolean }> {
   const passwordHash = await hash(password);
   return db.transaction(async (tx) => {
@@ -39,23 +35,25 @@ export async function createVerifiedUser(
       .onConflictDoNothing({ target: users.email })
       .returning({ id: users.id });
     const created = Boolean(inserted[0]);
+    if (!created && !resetPassword) throw new UserExistsError(email);
     const id = inserted[0]?.id ?? (await findUserId(tx as unknown as Db, email));
-    if (!created) await tx.update(users).set({ emailVerified: true }).where(eq(users.id, id));
-    const [existing] = await tx
-      .select({ id: accounts.id })
-      .from(accounts)
-      .where(and(eq(accounts.userId, id), eq(accounts.providerId, 'credential')));
-    if (existing) {
-      await tx.update(accounts).set({ password: passwordHash }).where(eq(accounts.id, existing.id));
-    } else {
-      await tx.insert(accounts).values({
+    if (!created) {
+      await tx.update(users).set({ emailVerified: true }).where(eq(users.id, id));
+      await tx.delete(sessions).where(eq(sessions.userId, id));
+    }
+    await tx
+      .insert(accounts)
+      .values({
         id: randomUUID(),
         accountId: id,
         providerId: 'credential',
         userId: id,
         password: passwordHash,
+      })
+      .onConflictDoUpdate({
+        target: [accounts.userId, accounts.providerId],
+        set: { password: passwordHash },
       });
-    }
     return { id, created };
   });
 }

@@ -12,7 +12,8 @@ import { vocabRebuild } from './vocab-rebuild.js';
 const USAGE = `usage: perch <command>
 
 commands:
-  user:create <email> <password> [--name N]   (verified, password login)
+  user:create <email> [--name N] [--reset-password]   (verified, password login;
+              password from PERCH_PASSWORD or a hidden prompt)
   add "<game>" [--hours N] [--last YYYY-MM-DD] [--status playing|finished|dropped|backlog]
               [--platform pc] [--owned|--no-owned] [--igdb <id>] [--user <email>]
   import <file> [--platform pc] [--owned|--no-owned] [--user <email>]

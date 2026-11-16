@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { createDb, runMigrations, schema, type Db } from '@perch/db';
 import { createApp } from '../src/app.js';
-import { parseEnv } from '../src/env.js';
+import { parseEnv, type ApiEnv } from '../src/env.js';
 import type { Mail, Mailer } from '../src/mailer.js';
 import type { RateLimitConfig } from '../src/rate-limit.js';
 
@@ -24,11 +24,16 @@ export function captureMailer(): Mailer & { sent: Mail[] } {
   };
 }
 
-export async function setupApi(rateLimit?: RateLimitConfig) {
+export async function setupApi(rateLimit?: RateLimitConfig, envOverrides: Partial<ApiEnv> = {}) {
   await runMigrations(testUrl!);
   const db: Db = createDb(testUrl!);
   const mailer = captureMailer();
-  const app = createApp({ db, env: testEnv, mailer, ...(rateLimit ? { rateLimit } : {}) });
+  const app = createApp({
+    db,
+    env: { ...testEnv, ...envOverrides },
+    mailer,
+    ...(rateLimit ? { rateLimit } : {}),
+  });
   const emails: string[] = [];
   return {
     db,

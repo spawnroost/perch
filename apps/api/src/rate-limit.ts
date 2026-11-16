@@ -1,5 +1,7 @@
 import { createMiddleware } from 'hono/factory';
 import { getConnInfo } from '@hono/node-server/conninfo';
+import type { AppVars } from './app.js';
+import { isAuthPost } from './http.js';
 
 export interface RateRule {
   limit: number;
@@ -48,21 +50,25 @@ export function createLimiter(rule: RateRule) {
   };
 }
 
-/** User id when signed in, else the client IP (first X-Forwarded-For hop, else the socket). */
+/**
+ * User id when signed in, else the client IP. X-Forwarded-For is spoofable, so it is only read
+ * when `trustProxy` is set, and then only its rightmost hop (the one our own proxy appended).
+ */
 export function clientKey(p: {
   userId?: string | undefined;
   forwardedFor?: string | undefined;
   remoteAddress?: string | undefined;
+  trustProxy?: boolean | undefined;
 }): string {
   if (p.userId) return `user:${p.userId}`;
-  const fwd = p.forwardedFor?.split(',')[0]?.trim();
-  return `ip:${fwd || p.remoteAddress || 'unknown'}`;
+  const hop = p.trustProxy ? p.forwardedFor?.split(',').at(-1)?.trim() : undefined;
+  return `ip:${hop || p.remoteAddress || 'unknown'}`;
 }
 
 export interface RateLimitConfig {
-  /** Everything under /api except auth. */
+  /** Everything under /api except POST /api/auth/*. */
   api: RateRule;
-  /** /api/auth/*; stricter, always keyed by IP. */
+  /** POST /api/auth/*; stricter, always keyed by IP. */
   auth: RateRule;
 }
 
@@ -71,9 +77,8 @@ export const DEFAULT_RATE_LIMITS: RateLimitConfig = {
   auth: { limit: 20, windowMs: 60_000 },
 };
 
-type SessionLookup = (headers: Headers) => Promise<{ user: { id: string } } | null>;
-
-export function rateLimit(config: RateLimitConfig, getSession: SessionLookup) {
+/** Runs after `resolveSession`; reads the user it stored on the context. */
+export function rateLimit(config: RateLimitConfig, { trustProxy }: { trustProxy: boolean }) {
   const api = createLimiter(config.api);
   const auth = createLimiter(config.auth);
   const timer = setInterval(() => {
@@ -82,12 +87,9 @@ export function rateLimit(config: RateLimitConfig, getSession: SessionLookup) {
   }, 60_000);
   timer.unref();
 
-  return createMiddleware(async (c, next) => {
-    const isAuth = c.req.path.startsWith('/api/auth/');
-    let userId: string | undefined;
-    if (!isAuth && c.req.header('cookie')) {
-      userId = (await getSession(c.req.raw.headers).catch(() => null))?.user.id;
-    }
+  return createMiddleware<AppVars>(async (c, next) => {
+    // Only credential-handling POSTs (sign-in, sign-up, reset, ...) get the strict bucket.
+    const isAuth = isAuthPost(c);
     let remoteAddress: string | undefined;
     try {
       remoteAddress = getConnInfo(c).remote.address;
@@ -95,9 +97,10 @@ export function rateLimit(config: RateLimitConfig, getSession: SessionLookup) {
       // no socket (tests via app.request)
     }
     const key = clientKey({
-      userId,
+      userId: isAuth ? undefined : c.get('sessionUser')?.id,
       forwardedFor: c.req.header('x-forwarded-for'),
       remoteAddress,
+      trustProxy,
     });
     const res = (isAuth ? auth : api).hit(key);
     c.header('X-RateLimit-Remaining', String(res.remaining));

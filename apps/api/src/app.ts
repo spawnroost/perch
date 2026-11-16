@@ -5,7 +5,7 @@ import type { Db } from '@perch/db';
 import { createAuth, type Auth } from './auth.js';
 import type { ApiEnv } from './env.js';
 import type { Mailer } from './mailer.js';
-import { requireAuth } from './middleware.js';
+import { requireAuth, resolveSession } from './middleware.js';
 import { DEFAULT_RATE_LIMITS, rateLimit, type RateLimitConfig } from './rate-limit.js';
 
 export type { RateLimitConfig };
@@ -21,7 +21,12 @@ export interface AppDeps {
 export type AuthUser = Auth['$Infer']['Session']['user'];
 
 export interface AppVars {
-  Variables: { user: AuthUser };
+  Variables: {
+    /** Set by `resolveSession` on every request; null when anonymous. */
+    sessionUser: AuthUser | null;
+    /** Set by `requireAuth`. */
+    user: AuthUser;
+  };
   Bindings: Record<string, never>;
 }
 
@@ -35,15 +40,13 @@ export function createApp({ db, env, mailer, rateLimit: limits }: AppDeps) {
   const app = new Hono<AppVars>();
 
   app.use('/api/*', cors({ origin: env.WEB_ORIGIN, credentials: true }));
-  app.use(
-    '/api/*',
-    rateLimit(limits ?? DEFAULT_RATE_LIMITS, (headers) => auth.api.getSession({ headers })),
-  );
+  app.use('/api/*', resolveSession(deps));
+  app.use('/api/*', rateLimit(limits ?? DEFAULT_RATE_LIMITS, { trustProxy: env.TRUST_PROXY }));
 
   // Container healthcheck. No secrets, no row data.
   app.get('/api/health', (c) => c.json({ ok: true }));
   app.on(['GET', 'POST'], '/api/auth/*', (c) => auth.handler(c.req.raw));
-  app.get('/api/me', requireAuth(deps), (c) => {
+  app.get('/api/me', requireAuth(), (c) => {
     const { id, email, name } = c.get('user');
     return c.json({ id, email, name });
   });
