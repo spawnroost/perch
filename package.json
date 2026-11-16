@@ -1,0 +1,41 @@
+{
+  "name": "perch",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "packageManager": "pnpm@12.16.1",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p apps/web",
+    "test": "vitest run",
+    "perch": "tsx apps/cli/src/index.ts",
+    "db:up": "docker compose up -d --wait postgres",
+    "db:down": "docker compose down",
+    "db:generate": "pnpm --filter @perch/db generate",
+    "db:migrate": "pnpm --filter @perch/db migrate",
+    "api:dev": "tsx watch --env-file-if-exists=.env apps/api/src/server.ts",
+    "web:dev": "pnpm --filter @perch/web dev",
+    "web:build": "pnpm --filter @perch/web build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@perch/api": "workspace:*",
+    "@perch/cli": "workspace:*",
+    "@perch/core": "workspace:*",
+    "@perch/db": "workspace:*",
+    "@perch/taste-vocab": "workspace:*",
+    "@types/node": "^26.6.6",
+    "eslint": "^10.14.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.1.0"
+  }
+}
