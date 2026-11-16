@@ -1,10 +1,11 @@
-import { GENRE_MAP, KEYWORD_MAP, THEME_MAP, type IgdbMap } from './igdb-map.js';
+import { GENRE_MAP, KEYWORD_MAP, PERSPECTIVE_MAP, THEME_MAP, type IgdbMap } from './igdb-map.js';
 import { VOCAB_IDS, type VocabId } from './vocab.js';
 
 export interface GameIgdbIds {
   genres?: readonly number[] | null;
   themes?: readonly number[] | null;
   keywords?: readonly number[] | null;
+  perspectives?: readonly number[] | null;
 }
 
 export type TasteVector = Record<VocabId, number>;
@@ -17,7 +18,7 @@ function blank(): TasteVector {
  * Sums mapped weights over a game's IGDB ids, then scales so the strongest
  * vocab id is exactly 1. Unknown ids are ignored. Every VocabId is present.
  */
-export function mapGame({ genres, themes, keywords }: GameIgdbIds): TasteVector {
+export function mapGame({ genres, themes, keywords, perspectives }: GameIgdbIds): TasteVector {
   const sums = blank();
   const add = (ids: readonly number[] | null | undefined, table: IgdbMap): void => {
     for (const id of new Set(ids ?? [])) {
@@ -29,6 +30,7 @@ export function mapGame({ genres, themes, keywords }: GameIgdbIds): TasteVector 
   add(genres, GENRE_MAP);
   add(themes, THEME_MAP);
   add(keywords, KEYWORD_MAP);
+  add(perspectives, PERSPECTIVE_MAP);
 
   const max = Math.max(...Object.values(sums));
   if (max <= 0) return sums;

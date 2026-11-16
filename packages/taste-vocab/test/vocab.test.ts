@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import {
   GENRE_MAP,
   KEYWORD_MAP,
+  PERSPECTIVE_MAP,
   THEME_MAP,
   VOCAB,
   findUnmapped,
@@ -39,7 +40,7 @@ describe('vocab', () => {
 
   test('keyword table is curated (~50-100) and genre/theme tables are complete', () => {
     expect(Object.keys(KEYWORD_MAP).length).toBeGreaterThanOrEqual(50);
-    expect(Object.keys(KEYWORD_MAP).length).toBeLessThanOrEqual(110);
+    expect(Object.keys(KEYWORD_MAP).length).toBeLessThanOrEqual(150);
     expect(Object.keys(GENRE_MAP).length).toBe(23);
     expect(Object.keys(THEME_MAP).length).toBe(22);
   });
@@ -81,7 +82,7 @@ describe('mapGame', () => {
 
   test('every vocab id has at least one mapping source', () => {
     const used = new Set<string>();
-    for (const t of [GENRE_MAP, THEME_MAP, KEYWORD_MAP])
+    for (const t of [GENRE_MAP, THEME_MAP, KEYWORD_MAP, PERSPECTIVE_MAP])
       for (const w of Object.values(t)) for (const k of Object.keys(w)) used.add(k);
     expect(VOCAB.filter((v) => !used.has(v.id)).map((v) => v.id)).toEqual([]);
   });
@@ -91,6 +92,28 @@ describe('mapGame', () => {
     expect(one.roguelike).toBe(1);
     const both = mapGame({ genres: [], themes: [], keywords: [416, 953] });
     expect(both.roguelike).toBe(both.mythology);
+  });
+});
+
+describe('perspectives and 2026-11-16 keyword tuning', () => {
+  test('first-person perspective (IGDB 1) maps to the first-person form', () => {
+    expect(ids.has('first-person')).toBe(true);
+    const v = mapGame({ genres: [], themes: [], keywords: [], perspectives: [1] });
+    expect(v['first-person']).toBe(1);
+    expect(
+      mapGame({ genres: [], themes: [], keywords: [], perspectives: [2] })['first-person'],
+    ).toBe(0);
+    expect(mapGame({ genres: [], themes: [], keywords: [] })['first-person']).toBe(0);
+  });
+
+  test('new keywords are mapped', () => {
+    for (const id of [129, 4891, 5308, 4284, 4852, 4397, 1289, 226, 5963, 221, 4850])
+      expect(KEYWORD_MAP[id], String(id)).toBeDefined();
+    for (const id of [4998, 1186, 1320, 3203, 5999, 22, 1403, 2324])
+      expect(KEYWORD_MAP[id], String(id)).toBeDefined();
+    const v = mapGame({ genres: [], themes: [], keywords: [5999], perspectives: [1] });
+    expect(v['first-person']).toBe(1);
+    expect(v.stealth).toBeCloseTo(0.6);
   });
 });
 

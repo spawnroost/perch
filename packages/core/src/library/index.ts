@@ -11,3 +11,4 @@ export type { LibraryInput } from './rows.js';
 export { addGame, createUser, findUserId, NoMatchError } from './db.js';
 export type { AddedGame, AddGameDeps } from './db.js';
 export { formatError } from './errors.js';
+export { rebuildVocab } from './vocab-rebuild.js';

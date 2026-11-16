@@ -169,4 +169,30 @@ export const KEYWORD_MAP: IgdbMap = {
   9181: { 'found-family': 0.9, wholesome: 0.4 }, // friendship
   47272: { romance: 0.8 }, // love
   43508: { romance: 0.9, 'story-rich': 0.5 }, // dating sim
+
+  // tuning 2026-11-16
+  129: { dark: 0.3 }, // bloody
+  4891: { action: 0.3 }, // melee
+  5308: { rpg: 0.4 }, // rpg elements
+  4284: { rpg: 0.4 }, // leveling up
+  4852: { rpg: 0.2, exploration: 0.2 }, // side quests
+  4397: { rpg: 0.2 }, // upgradeable weapons
+  1289: { metroidvania: 0.3, exploration: 0.3 }, // backtracking
+  226: { fantasy: 0.3 }, // magic
+  5963: { 'story-rich': 0.4, mystery: 0.3 }, // plot twist
+  221: { crime: 0.3, dark: 0.3 }, // murder
+  4850: { 'story-rich': 0.5 }, // moral decisions
+  4998: { 'story-rich': 0.3 }, // betrayal
+  1186: { 'story-rich': 0.3 }, // multiple protagonists
+  1320: { dark: 0.3, supernatural: 0.3 }, // undead
+  3203: { dark: 0.4, atmospheric: 0.3 }, // darkness
+  5999: { stealth: 0.6 }, // stealth kill
+  22: { stealth: 0.4 }, // assassin
+  1403: { management: 0.3 }, // building
+  2324: { exploration: 0.1 }, // swimming
+};
+
+/** IGDB player_perspectives (1 = First person). */
+export const PERSPECTIVE_MAP: IgdbMap = {
+  1: { 'first-person': 1 }, // First person
 };

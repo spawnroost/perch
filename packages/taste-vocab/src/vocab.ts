@@ -51,6 +51,7 @@ export const VOCAB = [
   { id: 'sandbox', kind: 'form', label: 'Sandbox' },
   { id: 'survival', kind: 'form', label: 'Survival' },
   { id: 'stealth', kind: 'form', label: 'Stealth' },
+  { id: 'first-person', kind: 'form', label: 'First-person' },
   { id: 'metroidvania', kind: 'form', label: 'Metroidvania' },
   { id: 'action', kind: 'form', label: 'Action' },
   { id: 'shooter', kind: 'form', label: 'Shooter' },
