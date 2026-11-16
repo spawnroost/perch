@@ -1,23 +1,46 @@
+import { formatError } from '@perch/core';
+import { addCommand, importCommand, userCreateCommand } from './commands.js';
 import { vocabCheck } from './vocab-check.js';
 
-const USAGE =
-  'usage: perch <command>\n\ncommands:\n  vocab:check   list IGDB ids with no taste-vocab mapping';
+const USAGE = `usage: perch <command>
+
+commands:
+  user:create <email> [--name N]
+  add "<game>" [--hours N] [--last YYYY-MM-DD] [--status playing|finished|dropped|backlog]
+              [--platform pc] [--owned] [--igdb <id>] [--user <email>]
+  import <file> [--platform pc] [--owned] [--user <email>]
+  vocab:check   list IGDB ids with no taste-vocab mapping
+
+--user defaults to the PERCH_USER environment variable.`;
 
 async function main(argv: string[]): Promise<number> {
-  const [command] = argv;
-  switch (command) {
-    case 'vocab:check': {
-      const url = process.env.DATABASE_URL;
-      if (!url) {
-        console.error('DATABASE_URL not set');
-        return 1;
+  const [command, ...rest] = argv;
+  try {
+    switch (command) {
+      case 'user:create':
+        await userCreateCommand(rest);
+        return 0;
+      case 'add':
+        await addCommand(rest);
+        return 0;
+      case 'import':
+        return await importCommand(rest);
+      case 'vocab:check': {
+        const url = process.env.DATABASE_URL;
+        if (!url) {
+          console.error('DATABASE_URL not set');
+          return 1;
+        }
+        console.log(await vocabCheck(url));
+        return 0;
       }
-      console.log(await vocabCheck(url));
-      return 0;
+      default:
+        console.error(USAGE);
+        return command ? 1 : 0;
     }
-    default:
-      console.error(USAGE);
-      return command ? 1 : 0;
+  } catch (e) {
+    console.error(formatError(e));
+    return 1;
   }
 }
 
