@@ -41,15 +41,11 @@ export function cosine(a: Vocab, b: Vocab, idf?: Readonly<Record<string, number>
   let na = 0;
   let nb = 0;
   for (const [k, v] of Object.entries(a)) {
-    const x = v * (idf?.[k] ?? 1);
-    na += x * x;
-    const w = b[k];
-    if (w) dot += x * w * (idf?.[k] ?? 1);
+    const w = idf?.[k] ?? 1;
+    na += (v * w) ** 2;
+    dot += v * w * (b[k] ?? 0) * w;
   }
-  for (const [k, v] of Object.entries(b)) {
-    const y = v * (idf?.[k] ?? 1);
-    nb += y * y;
-  }
+  for (const [k, v] of Object.entries(b)) nb += (v * (idf?.[k] ?? 1)) ** 2;
   return na === 0 || nb === 0 ? 0 : dot / Math.sqrt(na * nb);
 }
 
@@ -76,19 +72,11 @@ function matchDetail(profile: TasteProfile, game: { vocab: Vocab }, opts: ScoreO
   if (sources.length === 0) return { taste: centroid, src: undefined, sim: 0 };
   let src: number | undefined;
   let sim = 0;
-  sources.forEach((s, i) => {
+  for (const [i, s] of sources.entries()) {
     const c = cosine(s.vocab, game.vocab, idf);
     if (c > sim) [src, sim] = [i, c];
-  });
+  }
   return { taste: W_CENTROID * centroid + W_KNN * sim, src, sim };
-}
-
-/**
- * Centroid cosine blended with item-kNN (max cosine to any source game), so a light taste
- * cluster (a short FPS among long RPGs) can still surface its matches. No sources: centroid only.
- */
-export function tasteMatch(profile: TasteProfile, game: { vocab: Vocab }, opts: ScoreOptions = {}) {
-  return matchDetail(profile, game, opts).taste;
 }
 
 function scoreDetail(
@@ -154,7 +142,7 @@ export function diversify<T extends { game: Pick<EngineGame, 'genres'> }>(
  * with no series are never capped. `pinned` games (slot picks) count toward the cap but are never
  * moved. If too few eligible games remain, the best deferred ones fill the head.
  */
-export function capSeries<T extends { game: Pick<EngineGame, 'series'> }>(
+function capSeries<T extends { game: Pick<EngineGame, 'series'> }>(
   list: readonly T[],
   limit: number,
   pinned: ReadonlySet<T> = new Set(),
@@ -189,7 +177,7 @@ export interface RankedCandidate extends Candidate {
 }
 
 /** Best-scoring match per source game (by closest source), keyed by source index. */
-export function bestPerSource<T extends RankedCandidate>(scored: readonly T[]): Map<number, T> {
+function bestPerSource<T extends RankedCandidate>(scored: readonly T[]): Map<number, T> {
   const best = new Map<number, T>();
   for (const c of scored) {
     if (c.src !== undefined && !best.has(c.src)) best.set(c.src, c);

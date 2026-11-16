@@ -1,6 +1,6 @@
 import { eq, inArray, sql } from 'drizzle-orm';
 import { games, timeToBeat, type Db } from '@perch/db';
-import { type IgdbClient, type TagQuery } from './client.js';
+import type { IgdbClient, TagQuery } from './client.js';
 import type { Game, TimeToBeat } from './schemas.js';
 
 export const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
