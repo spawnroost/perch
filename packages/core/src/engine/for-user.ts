@@ -2,13 +2,12 @@ import type { Db, games } from '@perch/db';
 import type { IgdbCache } from '../igdb/cache.js';
 import type { Game } from '../igdb/schemas.js';
 import type { SteamClient } from '../requirements/steam.js';
-import { createNoneProvider } from './explain.js';
+import { GENERIC_REASON, createNoneProvider } from './explain.js';
 import {
   deviceFit,
   deviceKind,
   platformMatches,
   type DeckCategory,
-  type FilterDevice,
   type FitRequirements,
   type FitStatus,
 } from './filters.js';
@@ -70,12 +69,13 @@ export async function explainGameForUser(
   const [reason] = await createNoneProvider({ labels }).explain([
     { game: engineGame, profile, library: sources, idf },
   ]);
-  return reason ? [reason] : [];
+  // The generic fallback means nothing in the library is similar: say nothing.
+  return reason && reason !== GENERIC_REASON ? [reason] : [];
 }
 
 export interface GameFit {
   deck: DeckCategory | null;
-  fits: { deviceId: string; status: FitStatus }[];
+  fits: { deviceId: string; deviceName: string; status: FitStatus }[];
 }
 
 /**
@@ -87,22 +87,25 @@ export async function gameFitForUser(
   userId: string,
   game: Pick<Game, 'igdbId' | 'platforms' | 'steamAppId'>,
 ): Promise<GameFit> {
-  const devices: FilterDevice[] = await loadDevices(deps.db, userId);
+  const devices = await loadDevices(deps.db, userId);
   const { fetchRequirements, fetchDeck } = createFitFetchers(deps.db, deps.steam);
   const appId = game.steamAppId;
   const live = devices.filter((d) => platformMatches(game, d));
   let deck: DeckCategory | null = null;
   let requirements: FitRequirements | null | undefined;
   if (appId !== null) {
-    deck = await fetchDeck(appId).catch(() => null);
-    if (live.some((d) => deviceKind(d) === 'pc')) {
-      requirements = await fetchRequirements(game).catch(() => null);
-    }
+    const needsDeck = devices.some((d) => deviceKind(d) === 'deck');
+    const needsRequirements = live.some((d) => deviceKind(d) === 'pc');
+    [deck, requirements] = await Promise.all([
+      needsDeck ? fetchDeck(appId).catch(() => null) : Promise.resolve(null),
+      needsRequirements ? fetchRequirements(game).catch(() => null) : Promise.resolve(undefined),
+    ]);
   }
   return {
     deck,
     fits: devices.map((d) => ({
       deviceId: d.id,
+      deviceName: d.name,
       status: deviceFit(game, d, { requirements, deck: deck ?? undefined }),
     })),
   };

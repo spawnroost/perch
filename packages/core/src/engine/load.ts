@@ -50,12 +50,16 @@ export async function loadRecommendInput(
 }
 
 /** A user's devices; the default one first. */
-export async function loadDevices(db: Db, userId: string): Promise<FilterDevice[]> {
+export async function loadDevices(
+  db: Db,
+  userId: string,
+): Promise<(FilterDevice & { name: string })[]> {
   const rows = await db.select().from(devices).where(eq(devices.userId, userId));
   return rows
     .sort((a, b) => Number(b.isDefault) - Number(a.isDefault))
     .map((d) => ({
       id: d.id,
+      name: d.name,
       kind: d.kind,
       platformIds: d.platformIds,
       gpuScore: d.gpuScore,

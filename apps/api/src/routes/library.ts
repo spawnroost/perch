@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import {
   IMPORT_MAX_LINES,
+  GameNotFoundError,
   deleteLibraryEntry,
   findLibraryEntry,
   formatError,
@@ -36,7 +37,7 @@ export function libraryRoutes(deps: RouteDeps) {
     const userId = c.get('user').id;
     const body = await parseBody(c, libraryCreateSchema);
     const { cache } = requireIgdb(deps);
-    await upsertLibraryGame(
+    const { created } = await upsertLibraryGame(
       { db, cache, mapVocab },
       userId,
       {
@@ -51,7 +52,8 @@ export function libraryRoutes(deps: RouteDeps) {
     );
     await rebuild(userId);
     const entry = await findLibraryEntry(db, userId, body.igdbId, body.platform);
-    return c.json({ entry: libraryDto(entry!) }, 201);
+    if (!entry) return c.json({ error: 'library entry not found' }, 404);
+    return c.json({ entry: libraryDto(entry) }, created ? 201 : 200);
   });
 
   // Registered before '/:id' so "import" is never read as an id.
@@ -79,23 +81,28 @@ export function libraryRoutes(deps: RouteDeps) {
     const { cache } = requireIgdb(deps);
     const imported: { igdbId: number; name: string }[] = [];
     const failed: { igdbId: number; error: string }[] = [];
+    const found = new Map(
+      (await cache.getGames(body.items.map((i) => i.igdbId))).map((g) => [g.igdbId, g]),
+    );
     for (const item of body.items) {
       try {
-        imported.push(
-          await upsertLibraryGame(
-            { db, cache, mapVocab },
-            userId,
-            {
-              igdbId: item.igdbId,
-              platform: body.platform,
-              hours: item.hoursPlayed,
-              lastPlayed: item.lastPlayed,
-              status: item.status,
-              owned: body.owned,
-            },
-            'import',
-          ),
+        const game = found.get(item.igdbId);
+        if (!game) throw new GameNotFoundError(item.igdbId);
+        const { igdbId, name } = await upsertLibraryGame(
+          { db, cache, mapVocab },
+          userId,
+          {
+            igdbId: item.igdbId,
+            platform: body.platform,
+            hours: item.hoursPlayed,
+            lastPlayed: item.lastPlayed,
+            status: item.status,
+            owned: body.owned,
+          },
+          'import',
+          game,
         );
+        imported.push({ igdbId, name });
       } catch (e) {
         failed.push({ igdbId: item.igdbId, error: formatError(e) });
       }

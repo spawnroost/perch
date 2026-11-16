@@ -17,7 +17,8 @@ export interface ExplainProvider {
 }
 
 export const MAX_SHARED_LABELS = 3;
-const GENERIC = 'Matches your overall taste profile';
+/** Fallback reason when no library game is similar to the candidate. */
+export const GENERIC_REASON = 'Matches your overall taste profile';
 
 /** Template provider: "Similar to <closest library game>: <shared vocab labels>". */
 export function createNoneProvider(opts: {
@@ -37,7 +38,7 @@ export function createNoneProvider(opts: {
             closest = lib;
           }
         }
-        if (!closest) return GENERIC;
+        if (!closest) return GENERIC_REASON;
         const shared = Object.entries(game.vocab)
           .map(([id, v]) => [id, v * (closest.vocab[id] ?? 0) * (idf?.[id] ?? 1)] as const)
           .filter(([, s]) => s > 0)

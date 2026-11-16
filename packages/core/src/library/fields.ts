@@ -3,7 +3,16 @@ import { z } from 'zod';
 export const STATUSES = ['playing', 'finished', 'dropped', 'backlog'] as const;
 export type Status = (typeof STATUSES)[number];
 
-export const hoursField = z.coerce.number().finite().nonnegative();
+/** Hours as a number (JSON bodies). "" and booleans are rejected, not coerced to 0/1. */
+export const hoursField = z.number().finite().nonnegative();
+
+/** Hours typed as text (CLI args, import lines). */
+export const hoursTextField = z
+  .string()
+  .trim()
+  .regex(/^\d+(?:\.\d+)?$/, 'expected a number')
+  .transform(Number)
+  .pipe(hoursField);
 
 /** `YYYY-MM-DD` (a real calendar date) -> Date at UTC midnight. */
 export const dateField = z

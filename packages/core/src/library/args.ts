@@ -1,11 +1,11 @@
 import { z } from 'zod';
-import { dateField, hoursField, statusField } from './fields.js';
+import { dateField, hoursTextField, statusField } from './fields.js';
 
 /** Parsed `perch add` options (CLI strings in, typed values out). */
 export const addArgsSchema = z
   .object({
     name: z.string().trim().min(1, 'game name required'),
-    hours: hoursField.optional(),
+    hours: hoursTextField.optional(),
     last: dateField.optional(),
     status: statusField.optional(),
     platform: z.string().trim().min(1).toLowerCase().default('pc'),

@@ -1,4 +1,4 @@
-import { dateField, hoursField, statusField, type Status } from './fields.js';
+import { dateField, hoursTextField, statusField, type Status } from './fields.js';
 
 export interface ImportEntry {
   name: string;
@@ -21,7 +21,7 @@ export function parseImportLine(raw: string): ParsedLine | null {
 
   const value: ImportEntry = { name };
   if (hours) {
-    const r = hoursField.safeParse(hours);
+    const r = hoursTextField.safeParse(hours);
     if (!r.success) return { ok: false, error: `bad hours "${hours}"` };
     value.hours = r.data;
   }

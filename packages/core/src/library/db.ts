@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { accounts, games, libraryEntries, sessions, users, type Db } from '@perch/db';
 import type { IgdbCache } from '../igdb/cache.js';
 import type { IgdbClient } from '../igdb/client.js';
@@ -149,27 +149,28 @@ export async function upsertLibraryGame(
   userId: string,
   input: LibraryGameInput,
   source: 'manual' | 'import',
-): Promise<AddedGame> {
+  /** The game, when the caller already fetched it (e.g. one batched lookup for many items). */
+  prefetched?: Game,
+): Promise<AddedGame & { created: boolean }> {
   const { db, cache, mapVocab } = deps;
   const { igdbId } = input;
-  const game = await cache.getGame(igdbId);
+  const game = prefetched ?? (await cache.getGame(igdbId));
   if (!game) throw new GameNotFoundError(igdbId);
 
   const row = buildGameRow(game, mapVocab(game));
   const { insert, update } = buildLibraryRow({ userId, source, ...input });
-  await db.transaction(async (tx) => {
+  const created = await db.transaction(async (tx) => {
     await tx.insert(games).values(row).onConflictDoUpdate({ target: games.igdbId, set: row });
     const q = tx.insert(libraryEntries).values(insert);
+    const target = [libraryEntries.userId, libraryEntries.igdbId, libraryEntries.platform];
+    // xmax is 0 only on a freshly inserted row; an ON CONFLICT update sets it.
+    const inserted = { inserted: sql<boolean>`(xmax = 0)` };
     if (Object.keys(update).length === 0) {
-      await q.onConflictDoNothing({
-        target: [libraryEntries.userId, libraryEntries.igdbId, libraryEntries.platform],
-      });
-    } else {
-      await q.onConflictDoUpdate({
-        target: [libraryEntries.userId, libraryEntries.igdbId, libraryEntries.platform],
-        set: update,
-      });
+      const rows = await q.onConflictDoNothing({ target }).returning(inserted);
+      return rows.length > 0;
     }
+    const rows = await q.onConflictDoUpdate({ target, set: update }).returning(inserted);
+    return rows[0]?.inserted === true;
   });
-  return { igdbId, name: game.name };
+  return { igdbId, name: game.name, created };
 }

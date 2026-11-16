@@ -245,18 +245,24 @@ export function matchCpu(raw: string): TierMatch | null {
   return null;
 }
 
-function searchTable(table: TierTable, raw: string, limit: number): TierMatch[] {
-  const tokens = raw
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter(Boolean);
+const wordsOf = (s: string): string[] => s.split(/[^a-z0-9]+/).filter(Boolean);
+
+/** Keys and queries are tokenised identically: normalised, then split on non-alphanumerics. */
+function searchTable(
+  table: TierTable,
+  normalise: (raw: string) => string,
+  raw: string,
+  limit: number,
+): TierMatch[] {
+  const tokens = wordsOf(normalise(raw));
   if (tokens.length === 0) return [];
+  const joined = tokens.join(' ');
   const hits: { match: TierMatch; prefix: boolean }[] = [];
   for (const match of table.byKey.values()) {
-    const words = match.key.split(' ');
+    const words = wordsOf(match.key);
     // Every query token must start some word of the key (so "4070 ti" finds "rtx 4070 ti").
     if (!tokens.every((t) => words.some((w) => w.startsWith(t)))) continue;
-    hits.push({ match, prefix: match.key.startsWith(tokens.join(' ')) });
+    hits.push({ match, prefix: words.join(' ').startsWith(joined) });
   }
   return hits
     .sort(
@@ -271,10 +277,10 @@ function searchTable(table: TierTable, raw: string, limit: number): TierMatch[] 
 
 /** Autocomplete over the GPU tier table. */
 export function searchGpus(query: string, limit = 10): TierMatch[] {
-  return searchTable(GPU_TABLE, query, limit);
+  return searchTable(GPU_TABLE, normaliseGpu, query, limit);
 }
 
 /** Autocomplete over the CPU tier table. */
 export function searchCpus(query: string, limit = 10): TierMatch[] {
-  return searchTable(CPU_TABLE, query, limit);
+  return searchTable(CPU_TABLE, normaliseCpu, query, limit);
 }

@@ -7,7 +7,7 @@ import { cookieFrom, json, setupApi, testUrl } from './harness.js';
 
 const PASSWORD = 'correct-horse-battery';
 const BASE = 2_100_000 + Math.floor(Math.random() * 100_000) * 10;
-const [A, B, C] = [BASE + 1, BASE + 2, BASE + 3];
+const [A, B, C, D] = [BASE + 1, BASE + 2, BASE + 3, BASE + 4];
 
 function game(igdbId: number, name: string, extra: Partial<Game> = {}): Game {
   return {
@@ -35,6 +35,7 @@ const catalog = [
   game(A, 'Routetest Alpha', { similarIds: [B], steamAppId: 4_000_001 }),
   game(B, 'Routetest Beta', { genres: [12, 31], platforms: [6, 167] }),
   game(C, 'Routetest Gamma', { genres: [31] }),
+  game(D, 'Routetest Delta', { genres: [5] }),
 ];
 
 /** An IGDB client that never touches the network. */
@@ -86,7 +87,7 @@ describe.skipIf(!testUrl)('api routes', () => {
     ctx = await setupApi({ api: big, auth: big }, {}, { igdb: fakeIgdb, steam: fakeSteam });
   });
   afterAll(async () => {
-    await ctx?.db.delete(schema.games).where(inArray(schema.games.igdbId, [A, B, C]));
+    await ctx?.db.delete(schema.games).where(inArray(schema.games.igdbId, [A, B, C, D]));
     await ctx?.cleanup();
   });
 
@@ -143,7 +144,7 @@ describe.skipIf(!testUrl)('api routes', () => {
       const res = await get('/api/games/search?q=routetest', u.cookie);
       expect(res.status).toBe(200);
       const body = (await res.json()) as { results: { igdbId: number }[] };
-      expect(body.results.map((r) => r.igdbId).sort()).toEqual([A, B, C]);
+      expect(body.results.map((r) => r.igdbId).sort()).toEqual([A, B, C, D]);
     });
 
     it('rejects a search without q', async () => {
@@ -182,6 +183,17 @@ describe.skipIf(!testUrl)('api routes', () => {
         'PlayStation 5': 'hidden',
       });
       expect(body.why).toHaveLength(1);
+    });
+
+    it('explains nothing when no library game is similar', async () => {
+      const u = await newUser();
+      await call('POST', '/api/library', u.cookie, {
+        igdbId: D,
+        hoursPlayed: 30,
+        status: 'playing',
+      });
+      const res = await get(`/api/games/${A}`, u.cookie);
+      expect(((await res.json()) as { why: string[] }).why).toEqual([]);
     });
 
     it('400 on a bad id, 404 on an unknown game', async () => {
@@ -241,6 +253,15 @@ describe.skipIf(!testUrl)('api routes', () => {
       expect(after.entries).toEqual([]);
     });
 
+    it('returns 201 for a new entry and 200 when re-adding updates it', async () => {
+      const u = await newUser();
+      const first = await call('POST', '/api/library', u.cookie, { igdbId: A, hoursPlayed: 1 });
+      expect(first.status).toBe(201);
+      const again = await call('POST', '/api/library', u.cookie, { igdbId: A, hoursPlayed: 2 });
+      expect(again.status).toBe(200);
+      expect(((await again.json()) as { entry: unknown }).entry).toMatchObject({ hoursPlayed: 2 });
+    });
+
     it('400 on invalid input, 404 for an unknown IGDB game', async () => {
       const u = await newUser();
       for (const body of [
@@ -248,6 +269,8 @@ describe.skipIf(!testUrl)('api routes', () => {
         { igdbId: 'x' },
         { igdbId: A, status: 'bogus' },
         { igdbId: A, hoursPlayed: -1 },
+        { igdbId: A, hoursPlayed: '' },
+        { igdbId: A, hoursPlayed: true },
         { igdbId: A, lastPlayed: 'yesterday' },
       ]) {
         expect((await call('POST', '/api/library', u.cookie, body)).status).toBe(400);

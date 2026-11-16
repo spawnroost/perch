@@ -4,15 +4,12 @@ import {
   gameFitForUser,
   gameSearchQuerySchema,
   igdbIdParamSchema,
-  listDevices,
   type GameDetailResponse,
   type GameSearchResponse,
 } from '@perch/core';
 import type { AppVars, RouteDeps } from '../app.js';
 import { parseParams, parseQuery } from '../http.js';
 import { requireAuth, requireIgdb } from '../middleware.js';
-
-const MAX_RESULTS = 25;
 
 export function gamesRoutes(deps: RouteDeps) {
   const r = new Hono<AppVars>();
@@ -23,7 +20,7 @@ export function gamesRoutes(deps: RouteDeps) {
     const { client } = requireIgdb(deps);
     const { candidates } = await client.searchGames(q);
     return c.json({
-      results: candidates.slice(0, MAX_RESULTS).map((g) => ({
+      results: candidates.map((g) => ({
         igdbId: g.igdbId,
         name: g.name,
         slug: g.slug,
@@ -39,12 +36,10 @@ export function gamesRoutes(deps: RouteDeps) {
     const userId = c.get('user').id;
     const game = await cache.getGame(igdbId);
     if (!game) return c.json({ error: 'game not found' }, 404);
-    const [{ deck, fits }, why, devices] = await Promise.all([
+    const [{ deck, fits }, why] = await Promise.all([
       gameFitForUser(deps, userId, game),
       explainGameForUser(deps, userId, game),
-      listDevices(deps.db, userId),
     ]);
-    const names = new Map(devices.map((d) => [d.id, d.name]));
     return c.json({
       game: {
         igdbId: game.igdbId,
@@ -59,7 +54,7 @@ export function gamesRoutes(deps: RouteDeps) {
       },
       fit: fits.map((f) => ({
         deviceId: f.deviceId,
-        deviceName: names.get(f.deviceId) ?? '',
+        deviceName: f.deviceName,
         status: f.status,
       })),
       deck,

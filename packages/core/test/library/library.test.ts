@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { libraryCreateSchema } from '../../src/schemas/index.js';
 import {
   addArgsSchema,
   buildGameRow,
@@ -227,5 +228,15 @@ describe('row builders', () => {
       status: 'playing',
       owned: true,
     });
+  });
+});
+
+describe('libraryCreateSchema hours', () => {
+  it('rejects "" and booleans instead of coercing them', () => {
+    const base = { igdbId: 1 };
+    expect(libraryCreateSchema.safeParse({ ...base, hoursPlayed: '' }).success).toBe(false);
+    expect(libraryCreateSchema.safeParse({ ...base, hoursPlayed: true }).success).toBe(false);
+    expect(libraryCreateSchema.safeParse({ ...base, hoursPlayed: -1 }).success).toBe(false);
+    expect(libraryCreateSchema.safeParse({ ...base, hoursPlayed: 12.5 }).success).toBe(true);
   });
 });

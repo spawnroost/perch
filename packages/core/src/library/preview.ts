@@ -17,6 +17,27 @@ export class ImportTooLargeError extends Error {
   }
 }
 
+/** The IGDB client already rate-limits requests; this only bounds in-flight searches. */
+const SEARCH_CONCURRENCY = 4;
+
+/** Maps with at most `limit` calls in flight; results keep input order. */
+async function mapLimit<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i] as T);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
 /** Parses pasted import text and fuzzy-matches each line on IGDB. Writes nothing. */
 export async function previewImport(
   client: Pick<IgdbClient, 'searchGames'>,
@@ -25,11 +46,10 @@ export async function previewImport(
 ): Promise<{ lines: ImportPreviewLine[]; errors: { line: number; error: string }[] }> {
   const { entries, errors } = parseImportFile(text);
   if (entries.length > maxLines) throw new ImportTooLargeError(maxLines);
-  const lines: ImportPreviewLine[] = [];
-  for (const { line, value } of entries) {
+  const lines = await mapLimit(entries, SEARCH_CONCURRENCY, async ({ line, value }) => {
     const { candidates } = await client.searchGames(value.name);
     const { match, suggestions } = pickBestMatch(value.name, candidates);
-    lines.push({
+    return {
       line,
       entry: value,
       match: match
@@ -40,7 +60,7 @@ export async function previewImport(
           }
         : null,
       suggestions: suggestions ?? [],
-    });
-  }
+    };
+  });
   return { lines, errors };
 }

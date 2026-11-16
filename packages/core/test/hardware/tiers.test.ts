@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { matchCpu, matchGpu, normaliseCpu, normaliseGpu } from '../../src/hardware/index.js';
+import {
+  matchCpu,
+  matchGpu,
+  normaliseCpu,
+  normaliseGpu,
+  searchCpus,
+  searchGpus,
+} from '../../src/hardware/index.js';
 
 const gpuKey = (raw: string) => matchGpu(raw)?.key ?? null;
 const cpuKey = (raw: string) => matchCpu(raw)?.key ?? null;
@@ -285,5 +292,28 @@ describe('Steam requirement strings', () => {
     expect(gpuKey('NVIDIA 9999 or 450')).toBe('gtx 450');
     expect(gpuKey('AMD HD 9999 / 770')).toBeNull();
     expect(gpuKey('NVIDIA 9999 / AMD 5570 / 770')).toBeNull();
+  });
+});
+
+describe('autocomplete', () => {
+  it.each(['NVIDIA RTX 4070', 'rtx4070', 'rtx 4070', '4070'])('finds RTX 4070 for %s', (q) => {
+    expect(searchGpus(q).map((m) => m.key)).toContain('rtx 4070');
+  });
+  it('finds 4070 ti by "rtx4070ti"', () => {
+    expect(searchGpus('rtx4070ti').map((m) => m.key)).toContain('rtx 4070 ti');
+  });
+  it.each(['i7-12700k', '12700', 'i7 12700', 'Intel Core i7-12700K'])(
+    'finds the 12700K for %s',
+    (q) => {
+      expect(searchCpus(q).map((m) => m.key)).toContain('i7-12700k');
+    },
+  );
+  it('finds i5 parts for "Intel Core i5"', () => {
+    const keys = searchCpus('Intel Core i5').map((m) => m.key);
+    expect(keys.length).toBeGreaterThan(0);
+    expect(keys.every((k) => k.startsWith('i5'))).toBe(true);
+  });
+  it('returns nothing for an empty query', () => {
+    expect(searchGpus('')).toEqual([]);
   });
 });

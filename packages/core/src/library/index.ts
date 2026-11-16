@@ -28,6 +28,6 @@ export {
 export type { LibraryPatch, LibraryRow } from './entries.js';
 export { ImportTooLargeError, previewImport } from './preview.js';
 export type { ImportPreviewLine } from './preview.js';
-export { dateField, hoursField, statusField } from './fields.js';
+export { dateField, hoursField, hoursTextField, statusField } from './fields.js';
 export { formatError } from './errors.js';
 export { rebuildVocab } from './vocab-rebuild.js';
