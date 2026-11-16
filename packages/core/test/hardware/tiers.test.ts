@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  matchCpu,
-  matchGpu,
-  normaliseCpu,
-  normaliseGpu,
-} from '../../src/hardware/index.js';
+import { matchCpu, matchGpu, normaliseCpu, normaliseGpu } from '../../src/hardware/index.js';
 
 const gpuKey = (raw: string) => matchGpu(raw)?.key ?? null;
 const cpuKey = (raw: string) => matchCpu(raw)?.key ?? null;
@@ -93,7 +88,6 @@ describe('matchGpu', () => {
     expect(gpuKey('GeForce GTX 780M')).not.toBe('780m');
   });
 
-
   it('ignores memory sizes, bit widths and core counts after the model', () => {
     expect(gpuKey('GTX 1050 Ti 4096 MB')).toBe('gtx 1050 ti');
     expect(gpuKey('RTX 3060 12G')).toBe('rtx 3060');
@@ -178,7 +172,6 @@ describe('matchCpu', () => {
     expect(cpuKey('AMD Ryzen 5 36000')).toBeNull();
     expect(cpuKey('Intel Core i7-9750HK')).toBeNull();
   });
-
 
   it('ignores core/thread/bit notes', () => {
     expect(cpuKey('AMD Ryzen 5 3600 6 cores')).toBe('ryzen 5 3600');

@@ -36,7 +36,17 @@ const CPU_TABLE = buildTable(cpuTierData);
 
 /** Tokens that make a model a different part when they directly follow a key. */
 const VARIANT_TOKENS = new Set([
-  'ti', 'super', 'xt', 'xtx', 'gre', 'laptop', 'x', 'pro', 'max', 'ultra', 'plus',
+  'ti',
+  'super',
+  'xt',
+  'xtx',
+  'gre',
+  'laptop',
+  'x',
+  'pro',
+  'max',
+  'ultra',
+  'plus',
 ]);
 /** Tokens that make a bare key (e.g. "780m") part of a longer, different model name. */
 const PREFIX_TOKENS = new Set(['gtx', 'gt', 'gts', 'rtx', 'rx', 'hd', 'uhd', 'titan', 'mx']);
@@ -50,7 +60,10 @@ function stripCommon(raw: string): string {
     .toLowerCase()
     .replace(/\((?:r|tm)\)|[®™]/g, ' ')
     .replace(/\b(?:vs|ps)_\d_\d\b/g, ' ')
-    .replace(/direct3d\w*|\bd3d\d+\w*|opengl(?: engine)?|\bangle\b|metal renderer|unspecified version/g, ' ')
+    .replace(
+      /direct3d\w*|\bd3d\d+\w*|opengl(?: engine)?|\bangle\b|metal renderer|unspecified version/g,
+      ' ',
+    )
     .replace(/\b0x[0-9a-f]+\b|\bpcie\b|\bsse2\b|\bmesa\b/g, ' ')
     .replace(/\b\d+(?:\.\d+)?\s*ghz\+?/g, ' ')
     .replace(/\b\d+[- ]?(?:cores?|threads?|bit)\b|\b\d+\s*mb\b/g, ' ')
