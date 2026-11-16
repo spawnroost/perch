@@ -1,7 +1,7 @@
 import { parseArgs } from 'node:util';
-import { createIgdbCache, createIgdbClientFromEnv, getRequirements } from '@perch/core';
+import { getRequirements } from '@perch/core';
 import { createDb } from '@perch/db';
-import { mapGame } from '@perch/taste-vocab';
+import { resolveGame } from './resolve-game.js';
 
 const fmt = (n: number | null) => n ?? '?';
 
@@ -12,13 +12,7 @@ export async function reqsCommand(argv: string[], dbUrl: () => string): Promise<
   if (!query) throw new Error('usage: perch reqs <game name or igdb id>');
   const db = createDb(dbUrl());
   try {
-    const client = createIgdbClientFromEnv();
-    const cache = createIgdbCache({ db, client, mapVocab: mapGame });
-    const igdbId = /^\d+$/.test(query)
-      ? Number(query)
-      : (await client.searchGames(query)).best?.igdbId;
-    const game = igdbId === undefined ? null : await cache.getGame(igdbId);
-    if (!game) throw new Error(`no IGDB match for "${query}"`);
+    const game = await resolveGame(db, query);
     const row = await getRequirements(db, game.igdbId);
     if (!row) return void console.log(`${game.name} (igdb ${game.igdbId}): no Steam app id`);
     console.log(`${game.name} (igdb ${game.igdbId}, steam ${game.steamAppId})`);

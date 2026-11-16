@@ -1,7 +1,11 @@
 import { eq } from 'drizzle-orm';
 import { deckCompat, type Db } from '@perch/db';
-import { createSteamClient, SteamError, type SteamClient } from '../requirements/steam.js';
-import type { DeckCategory } from '../requirements/steam.js';
+import {
+  createSteamClient,
+  SteamError,
+  type DeckCategory,
+  type SteamClient,
+} from '../requirements/steam.js';
 
 export const DECK_COMPAT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
