@@ -3,7 +3,7 @@ import { isBacklog } from './visibility.js';
 import type { Candidate, EngineGame, LibraryItem, RawGame, TasteProfile, Vocab } from './types.js';
 
 export const CANDIDATE_CAP = 300;
-export const SIMILAR_FROM_TOP = 10;
+export const SIMILAR_FROM_TOP = 25;
 export const TAG_TOP = 3;
 export const TAG_MIN_RATING_COUNT = 50;
 export const TAG_LIMIT = 100;
