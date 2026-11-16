@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEVICE_PRESETS, getPreset, IGDB_PLATFORM } from '../../src/devices/presets.js';
+import { matchCpu, matchGpu } from '../../src/hardware/tiers.js';
 
 describe('device presets', () => {
   it('has unique ids', () => {
@@ -27,5 +28,13 @@ describe('device presets', () => {
 
   it('returns undefined for unknown ids', () => {
     expect(getPreset('n64')).toBeUndefined();
+  });
+
+  it('preset hardware resolves to tier scores', () => {
+    for (const p of DEVICE_PRESETS) {
+      if (!p.hardware) continue;
+      expect(matchGpu(p.hardware.gpuName), `${p.id} gpu`).not.toBeNull();
+      expect(matchCpu(p.hardware.cpuName), `${p.id} cpu`).not.toBeNull();
+    }
   });
 });
