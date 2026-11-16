@@ -127,19 +127,16 @@ export async function recommend(
     .sort((a, b) => (weight.get(b.game.igdbId) ?? 0) - (weight.get(a.game.igdbId) ?? 0))
     .map((l) => l.game);
   const devices = input.devices?.length ? input.devices : null;
-  // With devices, rank every candidate (ranking is cheap, fetching is not): the walk below then
-  // never runs dry while candidates remain. The series cap defers extra games to the end.
-  const ranked = rankCandidates(
-    profile,
-    candidates,
-    now,
-    devices ? candidates.length : input.limit,
-    {
-      idf,
-      sources: similarSources,
-      slots: MAX_SLOTS,
-    },
-  );
+  const rankOpts = { idf, sources: similarSources, slots: MAX_SLOTS };
+  const head = rankCandidates(profile, candidates, now, input.limit, rankOpts);
+  // With devices, append every other candidate (ranking is cheap, fetching is not) so the walk
+  // below never runs dry while candidates remain; the head keeps its source slots.
+  let ranked = head;
+  if (devices) {
+    const seen = new Set(head.map((r) => r.game.igdbId));
+    const rest = candidates.filter((c) => !seen.has(c.game.igdbId));
+    ranked = [...head, ...rankCandidates(profile, rest, now, undefined, rankOpts)];
+  }
   const fits = new Map<number, Fit>();
   let top = ranked.slice(0, input.limit);
   if (devices) {
