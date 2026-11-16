@@ -1,5 +1,5 @@
-import { and, eq, inArray } from 'drizzle-orm';
 import { feedback, games, tasteProfiles, type Db } from '@perch/db';
+import { GameNotFoundError } from '../library/db.js';
 import { buildProfile } from '../engine/profile.js';
 import { loadRecommendInput } from '../engine/load.js';
 import { mergeLibrary } from '../engine/recommend.js';
@@ -25,20 +25,15 @@ export async function addFeedback(
   igdbId: number,
   kind: FeedbackKind,
 ): Promise<void> {
-  if (!(await cache.getGame(igdbId))) throw new Error(`IGDB has no game with id ${igdbId}`);
-  const replaced = kind === 'up' || kind === 'down' ? (['up', 'down'] as const) : ([kind] as const);
-  await db.transaction(async (tx) => {
-    await tx
-      .delete(feedback)
-      .where(
-        and(
-          eq(feedback.userId, userId),
-          eq(feedback.igdbId, igdbId),
-          inArray(feedback.kind, [...replaced]),
-        ),
-      );
-    await tx.insert(feedback).values({ userId, igdbId, kind });
-  });
+  if (!(await cache.getGame(igdbId))) throw new GameNotFoundError(igdbId);
+  // `slot` (generated) puts up and down in one slot, so a new vote replaces the old one.
+  await db
+    .insert(feedback)
+    .values({ userId, igdbId, kind })
+    .onConflictDoUpdate({
+      target: [feedback.userId, feedback.igdbId, feedback.slot],
+      set: { kind, at: new Date() },
+    });
 }
 
 /**

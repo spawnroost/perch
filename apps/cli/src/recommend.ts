@@ -2,13 +2,8 @@ import { parseArgs } from 'node:util';
 import {
   createIgdbCache,
   createIgdbClientFromEnv,
-  createNoneProvider,
   findUserId,
-  createFitFetchers,
-  loadDevices,
-  loadRecommendInput,
-  selectDevices,
-  recommend,
+  recommendForUser,
   type Recommendation,
 } from '@perch/core';
 import { createDb } from '@perch/db';
@@ -50,22 +45,16 @@ export async function recommendCommand(argv: string[], dbUrl: () => string): Pro
   const db = createDb(dbUrl());
   try {
     const userId = await findUserId(db, email);
-    const client = createIgdbClientFromEnv();
-    const cache = createIgdbCache({ db, client, mapVocab: mapGame });
-    const { library, feedback } = await loadRecommendInput(db, userId, mapGame);
-    const devices = selectDevices(await loadDevices(db, userId), values.device);
-    const recs = await recommend(
-      {
-        getGames: (ids) => cache.getGames(ids),
-        queryByTags: (q) => cache.queryByTags(q),
-        mapVocab: mapGame,
-        ...createFitFetchers(db),
-        explain: createNoneProvider({
-          labels: Object.fromEntries(VOCAB.map((v) => [v.id, v.label])),
-        }),
-      },
-      { library, feedback, limit, devices },
-    );
+    const cache = createIgdbCache({
+      db,
+      client: createIgdbClientFromEnv(),
+      mapVocab: mapGame,
+    });
+    const labels = Object.fromEntries(VOCAB.map((v) => [v.id, v.label]));
+    const recs = await recommendForUser({ db, cache, mapVocab: mapGame, labels }, userId, {
+      device: values.device,
+      limit,
+    });
     console.log(formatRecommendations(recs));
   } finally {
     await db.$client.end();

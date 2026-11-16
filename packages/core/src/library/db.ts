@@ -4,6 +4,7 @@ import { accounts, games, libraryEntries, sessions, users, type Db } from '@perc
 import type { IgdbCache } from '../igdb/cache.js';
 import type { IgdbClient } from '../igdb/client.js';
 import type { Game } from '../igdb/schemas.js';
+import type { Status } from './fields.js';
 import type { AddArgs } from './args.js';
 import { pickBestMatch, type Suggestion } from './match.js';
 import type { ImportEntry } from './parse.js';
@@ -86,6 +87,14 @@ export class NoMatchError extends Error {
   }
 }
 
+/** IGDB has no game with this id. */
+export class GameNotFoundError extends Error {
+  constructor(readonly igdbId: number) {
+    super(`IGDB has no game with id ${igdbId}`);
+    this.name = 'GameNotFoundError';
+  }
+}
+
 export interface AddGameDeps {
   db: Db;
   client: IgdbClient;
@@ -102,7 +111,7 @@ export async function addGame(
   args: Omit<AddArgs, 'name'> & ImportEntry,
   source: 'manual' | 'import',
 ): Promise<AddedGame> {
-  const { db, client, cache, mapVocab } = deps;
+  const { client } = deps;
   let igdbId = args.igdb;
   if (igdbId === undefined) {
     const { candidates } = await client.searchGames(args.name);
@@ -110,20 +119,44 @@ export async function addGame(
     if (!match) throw new NoMatchError(args.name, suggestions);
     igdbId = match.igdbId;
   }
+  return upsertLibraryGame(
+    deps,
+    userId,
+    {
+      igdbId,
+      platform: args.platform,
+      hours: args.hours,
+      lastPlayed: args.lastPlayed,
+      status: args.status,
+      owned: args.owned,
+    },
+    source,
+  );
+}
+
+export interface LibraryGameInput {
+  igdbId: number;
+  platform: string;
+  hours?: number;
+  lastPlayed?: Date;
+  status?: Status;
+  owned?: boolean;
+}
+
+/** Fetches the game (cache first) and upserts the game and library entry atomically. */
+export async function upsertLibraryGame(
+  deps: Pick<AddGameDeps, 'db' | 'cache' | 'mapVocab'>,
+  userId: string,
+  input: LibraryGameInput,
+  source: 'manual' | 'import',
+): Promise<AddedGame> {
+  const { db, cache, mapVocab } = deps;
+  const { igdbId } = input;
   const game = await cache.getGame(igdbId);
-  if (!game) throw new Error(`IGDB has no game with id ${igdbId}`);
+  if (!game) throw new GameNotFoundError(igdbId);
 
   const row = buildGameRow(game, mapVocab(game));
-  const { insert, update } = buildLibraryRow({
-    userId,
-    igdbId,
-    platform: args.platform,
-    source,
-    hours: args.hours,
-    lastPlayed: args.lastPlayed,
-    status: args.status,
-    owned: args.owned,
-  });
+  const { insert, update } = buildLibraryRow({ userId, source, ...input });
   await db.transaction(async (tx) => {
     await tx.insert(games).values(row).onConflictDoUpdate({ target: games.igdbId, set: row });
     const q = tx.insert(libraryEntries).values(insert);

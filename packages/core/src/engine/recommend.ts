@@ -12,7 +12,13 @@ import {
 } from './filters.js';
 import { buildProfile } from './profile.js';
 import { computeIdf, rankCandidates, MAX_SLOTS } from './rank.js';
-import type { EngineGame, FeedbackItem, LibraryItem, Recommendation } from './types.js';
+import type {
+  EngineGame,
+  FeedbackItem,
+  LibraryItem,
+  Recommendation,
+  TasteProfile,
+} from './types.js';
 import { hiddenIds, isBacklog } from './visibility.js';
 
 export interface RecommendDeps extends CandidateDeps {
@@ -93,6 +99,29 @@ export function mergeLibrary(library: readonly LibraryItem[]): LibraryItem[] {
   return [...merged.values()];
 }
 
+/**
+ * Games that really say something about taste (weighted, not dropped/downvoted/backlog), the
+ * heaviest first: the sources for kNN scoring and for reasons.
+ */
+export function similaritySources(
+  library: readonly LibraryItem[],
+  feedback: readonly FeedbackItem[],
+  profile: TasteProfile,
+): EngineGame[] {
+  const weight = new Map(profile.weights.map((w) => [w.igdbId, w.weight]));
+  const downed = new Set(feedback.filter((f) => f.kind === 'down').map((f) => f.igdbId));
+  return library
+    .filter(
+      (l) =>
+        (weight.get(l.game.igdbId) ?? 0) > 0 &&
+        l.status !== 'dropped' &&
+        !downed.has(l.game.igdbId) &&
+        !isBacklog(l),
+    )
+    .sort((a, b) => (weight.get(b.game.igdbId) ?? 0) - (weight.get(a.game.igdbId) ?? 0))
+    .map((l) => l.game);
+}
+
 /** Profile -> candidates -> rank + diversity -> reasons. Data access is injected via `deps`. */
 export async function recommend(
   deps: RecommendDeps,
@@ -114,18 +143,7 @@ export async function recommend(
   );
   const idf = computeIdf([...idfGames.values()]);
   // Sources (for kNN scoring and reasons) are games that really say something about taste.
-  const weight = new Map(profile.weights.map((w) => [w.igdbId, w.weight]));
-  const downed = new Set(input.feedback.filter((f) => f.kind === 'down').map((f) => f.igdbId));
-  const similarSources = library
-    .filter(
-      (l) =>
-        (weight.get(l.game.igdbId) ?? 0) > 0 &&
-        l.status !== 'dropped' &&
-        !downed.has(l.game.igdbId) &&
-        !isBacklog(l),
-    )
-    .sort((a, b) => (weight.get(b.game.igdbId) ?? 0) - (weight.get(a.game.igdbId) ?? 0))
-    .map((l) => l.game);
+  const similarSources = similaritySources(library, input.feedback, profile);
   const devices = input.devices?.length ? input.devices : null;
   const rankOpts = { idf, sources: similarSources, slots: MAX_SLOTS };
   const head = rankCandidates(profile, candidates, now, input.limit, rankOpts);

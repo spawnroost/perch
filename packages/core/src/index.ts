@@ -7,3 +7,4 @@ export * from './hardware/index.js';
 export * from './requirements/index.js';
 export * from './deck/index.js';
 export * from './feedback/index.js';
+export * from './schemas/index.js';

@@ -257,10 +257,14 @@ export const feedback = pgTable(
       .references(() => games.igdbId, { onDelete: 'cascade' }),
     /** 'up' | 'down' | 'played' | 'not_interested' */
     kind: text('kind').notNull(),
+    /** Up and down are one vote ('vote'); each flag is its own slot. Keys the upsert. */
+    slot: text('slot').generatedAlwaysAs(
+      sql`case when kind in ('up', 'down') then 'vote' else kind end`,
+    ),
     at: ts('at').defaultNow().notNull(),
   },
   (t) => [
-    index('feedback_user_game_idx').on(t.userId, t.igdbId),
+    uniqueIndex('feedback_user_game_slot_idx').on(t.userId, t.igdbId, t.slot),
     check('feedback_kind_chk', sql`${t.kind} in ('up', 'down', 'played', 'not_interested')`),
   ],
 );

@@ -23,7 +23,7 @@ export type {
   FitRequirements,
   FitStatus,
 } from './filters.js';
-export { mergeLibrary, recommend } from './recommend.js';
+export { mergeLibrary, recommend, similaritySources } from './recommend.js';
 export type { RecommendDeps, RecommendInput } from './recommend.js';
 export { createFitFetchers, loadDevices, loadRecommendInput } from './load.js';
 export type {
@@ -39,3 +39,5 @@ export type {
   WeightedGame,
 } from './types.js';
 export { hiddenIds, isBacklog } from './visibility.js';
+export { explainGameForUser, gameFitForUser, recommendForUser } from './for-user.js';
+export type { GameFit, UserEngineDeps } from './for-user.js';

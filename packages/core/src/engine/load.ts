@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { devices, feedback, games, libraryEntries, type Db } from '@perch/db';
 import { getDeckCategory } from '../deck/index.js';
-import { getRequirements } from '../requirements/steam.js';
+import { getRequirements, type SteamClient } from '../requirements/steam.js';
 import type { DeckCategory, FilterDevice, FitRequirements } from './filters.js';
 import type { Status } from '../library/fields.js';
 import type { FeedbackItem, LibraryItem, Vocab } from './types.js';
@@ -65,12 +65,15 @@ export async function loadDevices(db: Db, userId: string): Promise<FilterDevice[
 }
 
 /** DB-backed (cached, Steam-rate-limited) fetchers for `RecommendDeps`. */
-export function createFitFetchers(db: Db): {
+export function createFitFetchers(
+  db: Db,
+  steam?: SteamClient,
+): {
   fetchRequirements(game: { igdbId: number }): Promise<FitRequirements | null>;
   fetchDeck(steamAppId: number): Promise<DeckCategory>;
 } {
   return {
-    fetchRequirements: (game) => getRequirements(db, game.igdbId),
-    fetchDeck: (steamAppId) => getDeckCategory(db, steamAppId),
+    fetchRequirements: (game) => getRequirements(db, game.igdbId, { client: steam }),
+    fetchDeck: (steamAppId) => getDeckCategory(db, steamAppId, { client: steam }),
   };
 }

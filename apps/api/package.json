@@ -11,6 +11,7 @@
     "@hono/node-server": "^2.1.8",
     "@perch/core": "workspace:*",
     "@perch/db": "workspace:*",
+    "@perch/taste-vocab": "workspace:*",
     "better-auth": "^1.7.25",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.13.18",

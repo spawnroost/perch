@@ -244,3 +244,37 @@ export function matchCpu(raw: string): TierMatch | null {
   }
   return null;
 }
+
+function searchTable(table: TierTable, raw: string, limit: number): TierMatch[] {
+  const tokens = raw
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  if (tokens.length === 0) return [];
+  const hits: { match: TierMatch; prefix: boolean }[] = [];
+  for (const match of table.byKey.values()) {
+    const words = match.key.split(' ');
+    // Every query token must start some word of the key (so "4070 ti" finds "rtx 4070 ti").
+    if (!tokens.every((t) => words.some((w) => w.startsWith(t)))) continue;
+    hits.push({ match, prefix: match.key.startsWith(tokens.join(' ')) });
+  }
+  return hits
+    .sort(
+      (a, b) =>
+        Number(b.prefix) - Number(a.prefix) ||
+        a.match.key.length - b.match.key.length ||
+        b.match.score - a.match.score,
+    )
+    .slice(0, limit)
+    .map((h) => h.match);
+}
+
+/** Autocomplete over the GPU tier table. */
+export function searchGpus(query: string, limit = 10): TierMatch[] {
+  return searchTable(GPU_TABLE, query, limit);
+}
+
+/** Autocomplete over the CPU tier table. */
+export function searchCpus(query: string, limit = 10): TierMatch[] {
+  return searchTable(CPU_TABLE, query, limit);
+}

@@ -29,3 +29,9 @@ export function requireAuth() {
     await next();
   });
 }
+
+/** The IGDB client and cache, or a 503 when the server has no IGDB credentials. */
+export function requireIgdb({ igdb, cache }: Pick<RouteDeps, 'igdb' | 'cache'>) {
+  if (!igdb || !cache) throw new HTTPException(503, { message: 'game database not configured' });
+  return { client: igdb, cache };
+}
