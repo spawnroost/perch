@@ -4,6 +4,7 @@ import {
   gameFitForUser,
   gameSearchQuerySchema,
   igdbIdParamSchema,
+  toTimeToBeatHours,
   type GameDetailResponse,
   type GameSearchResponse,
 } from '@perch/core';
@@ -37,9 +38,11 @@ export function gamesRoutes(deps: RouteDeps) {
     const userId = c.get('user').id;
     const game = await cache.getGame(igdbId);
     if (!game) return c.json({ error: 'game not found' }, 404);
-    const [{ deck, fits }, why] = await Promise.all([
+    const [{ deck, fits }, why, timeToBeat] = await Promise.all([
       gameFitForUser(deps, userId, game),
       explainGameForUser(deps, userId, game),
+      // IGDB hiccups on this extra must not fail the page.
+      cache.getTimeToBeat(igdbId).catch(() => null),
     ]);
     return c.json({
       game: {
@@ -47,6 +50,7 @@ export function gamesRoutes(deps: RouteDeps) {
         name: game.name,
         slug: game.slug,
         coverUrl: game.coverUrl,
+        summary: game.summary,
         firstRelease: iso(game.firstRelease),
         platforms: game.platforms,
         rating: game.rating,
@@ -54,6 +58,7 @@ export function gamesRoutes(deps: RouteDeps) {
         steamAppId: game.steamAppId,
       },
       fit: fits,
+      timeToBeat: toTimeToBeatHours(timeToBeat),
       deck,
       why,
     } satisfies GameDetailResponse);

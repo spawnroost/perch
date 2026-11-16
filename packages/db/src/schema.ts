@@ -111,6 +111,8 @@ export const games = pgTable(
     name: text('name').notNull(),
     slug: text('slug').notNull(),
     coverUrl: text('cover_url'),
+    /** IGDB summary; null until fetched with a client that asks for it. */
+    summary: text('summary'),
     firstRelease: ts('first_release'),
     genres: intArray('genres'),
     themes: intArray('themes'),

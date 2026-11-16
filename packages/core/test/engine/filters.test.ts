@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bestFit,
   deviceFit,
+  deviceFitDetail,
   type FilterDevice,
   type FitRequirements,
 } from '../../src/engine/filters.js';
@@ -142,5 +143,66 @@ describe('bestFit', () => {
       status: 'hidden',
       deviceId: 'ps5',
     });
+  });
+});
+
+describe('deviceFitDetail', () => {
+  it('agrees with deviceFit and always gives a reason', () => {
+    const cases: [
+      Parameters<typeof deviceFit>[0],
+      FilterDevice,
+      Parameters<typeof deviceFit>[2],
+    ][] = [
+      [pcGame, pc(), { requirements: full }],
+      [pcGame, pc({ gpuScore: 3000 }), { requirements: full }],
+      [pcGame, pc({ ramGb: 4 }), { requirements: full }],
+      [pcGame, pc(), {}],
+      [{ platforms: [P.ps5] }, pc(), {}],
+      [pcGame, console_('d', 'ps5', [P.ps5]), {}],
+      [pcGame, console_('d', 'steam-deck', [P.windows]), { deck: 'playable' }],
+    ];
+    for (const [g, d, info] of cases) {
+      const detail = deviceFitDetail(g, d, info);
+      expect(detail.status).toBe(deviceFit(g, d, info));
+      expect(detail.reason.length).toBeGreaterThan(0);
+    }
+  });
+  it('names the platform mismatch', () => {
+    expect(deviceFitDetail({ platforms: [P.ps5] }, pc(), {}).reason).toBe(
+      'Not released on this device',
+    );
+  });
+  it('names the PC dimensions that fall short', () => {
+    expect(deviceFitDetail(pcGame, pc({ ramGb: 4 }), { requirements: full }).reason).toBe(
+      'RAM is below the minimum',
+    );
+    expect(
+      deviceFitDetail(pcGame, pc({ gpuScore: 3000, cpuScore: 3000 }), { requirements: full })
+        .reason,
+    ).toBe('GPU and CPU are below the recommended specs');
+    expect(deviceFitDetail(pcGame, pc(), { requirements: full }).reason).toBe(
+      'Meets the recommended specs',
+    );
+    const minOnly = req({ minGpuScore: 2000 });
+    expect(deviceFitDetail(pcGame, pc(), { requirements: minOnly }).reason).toBe(
+      'Meets the minimum specs',
+    );
+  });
+  it('explains unknown PC fits', () => {
+    expect(deviceFitDetail(pcGame, pc(), {}).reason).toBe('No system requirements found');
+    expect(deviceFitDetail(pcGame, pc(), { requirements: req({}) }).reason).toBe(
+      'Not enough data to compare',
+    );
+  });
+  it('explains the Steam Deck category', () => {
+    const deck = console_('d', 'steam-deck', [P.windows]);
+    expect(deviceFitDetail(pcGame, deck, { deck: 'verified' }).reason).toBe('Steam Deck Verified');
+    expect(deviceFitDetail(pcGame, deck, { deck: 'playable' }).reason).toBe(
+      'Playable on Steam Deck with some tweaks',
+    );
+    expect(deviceFitDetail(pcGame, deck, { deck: 'unsupported' }).reason).toBe(
+      'Steam Deck Unsupported',
+    );
+    expect(deviceFitDetail(pcGame, deck, {}).reason).toBe('No Steam Deck rating yet');
   });
 });

@@ -10,7 +10,12 @@ import {
   users,
   type Db,
 } from '@perch/db';
-import { addFeedback, rebuildProfile } from '../../src/feedback/index.js';
+import {
+  addFeedback,
+  listFeedback,
+  rebuildProfile,
+  removeFeedback,
+} from '../../src/feedback/index.js';
 import type { Game } from '../../src/index.js';
 
 const url = process.env.DATABASE_URL_TEST;
@@ -109,5 +114,25 @@ describe.skipIf(!url)('feedback + rebuildProfile', () => {
     // G2 has 20 merged hours: weight log1p(20) vs G1's log1p(10).
     expect(row!.vocab['g12']).toBeCloseTo(Math.log1p(10) / Math.log1p(20), 6);
     await db.delete(users).where(eq(users.id, U2));
+  });
+
+  it('lists the latest feedback per game and removes one kind at a time', async () => {
+    const wait = () => new Promise((r) => setTimeout(r, 5));
+    expect(await listFeedback(db, USER)).toMatchObject({ [G1]: 'not_interested' });
+    await addFeedback({ db, cache }, USER, G2, 'up');
+    await wait();
+    await addFeedback({ db, cache }, USER, G2, 'played');
+    expect((await listFeedback(db, USER))[G2]).toBe('played');
+    await removeFeedback(db, USER, G2, 'played');
+    expect((await listFeedback(db, USER))[G2]).toBe('up');
+    await removeFeedback(db, USER, G2, 'up');
+    await removeFeedback(db, USER, G2, 'up');
+    expect((await listFeedback(db, USER))[G2]).toBeUndefined();
+    // The kind must match: removing 'up' leaves a 'down'.
+    await addFeedback({ db, cache }, USER, G2, 'down');
+    await removeFeedback(db, USER, G2, 'up');
+    expect(await kinds(G2)).toEqual(['down']);
+    await removeFeedback(db, USER, G2, 'down');
+    expect(await kinds(G2)).toEqual([]);
   });
 });

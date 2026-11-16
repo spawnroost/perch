@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { isoDate } from './common.js';
-import { fitStatusSchema } from './games.js';
+import { deckCategorySchema, deviceFitSchema, fitStatusSchema, timeToBeatSchema } from './games.js';
 
 export const recommendationsQuerySchema = z.object({
   /** A device id or preset id, 'all' (default) or 'none' (no device filtering). */
@@ -18,12 +18,19 @@ export const recommendationsResponseSchema = z.object({
       game: z.object({
         igdbId: z.number().int(),
         name: z.string(),
+        coverUrl: z.string().nullable(),
         firstRelease: isoDate.nullable(),
         rating: z.number().nullable(),
       }),
+      /** Best fit over the devices the `device` param selected; absent when it was 'none'. */
       fit: z
         .object({ status: fitStatusSchema.exclude(['hidden']), deviceId: z.string() })
         .optional(),
+      /** Fit on every device the user has, whatever the `device` param. */
+      fits: z.array(deviceFitSchema),
+      /** Steam Deck category; null without a Deck, a Steam app or a Steam answer. */
+      deck: deckCategorySchema.nullable(),
+      timeToBeat: timeToBeatSchema,
     }),
   ),
 });

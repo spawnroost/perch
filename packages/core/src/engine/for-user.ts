@@ -2,12 +2,14 @@ import type { Db, games } from '@perch/db';
 import type { IgdbCache } from '../igdb/cache.js';
 import type { Game } from '../igdb/schemas.js';
 import type { SteamClient } from '../requirements/steam.js';
+import { loadTimeToBeat, type TimeToBeatHours } from '../igdb/time-to-beat.js';
 import { GENERIC_REASON, createNoneProvider } from './explain.js';
 import {
-  deviceFit,
+  deviceFitDetail,
   deviceKind,
   platformMatches,
   type DeckCategory,
+  type FilterDevice,
   type FitRequirements,
   type FitStatus,
 } from './filters.js';
@@ -28,27 +30,64 @@ export interface UserEngineDeps {
   steam?: SteamClient;
 }
 
+export interface DeviceFit {
+  deviceId: string;
+  deviceName: string;
+  status: FitStatus;
+  /** Why the device got this status (from the will-it-run result). */
+  reason: string;
+}
+
+export interface GameFit {
+  deck: DeckCategory | null;
+  fits: DeviceFit[];
+}
+
+export type UserRecommendation = Recommendation &
+  GameFit & {
+    coverUrl: string | null;
+    /** Only what is already in the DB; null when none or too few submissions. */
+    timeToBeat: TimeToBeatHours | null;
+  };
+
 /**
  * The user's recommendations, as `perch recommend`: filtered by `device` (undefined or 'all' =
- * every device, 'none' = no filtering, else a device id or preset id). Writes nothing.
+ * every device, 'none' = no filtering, else a device id or preset id). Every pick also carries
+ * its fit on all of the user's devices. Writes nothing.
  */
 export async function recommendForUser(
   deps: UserEngineDeps,
   userId: string,
   opts: { device?: string; limit: number },
-): Promise<Recommendation[]> {
+): Promise<UserRecommendation[]> {
   const { db, cache, mapVocab, labels, steam } = deps;
   const { library, feedback } = await loadRecommendInput(db, userId, mapVocab);
-  const devices = selectDevices(await loadDevices(db, userId), opts.device);
-  return recommend(
+  const allDevices = await loadDevices(db, userId);
+  const fetchers = createFitFetchers(db, steam);
+  const recs = await recommend(
     {
       getGames: (ids) => cache.getGames(ids),
       queryByTags: (q) => cache.queryByTags(q),
       mapVocab,
-      ...createFitFetchers(db, steam),
+      ...fetchers,
       explain: createNoneProvider({ labels }),
     },
-    { library, feedback, limit: opts.limit, devices },
+    { library, feedback, limit: opts.limit, devices: selectDevices(allDevices, opts.device) },
+  );
+  // The picks are cached by now, so this is one DB read.
+  const ids = recs.map((r) => r.game.igdbId);
+  const [full, ttb] = await Promise.all([cache.getGames(ids), loadTimeToBeat(db, ids)]);
+  const byId = new Map(full.map((g) => [g.igdbId, g]));
+  return Promise.all(
+    recs.map(async (rec) => {
+      const game = byId.get(rec.game.igdbId);
+      return {
+        ...rec,
+        coverUrl: game?.coverUrl ?? null,
+        timeToBeat: ttb.get(rec.game.igdbId) ?? null,
+        ...(await fitsForGame(allDevices, fetchers, game ?? rec.game)),
+      };
+    }),
   );
 }
 
@@ -73,23 +112,18 @@ export async function explainGameForUser(
   return reason && reason !== GENERIC_REASON ? [reason] : [];
 }
 
-export interface GameFit {
-  deck: DeckCategory | null;
-  fits: { deviceId: string; deviceName: string; status: FitStatus }[];
-}
+type FitFetchers = ReturnType<typeof createFitFetchers>;
 
 /**
  * Will-it-run per device. Steam lookups only happen when a device needs them; a failed lookup
  * leaves the status 'unknown' instead of failing the request.
  */
-export async function gameFitForUser(
-  deps: Pick<UserEngineDeps, 'db' | 'steam'>,
-  userId: string,
-  game: Pick<Game, 'igdbId' | 'platforms' | 'steamAppId'>,
+async function fitsForGame(
+  devices: readonly (FilterDevice & { name: string })[],
+  { fetchRequirements, fetchDeck }: FitFetchers,
+  game: { igdbId: number; platforms?: readonly number[]; steamAppId?: number | null },
 ): Promise<GameFit> {
-  const devices = await loadDevices(deps.db, userId);
-  const { fetchRequirements, fetchDeck } = createFitFetchers(deps.db, deps.steam);
-  const appId = game.steamAppId;
+  const appId = game.steamAppId ?? null;
   const live = devices.filter((d) => platformMatches(game, d));
   let deck: DeckCategory | null = null;
   let requirements: FitRequirements | null | undefined;
@@ -106,7 +140,19 @@ export async function gameFitForUser(
     fits: devices.map((d) => ({
       deviceId: d.id,
       deviceName: d.name,
-      status: deviceFit(game, d, { requirements, deck: deck ?? undefined }),
+      ...deviceFitDetail(game, d, { requirements, deck: deck ?? undefined }),
     })),
   };
+}
+
+export async function gameFitForUser(
+  deps: Pick<UserEngineDeps, 'db' | 'steam'>,
+  userId: string,
+  game: Pick<Game, 'igdbId' | 'platforms' | 'steamAppId'>,
+): Promise<GameFit> {
+  return fitsForGame(
+    await loadDevices(deps.db, userId),
+    createFitFetchers(deps.db, deps.steam),
+    game,
+  );
 }

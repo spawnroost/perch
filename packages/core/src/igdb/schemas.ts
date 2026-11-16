@@ -16,6 +16,7 @@ export const igdbGameSchema = z.object({
   id: z.number().int(),
   name: z.string(),
   slug: z.string(),
+  summary: z.string().optional(),
   cover: z.object({ image_id: z.string() }).optional(),
   first_release_date: z.number().optional(),
   total_rating: z.number().optional(),
@@ -78,6 +79,8 @@ export interface Game {
   name: string;
   slug: string;
   coverUrl: string | null;
+  /** IGDB `summary`; null when IGDB has none. */
+  summary: string | null;
   firstRelease: Date | null;
   genres: number[];
   themes: number[];

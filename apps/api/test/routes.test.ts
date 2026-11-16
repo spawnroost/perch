@@ -15,6 +15,7 @@ function game(igdbId: number, name: string, extra: Partial<Game> = {}): Game {
     name,
     slug: `route-test-${igdbId}`,
     coverUrl: null,
+    summary: null,
     firstRelease: new Date('2020-01-01T00:00:00Z'),
     genres: [12],
     themes: [],
@@ -32,8 +33,16 @@ function game(igdbId: number, name: string, extra: Partial<Game> = {}): Game {
 }
 
 const catalog = [
-  game(A, 'Routetest Alpha', { similarIds: [B], steamAppId: 4_000_001 }),
-  game(B, 'Routetest Beta', { genres: [12, 31], platforms: [6, 167] }),
+  game(A, 'Routetest Alpha', {
+    similarIds: [B],
+    steamAppId: 4_000_001,
+    summary: 'An alpha summary.',
+  }),
+  game(B, 'Routetest Beta', {
+    genres: [12, 31],
+    platforms: [6, 167],
+    coverUrl: 'https://img.test/beta.jpg',
+  }),
   game(C, 'Routetest Gamma', { genres: [31] }),
   game(D, 'Routetest Delta', { genres: [5] }),
 ];
@@ -62,8 +71,10 @@ const fakeIgdb: IgdbClient = {
   async queryByTags() {
     return [];
   },
-  async getTimeToBeat() {
-    return null;
+  async getTimeToBeat(id) {
+    return id === A
+      ? { hastilySeconds: 3600, normallySeconds: 7200, completelySeconds: null, count: 50 }
+      : null;
   },
   async keywordNames() {
     return {};
@@ -129,7 +140,9 @@ describe.skipIf(!testUrl)('api routes', () => {
       ['PATCH', `/api/devices/${crypto.randomUUID()}`],
       ['DELETE', `/api/devices/${crypto.randomUUID()}`],
       ['GET', '/api/recommendations'],
+      ['GET', '/api/feedback'],
       ['POST', '/api/feedback'],
+      ['DELETE', `/api/feedback/${C}/up`],
       ['POST', '/api/profile/rebuild'],
     ])('%s %s needs a session', async (method, path) => {
       expect((await call(method, path, undefined, method === 'GET' ? undefined : {})).status).toBe(
@@ -172,11 +185,25 @@ describe.skipIf(!testUrl)('api routes', () => {
       const res = await get(`/api/games/${A}`, u.cookie);
       const body = (await res.json()) as {
         game: { igdbId: number; name: string };
-        fit: { deviceName: string; status: string }[];
+        fit: { deviceName: string; status: string; reason: string }[];
+        timeToBeat: unknown;
         deck: string;
         why: string[];
       };
-      expect(body.game).toMatchObject({ igdbId: A, name: 'Routetest Alpha' });
+      expect(body.game).toMatchObject({
+        igdbId: A,
+        name: 'Routetest Alpha',
+        summary: 'An alpha summary.',
+      });
+      expect(body.timeToBeat).toEqual({
+        hastilyHours: 1,
+        normallyHours: 2,
+        completelyHours: null,
+      });
+      expect(Object.fromEntries(body.fit.map((f) => [f.deviceName, f.reason]))).toEqual({
+        'Steam Deck': 'Steam Deck Verified',
+        'PlayStation 5': 'Not released on this device',
+      });
       expect(body.deck).toBe('verified');
       expect(Object.fromEntries(body.fit.map((f) => [f.deviceName, f.status]))).toEqual({
         'Steam Deck': 'green',
@@ -487,21 +514,45 @@ describe.skipIf(!testUrl)('api routes', () => {
         recommendations: {
           rank: number;
           reason: string;
-          game: { igdbId: number };
+          game: { igdbId: number; coverUrl: string | null };
           fit?: unknown;
+          fits: { deviceName: string; status: string; reason: string }[];
+          deck: string | null;
+          timeToBeat: { normallyHours: number } | null;
         }[];
       };
       expect(body.recommendations.map((r) => r.game.igdbId)).toContain(B);
       expect(body.recommendations[0]?.rank).toBe(1);
       expect(body.recommendations[0]?.fit).toBeUndefined();
+      // Fits cover every device even with no filtering, and covers come from the games table.
+      const beta = body.recommendations.find((r) => r.game.igdbId === B)!;
+      expect(beta.fits).toMatchObject([
+        { deviceName: 'PlayStation 5', status: 'green', reason: 'Available on this console' },
+      ]);
+      expect(beta.game.coverUrl).toBe('https://img.test/beta.jpg');
+      expect(beta.deck).toBeNull();
+      expect(beta.timeToBeat).toBeNull();
+      await ctx.db
+        .insert(schema.timeToBeat)
+        .values({ igdbId: B, normallySeconds: 36_000, count: 10 })
+        .onConflictDoNothing();
 
       // Beta is on PS5 (platform 167), so the PS5 filter keeps it with a fit.
       const ps5 = await get('/api/recommendations?device=ps5', u.cookie);
       const filtered = (await ps5.json()) as {
-        recommendations: { game: { igdbId: number }; fit: { status: string } }[];
+        recommendations: {
+          game: { igdbId: number };
+          fit: { status: string };
+          timeToBeat: unknown;
+        }[];
       };
       expect(filtered.recommendations.map((r) => r.game.igdbId)).toEqual([B]);
       expect(filtered.recommendations[0]?.fit.status).toBe('green');
+      expect(filtered.recommendations[0]?.timeToBeat).toEqual({
+        hastilyHours: null,
+        normallyHours: 10,
+        completelyHours: null,
+      });
       expect((await get('/api/recommendations?device=all', u.cookie)).status).toBe(200);
     });
 
@@ -544,6 +595,26 @@ describe.skipIf(!testUrl)('api routes', () => {
         .from(schema.tasteProfiles)
         .where(eq(schema.tasteProfiles.userId, u.id));
       expect(profile).toBeDefined();
+    });
+
+    it('lists current feedback and undoes one kind with DELETE', async () => {
+      const u = await newUser();
+      const send = (kind: string) => call('POST', '/api/feedback', u.cookie, { igdbId: C, kind });
+      const list = async () =>
+        ((await (await get('/api/feedback', u.cookie)).json()) as { feedback: object }).feedback;
+      expect(await list()).toEqual({});
+      await send('up');
+      expect(await list()).toEqual({ [C]: 'up' });
+      await send('not_interested');
+      expect(await list()).toEqual({ [C]: 'not_interested' });
+      expect((await call('DELETE', `/api/feedback/${C}/not_interested`, u.cookie)).status).toBe(
+        200,
+      );
+      expect(await list()).toEqual({ [C]: 'up' });
+      await call('DELETE', `/api/feedback/${C}/up`, u.cookie);
+      expect(await list()).toEqual({});
+      expect((await call('DELETE', `/api/feedback/${C}/meh`, u.cookie)).status).toBe(400);
+      expect((await call('DELETE', `/api/feedback/0/up`, u.cookie)).status).toBe(400);
     });
 
     it('400 on bad input, 404 for an unknown game', async () => {

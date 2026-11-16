@@ -13,11 +13,12 @@ export {
   scoreCandidate,
 } from './rank.js';
 export type { RankedCandidate } from './rank.js';
-export { bestFit, deviceFit, deviceKind, platformMatches } from './filters.js';
+export { bestFit, deviceFit, deviceFitDetail, deviceKind, platformMatches } from './filters.js';
 export type {
   BestFit,
   DeckCategory,
   FilterDevice,
+  FitDetail,
   FitInfo,
   FitOptions,
   FitRequirements,
@@ -40,4 +41,4 @@ export type {
 } from './types.js';
 export { hiddenIds, isBacklog } from './visibility.js';
 export { explainGameForUser, gameFitForUser, recommendForUser } from './for-user.js';
-export type { GameFit, UserEngineDeps } from './for-user.js';
+export type { DeviceFit, GameFit, UserEngineDeps, UserRecommendation } from './for-user.js';

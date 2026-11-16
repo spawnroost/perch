@@ -183,6 +183,20 @@ describe('getGame', () => {
     expect(net.apiCalls()[0]?.body).toMatch(/collections,franchises/);
   });
 
+  it('requests and maps the summary, null when IGDB has none', async () => {
+    const net = fakeFetch({
+      intercept: () =>
+        json([
+          { id: 9, name: 'X', slug: 'x', summary: 'A game.' },
+          { id: 10, name: 'Y', slug: 'y' },
+        ]),
+    });
+    const [x, y] = await make(net).getGames([9, 10]);
+    expect(x?.summary).toBe('A game.');
+    expect(y?.summary).toBeNull();
+    expect(net.apiCalls()[0]?.body).toMatch(/summary/);
+  });
+
   it('series is [] when IGDB sends neither collections nor franchises', async () => {
     const net = fakeFetch({ intercept: () => json([{ id: 9, name: 'X', slug: 'x' }]) });
     expect((await make(net).getGame(9))?.series).toEqual([]);
@@ -207,6 +221,7 @@ describe('getGame', () => {
     expect(game).toMatchObject({
       steamAppId: null,
       coverUrl: null,
+      summary: null,
       firstRelease: null,
       rating: null,
       genres: [],

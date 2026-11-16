@@ -3,8 +3,8 @@ import type {
   DeviceView,
   LibraryEntry,
   LibraryRow,
-  Recommendation,
   RecommendationsResponse,
+  UserRecommendation,
 } from '@perch/core';
 
 export const iso = (d: Date | null) => (d ? d.toISOString() : null);
@@ -42,7 +42,7 @@ export function deviceDto(d: Device): DeviceView {
 }
 
 export function recommendationDto(
-  r: Recommendation,
+  r: UserRecommendation,
 ): RecommendationsResponse['recommendations'][number] {
   return {
     rank: r.rank,
@@ -52,9 +52,13 @@ export function recommendationDto(
     game: {
       igdbId: r.game.igdbId,
       name: r.game.name,
+      coverUrl: r.coverUrl,
       firstRelease: iso(r.game.firstRelease),
       rating: r.game.rating,
     },
     ...(r.fit ? { fit: r.fit } : {}),
+    fits: r.fits,
+    deck: r.deck,
+    timeToBeat: r.timeToBeat,
   };
 }

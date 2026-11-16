@@ -21,6 +21,7 @@ export const STEAM_SOURCE_ID = 1;
 const GAME_FIELDS = [
   'name',
   'slug',
+  'summary',
   'cover.image_id',
   'first_release_date',
   'total_rating',
@@ -96,6 +97,7 @@ function toGame(g: RawGame): Game {
     coverUrl: g.cover
       ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${g.cover.image_id}.jpg`
       : null,
+    summary: g.summary ?? null,
     firstRelease: g.first_release_date ? new Date(g.first_release_date * 1000) : null,
     genres: g.genres ?? [],
     themes: g.themes ?? [],

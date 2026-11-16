@@ -58,27 +58,89 @@ export function platformMatches(game: FitGame, device: Pick<FilterDevice, 'platf
   return (game.platforms ?? []).some((p) => own.has(p));
 }
 
+export interface FitDetail {
+  status: FitStatus;
+  /** One short sentence saying why the device got this status. */
+  reason: string;
+}
+
+const list = (words: string[]) =>
+  words.length > 1 ? `${words.slice(0, -1).join(', ')} and ${words.at(-1)}` : words[0]!;
+
 /** Worst-of-three comparison; null on either side skips that dimension. */
-function pcFit(device: FilterDevice, r: FitRequirements | null | undefined): FitStatus {
-  if (!r) return 'unknown';
-  const dims: [number | null, number | null, number | null][] = [
-    [device.gpuScore, r.minGpuScore, r.recGpuScore],
-    [device.cpuScore, r.minCpuScore, r.recCpuScore],
-    [device.ramGb, r.minRamGb, r.recRamGb],
+function pcFit(device: FilterDevice, r: FitRequirements | null | undefined): FitDetail {
+  if (!r) return { status: 'unknown', reason: 'No system requirements found' };
+  const dims: [string, number | null, number | null, number | null][] = [
+    ['GPU', device.gpuScore, r.minGpuScore, r.recGpuScore],
+    ['CPU', device.cpuScore, r.minCpuScore, r.recCpuScore],
+    ['RAM', device.ramGb, r.minRamGb, r.recRamGb],
   ];
-  let worst: FitStatus | null = null;
-  const note = (s: FitStatus) => {
-    if (worst === null || RANK[s] < RANK[worst]) worst = s;
+  const labels: Record<'hidden' | 'yellow' | 'green', string[]> = {
+    hidden: [],
+    yellow: [],
+    green: [],
   };
-  for (const [have, min, rec] of dims) {
+  let hasRec = false;
+  for (const [label, have, min, rec] of dims) {
     if (have === null || (min === null && rec === null)) continue;
     // With only one side known, that side is the bar.
     const floor = min ?? rec!;
-    if (have < floor) note('hidden');
-    else if (rec !== null && have < rec) note('yellow');
-    else note('green');
+    if (rec !== null) hasRec = true;
+    if (have < floor) labels.hidden.push(label);
+    else if (rec !== null && have < rec) labels.yellow.push(label);
+    else labels.green.push(label);
   }
-  return worst ?? 'unknown';
+  const verb = (l: string[]) => (l.length > 1 ? 'are' : 'is');
+  if (labels.hidden.length > 0) {
+    return {
+      status: 'hidden',
+      reason: `${list(labels.hidden)} ${verb(labels.hidden)} below the minimum`,
+    };
+  }
+  if (labels.yellow.length > 0) {
+    return {
+      status: 'yellow',
+      reason: `${list(labels.yellow)} ${verb(labels.yellow)} below the recommended specs`,
+    };
+  }
+  if (labels.green.length > 0) {
+    return {
+      status: 'green',
+      reason: hasRec ? 'Meets the recommended specs' : 'Meets the minimum specs',
+    };
+  }
+  return { status: 'unknown', reason: 'Not enough data to compare' };
+}
+
+const DECK_FIT: Record<DeckCategory, FitDetail> = {
+  verified: { status: 'green', reason: 'Steam Deck Verified' },
+  playable: { status: 'yellow', reason: 'Playable on Steam Deck with some tweaks' },
+  unsupported: { status: 'hidden', reason: 'Steam Deck Unsupported' },
+  unknown: { status: 'unknown', reason: 'No Steam Deck rating yet' },
+};
+
+/** Will-it-run of one game on one device: the status and the reason behind it. */
+export function deviceFitDetail(
+  game: FitGame,
+  device: FilterDevice,
+  info: FitInfo,
+  opts: FitOptions = {},
+): FitDetail {
+  if (!platformMatches(game, device)) {
+    return { status: 'hidden', reason: 'Not released on this device' };
+  }
+  switch (deviceKind(device)) {
+    case 'console':
+      return { status: 'green', reason: 'Available on this console' };
+    case 'deck': {
+      const detail = DECK_FIT[info.deck ?? 'unknown'];
+      return opts.allowUnsupported && detail.status === 'hidden'
+        ? { status: 'yellow', reason: detail.reason }
+        : detail;
+    }
+    case 'pc':
+      return pcFit(device, info.requirements);
+  }
 }
 
 export function deviceFit(
@@ -87,24 +149,7 @@ export function deviceFit(
   info: FitInfo,
   opts: FitOptions = {},
 ): FitStatus {
-  if (!platformMatches(game, device)) return 'hidden';
-  switch (deviceKind(device)) {
-    case 'console':
-      return 'green';
-    case 'deck':
-      switch (info.deck) {
-        case 'verified':
-          return 'green';
-        case 'playable':
-          return 'yellow';
-        case 'unsupported':
-          return opts.allowUnsupported ? 'yellow' : 'hidden';
-        default:
-          return 'unknown';
-      }
-    case 'pc':
-      return pcFit(device, info.requirements);
-  }
+  return deviceFitDetail(game, device, info, opts).status;
 }
 
 /** Best status over all devices (first device wins ties) and the device that gave it. */

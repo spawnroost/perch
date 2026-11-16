@@ -153,6 +153,7 @@ describe('row builders', () => {
     name: 'Hades',
     slug: 'hades',
     coverUrl: null,
+    summary: null,
     firstRelease: null,
     genres: [1],
     themes: [],

@@ -1,3 +1,4 @@
+import { and, desc, eq } from 'drizzle-orm';
 import { feedback, games, tasteProfiles, type Db } from '@perch/db';
 import { GameNotFoundError } from '../library/db.js';
 import { buildProfile } from '../engine/profile.js';
@@ -34,6 +35,31 @@ export async function addFeedback(
       target: [feedback.userId, feedback.igdbId, feedback.slot],
       set: { kind, at: new Date() },
     });
+}
+
+/** Undoes one kind of feedback; a kind that is not set is a no-op (so is a vote of the other way). */
+export async function removeFeedback(
+  db: Db,
+  userId: string,
+  igdbId: number,
+  kind: FeedbackKind,
+): Promise<void> {
+  await db
+    .delete(feedback)
+    .where(and(eq(feedback.userId, userId), eq(feedback.igdbId, igdbId), eq(feedback.kind, kind)));
+}
+
+/** The user's current feedback: per game, the kind sent most recently. */
+export async function listFeedback(db: Db, userId: string): Promise<Record<number, FeedbackKind>> {
+  const rows = await db
+    .select({ igdbId: feedback.igdbId, kind: feedback.kind })
+    .from(feedback)
+    .where(eq(feedback.userId, userId))
+    .orderBy(desc(feedback.at));
+  const out: Record<number, FeedbackKind> = {};
+  // Newest first, so the first row seen for a game wins.
+  for (const row of rows) out[row.igdbId] ??= row.kind as FeedbackKind;
+  return out;
 }
 
 /**
