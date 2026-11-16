@@ -1,15 +1,16 @@
-import { useNavigate } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '../atoms';
 import { useAction } from '@/hooks/useAction';
 import { authClient, unwrapAuth } from '@/lib/auth-client';
 
 /** Placeholder landing until the For you screens (step 5). */
 export function SignedInHome() {
-  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data } = authClient.useSession();
   const signOut = useAction(async () => {
     unwrapAuth(await authClient.signOut());
-    await navigate('/login');
+    // Drop the previous user's library, devices and picks; the route guard then sends us to login.
+    queryClient.clear();
   });
 
   return (

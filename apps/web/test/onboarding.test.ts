@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   STEPS,
+  releaseYear,
   advance,
   back,
   canAdvance,
@@ -58,5 +59,15 @@ describe('parseHours', () => {
     expect(parseHours('abc')).toBeNull();
     expect(parseHours('1e3')).toBeNull();
     expect(parseHours('2000000')).toBeNull();
+  });
+});
+
+describe('releaseYear', () => {
+  it('returns the UTC year for valid dates', () => {
+    expect(releaseYear('2020-09-17')).toBe(2020);
+  });
+  it('returns undefined for null or bad dates', () => {
+    expect(releaseYear(null)).toBeUndefined();
+    expect(releaseYear('not a date')).toBeUndefined();
   });
 });

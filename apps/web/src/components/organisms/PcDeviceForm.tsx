@@ -41,14 +41,22 @@ function HardwareField({
   );
 }
 
-export function PcDeviceForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
+export function PcDeviceForm({
+  add,
+  onDone,
+  onCancel,
+}: {
+  /** Shared with DevicesStep so presets disable while a PC is being added. */
+  add: ReturnType<typeof useAddDevice>;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
   // Browser hints are read once on mount; the user confirms or edits them.
   const [gpuHint] = useState(readWebglRenderer);
   const [memory] = useState(readDeviceMemory);
   const [gpu, setGpu] = useState(gpuHint ?? '');
   const [cpu, setCpu] = useState('');
   const [ram, setRam] = useState(memory ? String(memory.gb) : '');
-  const add = useAddDevice();
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();

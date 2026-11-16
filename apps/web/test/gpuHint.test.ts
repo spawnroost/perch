@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import { parseDeviceMemory, parseGpuRenderer } from '../src/lib/gpuHint.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  parseDeviceMemory,
+  parseGpuRenderer,
+  readWebglRenderer,
+  resetWebglRendererCache,
+} from '../src/lib/gpuHint.js';
 
 describe('parseGpuRenderer', () => {
   it.each([
@@ -49,5 +54,32 @@ describe('parseDeviceMemory', () => {
     expect(parseDeviceMemory(0)).toBeNull();
     expect(parseDeviceMemory('8')).toBeNull();
     expect(parseDeviceMemory(Number.NaN)).toBeNull();
+  });
+});
+
+describe('readWebglRenderer', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    resetWebglRendererCache();
+  });
+
+  it('probes once, caches the result and releases the context', () => {
+    const loseContext = vi.fn();
+    const gl = {
+      getExtension: (name: string) =>
+        name === 'WEBGL_debug_renderer_info'
+          ? { UNMASKED_RENDERER_WEBGL: 1 }
+          : name === 'WEBGL_lose_context'
+            ? { loseContext }
+            : null,
+      getParameter: () => 'NVIDIA GeForce GTX 1050 Ti/PCIe/SSE2',
+    };
+    const createElement = vi.fn(() => ({ getContext: () => gl }));
+    vi.stubGlobal('document', { createElement });
+
+    expect(readWebglRenderer()).toBe('NVIDIA GeForce GTX 1050 Ti');
+    expect(readWebglRenderer()).toBe('NVIDIA GeForce GTX 1050 Ti');
+    expect(createElement).toHaveBeenCalledTimes(1);
+    expect(loseContext).toHaveBeenCalledTimes(1);
   });
 });

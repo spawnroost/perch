@@ -62,7 +62,12 @@ export async function request<T>(
 
   if (!res.ok) throw new ApiError(res.status, await errorMessage(res));
   const text = await res.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+  if (!text) return undefined as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new ApiError(res.status, 'The server sent an unexpected response. Try again.');
+  }
 }
 
 export const api = {

@@ -3,9 +3,9 @@ import { Search } from 'lucide-react';
 import { Input, Notice, Skeleton } from '../atoms';
 import { ConnectorsComingSoon, GameResultRow } from '../molecules';
 import { useAddToLibrary, useGameSearch, useLibrary } from '@/hooks/queries';
+import { cn } from '@/lib/cn';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-
-const year = (iso: string | null) => (iso ? new Date(iso).getUTCFullYear() : null);
+import { releaseYear } from '@/lib/onboarding';
 
 export function GamesStep() {
   const [query, setQuery] = useState('');
@@ -38,14 +38,21 @@ export function GamesStep() {
       {search.isFetching && !results && <Skeleton className="h-24" />}
       {results && results.length === 0 && <Notice>No games found for "{q}".</Notice>}
       {results && results.length > 0 && (
-        <ul className="overflow-hidden rounded-lg border border-line bg-surface-1">
+        <ul
+          aria-busy={search.isPlaceholderData}
+          className={cn(
+            'overflow-hidden rounded-lg border border-line bg-surface-1 transition-opacity',
+            search.isPlaceholderData && 'opacity-50',
+          )}
+        >
           {results.map((g) => (
             <GameResultRow
               key={g.igdbId}
               name={g.name}
-              year={year(g.firstRelease)}
+              year={releaseYear(g.firstRelease)}
               added={owned.has(g.igdbId)}
               pending={addingId === g.igdbId}
+              disabled={search.isPlaceholderData}
               onAdd={(hours) => addGame(g.igdbId, hours)}
             />
           ))}

@@ -77,3 +77,12 @@ describe('api', () => {
     await expect(api.delete('/api/library/x')).resolves.toBeUndefined();
   });
 });
+
+describe('api non-JSON success body', () => {
+  it('throws an ApiError instead of a raw SyntaxError', async () => {
+    stubFetch(new Response('<html>oops</html>', { status: 200 }));
+    const err = await api.get('/api/x').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as ApiError).message).toMatch(/unexpected response/i);
+  });
+});

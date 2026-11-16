@@ -51,7 +51,9 @@ export function DevicesStep() {
           ))}
         </div>
       )}
-      {pcOpen && <PcDeviceForm onDone={() => setPcOpen(false)} onCancel={() => setPcOpen(false)} />}
+      {pcOpen && (
+        <PcDeviceForm add={add} onDone={() => setPcOpen(false)} onCancel={() => setPcOpen(false)} />
+      )}
       <p className="text-sm text-fg-muted tabular-nums">
         {devices.data?.length ?? 0} added. Picks are filtered to what each device can run.
       </p>

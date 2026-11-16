@@ -40,3 +40,10 @@ export function parseHours(input: string): number | undefined | null {
   const hours = Number(text);
   return hours <= MAX_HOURS ? hours : null;
 }
+
+/** UTC year of an ISO date, or `undefined` when missing or unparseable. */
+export function releaseYear(iso: string | null): number | undefined {
+  if (!iso) return undefined;
+  const year = new Date(iso).getUTCFullYear();
+  return Number.isNaN(year) ? undefined : year;
+}

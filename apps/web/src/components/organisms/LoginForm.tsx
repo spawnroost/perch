@@ -17,8 +17,8 @@ export function LoginForm() {
       return;
     }
     if (authError) throw new Error(authError.message || 'Could not sign in. Try again.');
-    // The route guard sends the user on to onboarding or home once the session lands.
-    await navigate('/');
+    // No navigate here: the route guard redirects once useSession reports the new session,
+    // so there is no bounce back to /login while the session is still refreshing.
   });
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {

@@ -5,13 +5,15 @@ import { parseHours } from '@/lib/onboarding';
 
 export interface GameResultRowProps {
   name: string;
-  year: number | null;
+  year?: number;
   added: boolean;
   pending: boolean;
+  /** Results shown are stale (a newer search is loading). */
+  disabled?: boolean;
   onAdd: (hours: number | undefined) => void;
 }
 
-export function GameResultRow({ name, year, added, pending, onAdd }: GameResultRowProps) {
+export function GameResultRow({ name, year, added, pending, disabled, onAdd }: GameResultRowProps) {
   const [hours, setHours] = useState('');
   const parsed = parseHours(hours);
   const invalid = parsed === null;
@@ -41,7 +43,7 @@ export function GameResultRow({ name, year, added, pending, onAdd }: GameResultR
           <Button
             variant="secondary"
             loading={pending}
-            disabled={invalid}
+            disabled={invalid || disabled}
             aria-label={`Add ${name}`}
             onClick={() => onAdd(parsed ?? undefined)}
           >

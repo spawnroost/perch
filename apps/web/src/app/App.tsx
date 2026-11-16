@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter, Route, Routes } from 'react-router';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import {
   ForgotPasswordPage,
   HomePage,
@@ -10,15 +10,14 @@ import {
   SignupPage,
   VerifyEmailPage,
 } from '@/pages';
-import { ApiError } from '@/lib/api';
+import { shouldRetry } from '@/lib/retry';
 import { RouteGuard } from './RouteGuard';
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 30_000,
-      // Do not retry client errors (401, 400, ...): they will not change.
-      retry: (count, error) => !(error instanceof ApiError && error.status < 500) && count < 2,
+      retry: shouldRetry,
     },
   },
 });
@@ -40,6 +39,7 @@ export function App() {
             <Route path="verify-email" element={<VerifyEmailPage />} />
             <Route path="forgot-password" element={<ForgotPasswordPage />} />
             <Route path="reset-password" element={<ResetPasswordPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
           {Showcase && (
             <Route

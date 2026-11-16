@@ -28,16 +28,35 @@ export function parseGpuRenderer(raw: string | null | undefined): string | null 
   return cleaned || null;
 }
 
-/** GPU renderer string from the WebGL debug extension, or null when unavailable. */
+let cachedRenderer: string | null | undefined;
+
+/** Test hook: forget the cached WebGL probe. */
+export function resetWebglRendererCache(): void {
+  cachedRenderer = undefined;
+}
+
+/**
+ * GPU renderer string from the WebGL debug extension, or null when unavailable.
+ * Probed once per page load; the context is released straight after.
+ */
 export function readWebglRenderer(): string | null {
+  if (cachedRenderer !== undefined) return cachedRenderer;
+  cachedRenderer = probeWebglRenderer();
+  return cachedRenderer;
+}
+
+function probeWebglRenderer(): string | null {
+  let gl: WebGLRenderingContext | null = null;
   try {
-    const gl = document.createElement('canvas').getContext('webgl');
+    gl = document.createElement('canvas').getContext('webgl');
     const info = gl?.getExtension('WEBGL_debug_renderer_info');
     if (!gl || !info) return null;
     const renderer: unknown = gl.getParameter(info.UNMASKED_RENDERER_WEBGL);
     return typeof renderer === 'string' ? parseGpuRenderer(renderer) : null;
   } catch {
     return null;
+  } finally {
+    gl?.getExtension('WEBGL_lose_context')?.loseContext();
   }
 }
 
