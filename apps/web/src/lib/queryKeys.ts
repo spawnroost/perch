@@ -3,7 +3,7 @@ export const queryKeys = {
   devices: ['devices'] as const,
   presets: ['device-presets'] as const,
   game: (igdbId: number) => ['games', 'detail', igdbId] as const,
-  /** Client-only: feedback sent this session, by game (the API has no read route). */
+  /** The user's feedback, by game. */
   feedback: ['feedback'] as const,
   gameSearch: (q: string) => ['games', 'search', q] as const,
   hardware: (kind: 'gpus' | 'cpus', q: string) => ['hardware', kind, q] as const,

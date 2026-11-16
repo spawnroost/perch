@@ -1,17 +1,12 @@
-import { Link } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { Check, ChevronLeft, Plus } from 'lucide-react';
 import { Badge, Button, Cover, DeckBadge, Notice, Skeleton } from '../atoms';
 import { FeedbackActions, FitDetailRow, LoadError } from '../molecules';
-import {
-  useAddToLibrary,
-  useFeedbackState,
-  useGameDetail,
-  useLibrary,
-  useSendFeedback,
-} from '@/hooks/queries';
+import { useAddToLibrary, useFeedback, useGameDetail, useLibrary } from '@/hooks/queries';
 import { ApiError } from '@/lib/api';
 import { releaseYear } from '@/lib/onboarding';
 import { platformNames } from '@/lib/platforms';
+import { timeToBeatLabel } from '@/lib/timeToBeat';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -22,22 +17,33 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+/** Back to where the visitor came from; to For you when this page was the entry point. */
+function BackLink() {
+  const navigate = useNavigate();
+  // React Router gives the first entry of a session the key 'default'.
+  const hasHistory = useLocation().key !== 'default';
+  return (
+    <Link
+      to="/"
+      onClick={(e) => {
+        if (!hasHistory) return;
+        e.preventDefault();
+        void navigate(-1);
+      }}
+      className="inline-flex w-fit items-center gap-1 rounded-sm text-sm text-fg-muted hover:text-fg"
+    >
+      <ChevronLeft size={14} strokeWidth={1.75} aria-hidden />
+      {hasHistory ? 'Back' : 'For you'}
+    </Link>
+  );
+}
+
 export function GameDetail({ igdbId }: { igdbId: number | null }) {
   const detail = useGameDetail(igdbId);
   const library = useLibrary();
   const add = useAddToLibrary();
-  const feedback = useFeedbackState().data;
-  const send = useSendFeedback();
-
-  const back = (
-    <Link
-      to="/"
-      className="inline-flex w-fit items-center gap-1 rounded-sm text-sm text-fg-muted hover:text-fg"
-    >
-      <ChevronLeft size={14} strokeWidth={1.75} aria-hidden />
-      For you
-    </Link>
-  );
+  const { feedback, send, error: feedbackError } = useFeedback();
+  const back = <BackLink />;
 
   if (igdbId === null) return <NotFound back={back} />;
   if (detail.isPending) {
@@ -63,7 +69,8 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
     );
   }
 
-  const { game, fit, deck, why } = detail.data;
+  const { game, fit, deck, why, timeToBeat } = detail.data;
+  const toBeat = timeToBeatLabel(timeToBeat);
   const year = releaseYear(game.firstRelease);
   const platforms = platformNames(game.platforms);
   const inLibrary = library.data?.some((e) => e.igdbId === game.igdbId) ?? false;
@@ -76,7 +83,7 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
         <div className="flex min-w-0 flex-col items-start gap-2">
           <h1 className="text-2xl font-semibold tracking-display text-fg">{game.name}</h1>
           <p className="text-sm text-fg-muted tabular-nums">
-            {[year, game.rating !== null && `Rated ${Math.round(game.rating)}`]
+            {[year, game.rating !== null && `Rated ${Math.round(game.rating)}`, toBeat]
               .filter(Boolean)
               .join(' · ')}
           </p>
@@ -106,13 +113,19 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
             <FeedbackActions
               labels
               value={feedback[game.igdbId]}
-              onSend={(kind) => send.mutate({ igdbId: game.igdbId, kind })}
+              onSend={(kind) => send(game.igdbId, kind)}
             />
           </div>
         </div>
       </header>
       {add.isError && <Notice tone="error">{add.error.message}</Notice>}
-      {send.isError && <Notice tone="error">{send.error.message}</Notice>}
+      {feedbackError && <Notice tone="error">{feedbackError.message}</Notice>}
+
+      {game.summary && (
+        <Section title="About">
+          <p className="text-base text-fg">{game.summary}</p>
+        </Section>
+      )}
 
       <Section title="Why it's recommended">
         {why.length > 0 ? (
@@ -134,7 +147,12 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
         {fit.length > 0 ? (
           <ul className="overflow-hidden rounded-lg border border-line bg-surface-1">
             {fit.map((f) => (
-              <FitDetailRow key={f.deviceId} deviceName={f.deviceName} status={f.status} />
+              <FitDetailRow
+                key={f.deviceId}
+                deviceName={f.deviceName}
+                status={f.status}
+                reason={f.reason}
+              />
             ))}
           </ul>
         ) : (

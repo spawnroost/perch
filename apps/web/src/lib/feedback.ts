@@ -1,9 +1,9 @@
-import type { QueryClient, QueryKey } from '@tanstack/react-query';
-import type { FeedbackKind, RecommendationsResponse } from '@perch/core';
+import type { QueryClient } from '@tanstack/react-query';
+import type { FeedbackKind, FeedbackListResponse, RecommendationsResponse } from '@perch/core';
 import { queryKeys } from './queryKeys';
 
-/** Feedback sent this session, by IGDB id. */
-export type FeedbackMap = Readonly<Record<number, FeedbackKind>>;
+/** The user's current feedback, by IGDB id (what `GET /api/feedback` returns). */
+export type FeedbackMap = FeedbackListResponse['feedback'];
 
 export const NO_FEEDBACK: FeedbackMap = {};
 
@@ -20,32 +20,71 @@ export function dropRecommendation(
   return { recommendations: data.recommendations.filter((r) => r.game.igdbId !== igdbId) };
 }
 
-export interface FeedbackSnapshot {
-  lists: [QueryKey, RecommendationsResponse | undefined][];
-  feedback: FeedbackMap;
+/** One game's feedback in the map; `undefined` clears it. */
+export function withFeedback(
+  map: FeedbackMap,
+  igdbId: number,
+  kind: FeedbackKind | undefined,
+): FeedbackMap {
+  const next = { ...map };
+  if (kind) next[igdbId] = kind;
+  else delete next[igdbId];
+  return next;
 }
 
-/** Optimistically record feedback and prune the cached pick lists; returns what to restore on error. */
-export async function applyFeedback(
-  qc: QueryClient,
+export interface FeedbackChange {
+  igdbId: number;
+  kind: FeedbackKind;
+  /** The kind is already set: pressing it again takes it back. */
+  undo: boolean;
+}
+
+export function feedbackChange(
+  map: FeedbackMap,
   igdbId: number,
   kind: FeedbackKind,
-): Promise<FeedbackSnapshot> {
-  await qc.cancelQueries({ queryKey: queryKeys.recommendationsAll });
-  const snapshot: FeedbackSnapshot = {
-    lists: qc.getQueriesData<RecommendationsResponse>({ queryKey: queryKeys.recommendationsAll }),
-    feedback: qc.getQueryData<FeedbackMap>(queryKeys.feedback) ?? NO_FEEDBACK,
-  };
-  if (removesFromPicks(kind)) {
+): FeedbackChange {
+  return { igdbId, kind, undo: map[igdbId] === kind };
+}
+
+/** What the map holds for the game once the change has gone through. */
+const resulting = ({ kind, undo }: FeedbackChange) => (undo ? undefined : kind);
+
+/**
+ * Optimistically record the change and prune the cached pick lists, touching only this game.
+ * Returns the game's previous feedback, for `revertFeedback`.
+ */
+export async function applyFeedback(
+  qc: QueryClient,
+  change: FeedbackChange,
+): Promise<FeedbackKind | undefined> {
+  const { igdbId, kind, undo } = change;
+  await Promise.all([
+    qc.cancelQueries({ queryKey: queryKeys.feedback }),
+    qc.cancelQueries({ queryKey: queryKeys.recommendationsAll }),
+  ]);
+  const previous = qc.getQueryData<FeedbackMap>(queryKeys.feedback)?.[igdbId];
+  qc.setQueryData<FeedbackMap>(queryKeys.feedback, (map = NO_FEEDBACK) =>
+    withFeedback(map, igdbId, resulting(change)),
+  );
+  if (!undo && removesFromPicks(kind)) {
     qc.setQueriesData<RecommendationsResponse>({ queryKey: queryKeys.recommendationsAll }, (data) =>
       dropRecommendation(data, igdbId),
     );
   }
-  qc.setQueryData<FeedbackMap>(queryKeys.feedback, (prev) => ({ ...prev, [igdbId]: kind }));
-  return snapshot;
+  return previous;
 }
 
-export function restoreFeedback(qc: QueryClient, snapshot: FeedbackSnapshot): void {
-  for (const [key, data] of snapshot.lists) qc.setQueryData(key, data);
-  qc.setQueryData(queryKeys.feedback, snapshot.feedback);
+/**
+ * Put back this game's previous feedback after a failed change, unless a later change has since
+ * replaced it. Other games, and the pick lists (refetched when the change settles), are untouched.
+ */
+export function revertFeedback(
+  qc: QueryClient,
+  change: FeedbackChange,
+  previous: FeedbackKind | undefined,
+): void {
+  qc.setQueryData<FeedbackMap>(queryKeys.feedback, (map = NO_FEEDBACK) =>
+    map[change.igdbId] === resulting(change) ? withFeedback(map, change.igdbId, previous) : map,
+  );
 }

@@ -1,24 +1,19 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import type { UseQueryResult } from '@tanstack/react-query';
-import type { DeviceView, RecommendationsResponse } from '@perch/core';
+import type { DeviceView } from '@perch/core';
 import { Notice, Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from '../atoms';
 import { LoadError, RecommendationRow } from '../molecules';
-import { useDevices, useFeedbackState, useForYou, useSendFeedback } from '@/hooks/queries';
-import { ALL_TAB, buildFitRows } from '@/lib/forYou';
-
-type Feed = UseQueryResult<RecommendationsResponse>;
-type Fits = Parameters<typeof buildFitRows>[1];
+import { useDevices, useFeedback, useRecommendations } from '@/hooks/queries';
+import { ALL_TAB, buildTabs, FOR_YOU_LIMIT } from '@/lib/forYou';
 
 interface FeedListProps {
-  feed: Feed;
-  devices: DeviceView[];
-  fits: Fits;
+  tab: string;
+  hasDevices: boolean;
 }
 
-function FeedList({ feed, devices, fits }: FeedListProps) {
-  const feedback = useFeedbackState().data;
-  const send = useSendFeedback();
+function FeedList({ tab, hasDevices }: FeedListProps) {
+  const feed = useRecommendations(tab, FOR_YOU_LIMIT);
+  const { feedback, send, error } = useFeedback();
 
   if (feed.isPending) {
     return (
@@ -33,11 +28,12 @@ function FeedList({ feed, devices, fits }: FeedListProps) {
     return <LoadError message={feed.error.message} onRetry={() => void feed.refetch()} />;
   }
 
-  const recs = feed.data.recommendations;
-  if (recs.length === 0) {
+  if (feed.data.length === 0) {
     return (
       <Notice>
-        {devices.length === 0 ? (
+        {hasDevices ? (
+          'No picks for this view. Add more games with hours played to sharpen them.'
+        ) : (
           <>
             No picks yet.{' '}
             <Link to="/devices" className="text-fg underline underline-offset-4">
@@ -45,8 +41,6 @@ function FeedList({ feed, devices, fits }: FeedListProps) {
             </Link>{' '}
             to see what it can run.
           </>
-        ) : (
-          'No picks for this view. Add more games with hours played to sharpen them.'
         )}
       </Notice>
     );
@@ -54,16 +48,15 @@ function FeedList({ feed, devices, fits }: FeedListProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      {send.isError && <Notice tone="error">{send.error.message}</Notice>}
+      {error && <Notice tone="error">{error.message}</Notice>}
       <ul className="overflow-hidden rounded-lg border border-line bg-surface-1">
-        {recs.map((r, i) => (
+        {feed.data.map((r, i) => (
           <RecommendationRow
             key={r.game.igdbId}
             rank={i + 1}
             rec={r}
-            chips={buildFitRows(devices, fits, r.game.igdbId)}
             feedback={feedback[r.game.igdbId]}
-            onFeedback={(kind) => send.mutate({ igdbId: r.game.igdbId, kind })}
+            onFeedback={(kind) => send(r.game.igdbId, kind)}
           />
         ))}
       </ul>
@@ -72,7 +65,7 @@ function FeedList({ feed, devices, fits }: FeedListProps) {
 }
 
 function Feeds({ devices }: { devices: DeviceView[] }) {
-  const { tabs, feeds, fits } = useForYou(devices);
+  const tabs = buildTabs(devices);
   const [selected, setSelected] = useState(ALL_TAB);
   // A tab whose device was removed falls back to All.
   const tab = tabs.some((t) => t.value === selected) ? selected : ALL_TAB;
@@ -90,7 +83,7 @@ function Feeds({ devices }: { devices: DeviceView[] }) {
       )}
       {tabs.map((t) => (
         <TabsContent key={t.value} value={t.value}>
-          <FeedList feed={feeds.get(t.value)!} devices={devices} fits={fits} />
+          <FeedList tab={t.value} hasDevices={devices.length > 0} />
         </TabsContent>
       ))}
     </Tabs>

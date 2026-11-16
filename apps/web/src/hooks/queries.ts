@@ -1,16 +1,10 @@
-import {
-  keepPreviousData,
-  queryOptions,
-  useMutation,
-  useQueries,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   DeviceCreate,
   DevicePresetsResponse,
   DeviceView,
-  FeedbackBody,
+  FeedbackKind,
+  FeedbackListResponse,
   GameDetailResponse,
   GameSearchResponse,
   HardwareResponse,
@@ -19,8 +13,14 @@ import type {
   RecommendationsResponse,
 } from '@perch/core';
 import { api } from '@/lib/api';
-import { applyFeedback, NO_FEEDBACK, restoreFeedback, type FeedbackMap } from '@/lib/feedback';
-import { buildTabs, collectFits, tabDeviceParam, FOR_YOU_LIMIT } from '@/lib/forYou';
+import {
+  applyFeedback,
+  type FeedbackChange,
+  feedbackChange,
+  NO_FEEDBACK,
+  revertFeedback,
+  type FeedbackMap,
+} from '@/lib/feedback';
 import { queryKeys } from '@/lib/queryKeys';
 
 export function useLibrary(enabled = true) {
@@ -72,34 +72,15 @@ export function useHardwareSuggestions(kind: 'gpus' | 'cpus', q: string) {
   });
 }
 
-function recommendationsOptions(device: string, limit: number) {
-  return queryOptions({
+export function useRecommendations(device: string, limit = 5) {
+  return useQuery({
     queryKey: queryKeys.recommendations(device, limit),
     queryFn: ({ signal }) =>
       api.get<RecommendationsResponse>('/api/recommendations', {
         query: { device, limit },
         signal,
       }),
-  });
-}
-
-export function useRecommendations(device: string, limit = 5) {
-  return useQuery({
-    ...recommendationsOptions(device, limit),
     select: (data) => data.recommendations,
-  });
-}
-
-/** For you: the All feed plus one feed per device, and the per-device fits found across them. */
-export function useForYou(devices: readonly DeviceView[]) {
-  const tabs = buildTabs(devices);
-  return useQueries({
-    queries: tabs.map((t) => recommendationsOptions(tabDeviceParam(t.value), FOR_YOU_LIMIT)),
-    combine: (results) => ({
-      tabs,
-      feeds: new Map(tabs.map((t, i) => [t.value, results[i]!] as const)),
-      fits: collectFits(results.map((r) => r.data)),
-    }),
   });
 }
 
@@ -111,39 +92,56 @@ export function useGameDetail(igdbId: number | null) {
   });
 }
 
-/** Feedback sent this session (client-only; the API has no read route). */
-export function useFeedbackState() {
-  return useQuery({
-    queryKey: queryKeys.feedback,
-    queryFn: () => NO_FEEDBACK,
-    initialData: NO_FEEDBACK as FeedbackMap,
-    staleTime: Infinity,
-    gcTime: Infinity,
-  });
-}
-
-/** Send feedback: optimistic cache update, rollback on error, refetch picks afterwards. */
-export function useSendFeedback() {
+/**
+ * The user's feedback and a `send` that toggles: pressing the kind that is already set undoes it.
+ * Updates are optimistic per game; every settled change refetches the picks, feedback and detail.
+ */
+export function useFeedback() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (body: FeedbackBody) => api.post('/api/feedback', body),
-    onMutate: ({ igdbId, kind }) => applyFeedback(qc, igdbId, kind),
-    onError: (_err, _vars, snapshot) => {
-      if (snapshot) restoreFeedback(qc, snapshot);
-    },
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.recommendationsAll }),
+  const query = useQuery({
+    queryKey: queryKeys.feedback,
+    queryFn: async ({ signal }) =>
+      (await api.get<FeedbackListResponse>('/api/feedback', { signal })).feedback,
   });
+  const mutation = useMutation({
+    mutationFn: ({ igdbId, kind, undo }: FeedbackChange) =>
+      undo
+        ? api.delete(`/api/feedback/${igdbId}/${kind}`)
+        : api.post('/api/feedback', { igdbId, kind }),
+    onMutate: async (change) => ({ previous: await applyFeedback(qc, change) }),
+    onError: (_err, change, context) => revertFeedback(qc, change, context?.previous),
+    onSettled: (_data, _err, { igdbId }) =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.feedback }),
+        qc.invalidateQueries({ queryKey: queryKeys.recommendationsAll }),
+        qc.invalidateQueries({ queryKey: queryKeys.game(igdbId) }),
+      ]),
+  });
+  const feedback = query.data ?? NO_FEEDBACK;
+  return {
+    feedback,
+    send: (igdbId: number, kind: FeedbackKind) =>
+      mutation.mutate(
+        feedbackChange(
+          qc.getQueryData<FeedbackMap>(queryKeys.feedback) ?? NO_FEEDBACK,
+          igdbId,
+          kind,
+        ),
+      ),
+    error: mutation.isError ? mutation.error : null,
+  };
 }
 
 export function useAddToLibrary() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: LibraryCreate) => api.post<{ entry: LibraryEntry }>('/api/library', body),
-    // A new library entry changes the picks too.
-    onSuccess: () =>
+    // A new library entry changes the picks and the game's page too.
+    onSuccess: (_data, { igdbId }) =>
       Promise.all([
         qc.invalidateQueries({ queryKey: queryKeys.library }),
         qc.invalidateQueries({ queryKey: queryKeys.recommendationsAll }),
+        qc.invalidateQueries({ queryKey: queryKeys.game(igdbId) }),
       ]),
   });
 }
