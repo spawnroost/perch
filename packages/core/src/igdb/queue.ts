@@ -16,6 +16,11 @@ export class RateQueue {
     this.sleep = clock.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   }
 
+  /** Holds back every request not yet started for `ms` (e.g. a Retry-After). */
+  pause(ms: number): void {
+    this.nextStart = Math.max(this.nextStart, this.now() + ms);
+  }
+
   schedule<T>(task: () => Promise<T>): Promise<T> {
     const slot = this.tail.then(async () => {
       const wait = this.nextStart - this.now();

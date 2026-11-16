@@ -43,7 +43,10 @@ function decodeEntities(s: string): string {
     if (e[0] === '#') {
       const code =
         e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
-      return Number.isFinite(code) ? String.fromCodePoint(code) : m;
+      // Out-of-range code points would make fromCodePoint throw: drop the entity.
+      return Number.isInteger(code) && code > 0 && code <= 0x10ffff
+        ? String.fromCodePoint(code)
+        : '';
     }
     return ENTITIES[e.toLowerCase()] ?? m;
   });
@@ -110,7 +113,7 @@ const hasData = (p: ParsedSide) =>
 /** A line starting "Recommended:" after other content (old games put both in `minimum`). */
 function splitInlineRecommended(html: string): [string, string | null] {
   const m = /<[^>]*>\s*(?:<[^>]*>\s*)*Recommended\s*:/i.exec(html);
-  if (!m || m.index === 0 || html.slice(0, m.index).replace(/<[^>]*>|\s/g, '').length === 0) {
+  if (!m || html.slice(0, m.index).replace(/<[^>]*>|\s/g, '').length === 0) {
     return [html, null];
   }
   return [html.slice(0, m.index), html.slice(m.index)];

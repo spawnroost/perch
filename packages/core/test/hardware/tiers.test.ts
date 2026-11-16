@@ -264,4 +264,26 @@ describe('Steam requirement strings', () => {
     expect(cpuScore('i3-4330')).toBeGreaterThan(cpuScore('i3-4160'));
     expect(cpuScore('phenom ii x4 955')).toBeGreaterThan(cpuScore('phenom ii x4 945'));
   });
+
+  it('keeps model numbers that are followed by the word CPU', () => {
+    expect(cpuKey('Intel Core i5-2500 CPU @ 3.30GHz')).toBe('i5-2500');
+    expect(cpuKey('Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz')).toBe('i7-6700');
+    expect(cpuKey('AMD FX 8350 CPU')).toBe('fx-8350');
+    expect(cpuKey('AMD FX-8350 CPU')).toBe('fx-8350');
+    expect(cpuKey('Intel Core 2 Quad Q6600 (4 CPUs)')).toBe('core2 quad q6600');
+    expect(cpuKey('Intel Core 2 Quad Q6600 4 CPUs')).toBe('core2 quad q6600');
+  });
+
+  it('handles a spaced M in mobile Core names', () => {
+    expect(normaliseCpu('Intel Core i7 M 620')).toBe('i7-m620');
+    expect(cpuKey('Intel Core i7 M 620')).toBe('i7-m620');
+    expect(cpuKey('Intel Core i3 M 380')).toBe('i3-m380');
+  });
+
+  it('carries NVIDIA brand context to every alternative', () => {
+    expect(gpuKey('NVIDIA 9999 / 770')).toBe('gtx 770');
+    expect(gpuKey('NVIDIA 9999 or 450')).toBe('gtx 450');
+    expect(gpuKey('AMD HD 9999 / 770')).toBeNull();
+    expect(gpuKey('NVIDIA 9999 / AMD 5570 / 770')).toBeNull();
+  });
 });

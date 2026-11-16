@@ -56,20 +56,23 @@ const LAPTOP_FALLBACK_FACTOR = 0.8;
 
 /** Noise common to Steam requirement lists, WebGL renderer strings and CPU brand strings. */
 function stripCommon(raw: string): string {
-  return raw
-    .toLowerCase()
-    .replace(/\((?:r|tm)\)|[®™]/g, ' ')
-    .replace(/\b(?:vs|ps)_\d_\d\b/g, ' ')
-    .replace(
-      /direct3d\w*|\bd3d\d+\w*|opengl(?: engine)?|\bangle\b|metal renderer|unspecified version/g,
-      ' ',
-    )
-    .replace(/\b0x[0-9a-f]+\b|\bpcie\b|\bsse2\b|\bmesa\b/g, ' ')
-    .replace(/\b\d+(?:\.\d+)?\s*ghz\+?/g, ' ')
-    .replace(/\b\d+[- ]?(?:cores?|threads?|bit)\b|\b\d+\s*mb\b/g, ' ')
-    .replace(/\(?\b\d+\s*cpus?\b\)?/g, ' ')
-    .replace(/@/g, ' ')
-    .replace(/\b(?:intel|amd|apple|ati|corporation|edition)\b/g, ' ');
+  return (
+    raw
+      .toLowerCase()
+      .replace(/\((?:r|tm)\)|[®™]/g, ' ')
+      .replace(/\b(?:vs|ps)_\d_\d\b/g, ' ')
+      .replace(
+        /direct3d\w*|\bd3d\d+\w*|opengl(?: engine)?|\bangle\b|metal renderer|unspecified version/g,
+        ' ',
+      )
+      .replace(/\b0x[0-9a-f]+\b|\bpcie\b|\bsse2\b|\bmesa\b/g, ' ')
+      .replace(/\b\d+(?:\.\d+)?\s*ghz\+?/g, ' ')
+      .replace(/\b\d+[- ]?(?:cores?|threads?|bit)\b|\b\d+\s*mb\b/g, ' ')
+      // "(4 CPUs)" / "4 CPUs" core-count notes, never a model suffix like "2500 CPU".
+      .replace(/\(\s*\d+\s*cpus?\s*\)|(?<![-\w])\d+\s+cpus\b/g, ' ')
+      .replace(/@/g, ' ')
+      .replace(/\b(?:intel|amd|apple|ati|corporation|edition)\b/g, ' ')
+  );
 }
 
 function finish(s: string): string {
@@ -102,7 +105,7 @@ export function normaliseCpu(raw: string): string {
     .replace(/\b(?:dual|triple|tri|quad|six|hexa|eight|octa|\d+)[- ]core\b/g, ' ')
     .replace(/\bcore\s*2\s+(duo|quad|extreme)\b/g, 'core2 $1')
     .replace(/\bcore\b/g, ' ')
-    .replace(/\bi([3579])[\s-]*(m?\d{3,5}[a-z0-9]*)/g, 'i$1-$2')
+    .replace(/\bi([3579])[\s-]*(?:(m)\s*)?(\d{3,5}[a-z0-9]*)/g, 'i$1-$2$3')
     .replace(/\bfx[\s-]*(\d{4})/g, 'fx-$1')
     .replace(/\b(ryzen (?:\d|ai \d)) pro\b/g, '$1')
     .replace(/\bmobile\b/g, ' ');
@@ -160,14 +163,22 @@ const BARE_MODEL = /^(\d{3,4})( ti| super)?$/;
 /**
  * "NVIDIA 2060 Super", "nVidia 450" or "1060": a lone model number gets its GTX / RTX prefix.
  * Only with an NVIDIA/GeForce mention, or a 4-digit GTX 10/16 or RTX 20-50 number; never when
- * AMD/Intel is named (a bare "5570" is not guessable) and only if the prefixed key exists.
+ * AMD/Intel is the current brand (a bare "5570" is not guessable) and only if the prefixed key
+ * exists. The brand carries over from earlier alternatives: "NVIDIA 450 / 550".
  */
-function bareNvidia(part: string, norm: string): TierMatch | null {
+type Brand = 'nvidia' | 'other' | null;
+
+function brandOf(part: string, previous: Brand): Brand {
+  if (/\b(?:nvidia|geforce)\b/i.test(part)) return 'nvidia';
+  if (/\b(?:amd|ati|radeon|intel)\b/i.test(part)) return 'other';
+  return previous;
+}
+
+function bareNvidia(brand: Brand, norm: string): TierMatch | null {
   const m = BARE_MODEL.exec(norm);
-  if (!m || /\b(?:amd|ati|radeon|intel)\b/i.test(part)) return null;
+  if (!m || brand === 'other') return null;
   const n = m[1] ?? '';
-  const named = /\b(?:nvidia|geforce)\b/i.test(part);
-  if (!named && !/^(?:10|16|20|30|40|50)\d\d$/.test(n)) return null;
+  if (brand !== 'nvidia' && !/^(?:10|16|20|30|40|50)\d\d$/.test(n)) return null;
   for (const prefix of ['gtx', 'rtx']) {
     const found = findInTable(GPU_TABLE, `${prefix} ${n}${m[2] ?? ''}`);
     if (found) return found;
@@ -177,11 +188,13 @@ function bareNvidia(part: string, norm: string): TierMatch | null {
 
 /** Match a GPU string to a tier entry; with alternatives, the first that matches wins. */
 export function matchGpu(raw: string): TierMatch | null {
+  let brand: Brand = null;
   for (const part of candidates(raw)) {
+    brand = brandOf(part, brand);
     const norm = normaliseGpu(part);
     const found = findInTable(GPU_TABLE, norm);
     if (found) return found;
-    const bare = bareNvidia(part, norm);
+    const bare = bareNvidia(brand, norm);
     if (bare) return bare;
     if (!/\blaptop\b/.test(norm)) continue;
     // No laptop key: fall back to the base part, discounting discrete GPUs

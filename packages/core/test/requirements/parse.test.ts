@@ -53,6 +53,12 @@ describe('parseRequirementsHtml', () => {
     });
   });
 
+  it('drops numeric entities beyond the Unicode range instead of throwing', () => {
+    const html =
+      '<ul><li>Processor: Core i5&#99999999;-8400</li><li>Memory: 8 GB&#x110000;</li></ul>';
+    expect(parseRequirementsHtml(html)).toEqual({ cpuRaw: 'Core i5-8400', ramGb: 8 });
+  });
+
   it('returns an empty object for empty or unlabelled input', () => {
     expect(parseRequirementsHtml('')).toEqual({});
     expect(parseRequirementsHtml('<p>Any modern PC</p>')).toEqual({});

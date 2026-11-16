@@ -13,6 +13,8 @@ export class SteamError extends Error {
   constructor(
     message: string,
     readonly status?: number,
+    /** 'http': request failed (maybe retryable); 'body': Steam answered with something unreadable. */
+    readonly kind: 'http' | 'body' = 'http',
   ) {
     super(message);
     this.name = 'SteamError';
@@ -55,6 +57,24 @@ const dataSchema = z.object({
     .optional(),
 });
 
+/** The `{ "<id>": { success, data } }` entry for an app; anything else is a SteamError('body'). */
+async function readEntry(
+  res: Response,
+  id: number,
+): Promise<z.infer<typeof responseSchema>[string]> {
+  let body: unknown;
+  try {
+    body = JSON.parse(await res.text());
+  } catch {
+    throw new SteamError(`Steam appdetails ${id}: response is not JSON`, res.status, 'body');
+  }
+  const parsed = responseSchema.safeParse(body);
+  const entry = parsed.success ? parsed.data[String(id)] : undefined;
+  if (!entry)
+    throw new SteamError(`Steam appdetails ${id}: unexpected response shape`, res.status, 'body');
+  return entry;
+}
+
 export function createSteamClient(opts: SteamClientOptions = {}): SteamClient {
   const doFetch: typeof fetch = opts.fetch ?? ((...args) => fetch(...args));
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
@@ -72,8 +92,8 @@ export function createSteamClient(opts: SteamClientOptions = {}): SteamClient {
           doFetch(url, { headers: { accept: 'application/json' } }),
         );
         if (res.ok) {
-          const entry = responseSchema.parse(await res.json())[String(id)];
-          if (!entry?.success) return {};
+          const entry = await readEntry(res, id);
+          if (!entry.success) return {};
           const data = dataSchema.safeParse(entry.data);
           const pc = data.success ? data.data.pc_requirements : undefined;
           if (!pc || Array.isArray(pc)) return {};
@@ -83,8 +103,9 @@ export function createSteamClient(opts: SteamClientOptions = {}): SteamClient {
         if (!retryable || attempt >= maxRetries) {
           throw new SteamError(`Steam appdetails ${id} failed: HTTP ${res.status}`, res.status);
         }
+        // Pause the shared queue so concurrent callers back off too, not just this one.
         const retryAfter = Number(res.headers.get('retry-after'));
-        await sleep(retryAfter > 0 ? retryAfter * 1000 : backoffMs * 2 ** attempt);
+        queue.pause(retryAfter > 0 ? retryAfter * 1000 : backoffMs * 2 ** attempt);
       }
     },
   };
@@ -103,9 +124,9 @@ let sharedClient: SteamClient | undefined;
 /** Plain-text excerpt of the min/rec blocks that the scores were parsed from. */
 export function requirementsExcerpt(pc: PcRequirementsHtml): string | null {
   const block = (label: string, html?: string) => {
-    const lines = html
-      ? htmlToLines(html).filter((l) => !/^(minimum|recommended):?$/i.test(l))
-      : [];
+    // Drop only the block's own leading header: an inline "Recommended:" line is the boundary.
+    const all = html ? htmlToLines(html) : [];
+    const lines = all[0] && new RegExp(`^${label}:?$`, 'i').test(all[0]) ? all.slice(1) : all;
     return lines.length ? [`${label}:`, ...lines].join('\n').slice(0, RAW_MAX_CHARS) : null;
   };
   const text = [block('Minimum', pc.minimum), block('Recommended', pc.recommended)]
@@ -117,7 +138,8 @@ export function requirementsExcerpt(pc: PcRequirementsHtml): string | null {
 /**
  * Steam requirements for a game: the cached `steam` row if fresher than the TTL, else fetched by
  * `games.steam_app_id`, parsed, upserted and returned. Null if the game has no Steam app id.
- * If a refetch fails and a stale row exists, the stale row is returned.
+ * If a refetch fails, answers unreadably or lists nothing while a row exists, that row is kept.
+ * An unreadable answer with no row yields null.
  */
 export async function getRequirements(
   db: Db,
@@ -143,7 +165,18 @@ export async function getRequirements(
     pc = await client.getPcRequirements(game.steamAppId);
   } catch (err) {
     if (cached) return cached;
+    // An unreadable (non-retryable) body means "no requirements known": nothing to cache.
+    if (err instanceof SteamError && err.kind === 'body') return null;
     throw err;
+  }
+  if (cached && !pc.minimum && !pc.recommended) {
+    // Steam now lists nothing (delisted, region lock, flaky answer): keep the good row.
+    const [kept] = await db
+      .update(gameRequirements)
+      .set({ parsedAt: now() })
+      .where(and(eq(gameRequirements.igdbId, igdbId), eq(gameRequirements.source, 'steam')))
+      .returning();
+    return kept ?? cached;
   }
   const s = scoreRequirements(parseSteamRequirements(pc));
   const values = {
