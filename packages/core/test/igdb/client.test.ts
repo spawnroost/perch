@@ -227,3 +227,71 @@ describe('getTimeToBeat', () => {
     expect(await make(fakeFetch()).getTimeToBeat(424242)).toBeNull();
   });
 });
+
+describe('getGames', () => {
+  const byIds = (body: string) =>
+    (/where id = \(?([\d,]+)/.exec(body)?.[1] ?? '').split(',').map(Number);
+
+  it('fetches ids in one query, deduped, and maps like getGame', async () => {
+    const hades = fixture('Hades');
+    const celeste = fixture('Celeste');
+    const net = fakeFetch({
+      intercept: ({ body }) => {
+        const ids = byIds(body);
+        return json(fixtures.filter((f) => ids.includes(f.igdbId)).flatMap((f) => f.game));
+      },
+    });
+    const client = make(net);
+    const list = await client.getGames([hades.igdbId, celeste.igdbId, hades.igdbId]);
+    expect(list.map((g) => g.igdbId).sort()).toEqual([celeste.igdbId, hades.igdbId].sort());
+    expect(list.find((g) => g.igdbId === hades.igdbId)).toEqual(await client.getGame(hades.igdbId));
+    const first = net.apiCalls()[0]!;
+    expect(first.body).toContain('limit 500');
+    expect(byIds(first.body)).toEqual([hades.igdbId, celeste.igdbId]);
+  });
+
+  it('batches at 500 ids per query', async () => {
+    const net = fakeFetch({ intercept: () => json([]) });
+    const ids = Array.from({ length: 1201 }, (_, i) => i + 1);
+    expect(await make(net).getGames(ids)).toEqual([]);
+    const sizes = net.apiCalls().map((c) => byIds(c.body).length);
+    expect(sizes).toEqual([500, 500, 201]);
+  });
+
+  it('makes no request for an empty list', async () => {
+    const net = fakeFetch();
+    expect(await make(net).getGames([])).toEqual([]);
+    expect(net.apiCalls()).toHaveLength(0);
+  });
+});
+
+describe('queryByTags', () => {
+  it('queries genres/themes with a rating-count floor, most-rated first', async () => {
+    const hades = fixture('Hades');
+    const net = fakeFetch({ intercept: () => json(hades.game) });
+    const list = await make(net).queryByTags({
+      genres: [12, 31],
+      themes: [17],
+      minRatingCount: 50,
+      limit: 100,
+    });
+    expect(list.map((g) => g.igdbId)).toEqual([hades.igdbId]);
+    const { body } = net.apiCalls()[0]!;
+    expect(body).toContain('(genres = (12,31) | themes = (17))');
+    expect(body).toContain('total_rating_count > 50');
+    expect(body).toContain('sort total_rating_count desc');
+    expect(body).toContain('limit 100;');
+  });
+
+  it('caps the limit at 500 and skips the request when there are no tags', async () => {
+    const net = fakeFetch({ intercept: () => json([]) });
+    const client = make(net);
+    await client.queryByTags({ genres: [12], themes: [], minRatingCount: 50, limit: 9999 });
+    expect(net.apiCalls()[0]!.body).toContain('limit 500;');
+    expect(net.apiCalls()[0]!.body).not.toContain('themes =');
+    expect(
+      await client.queryByTags({ genres: [], themes: [], minRatingCount: 50, limit: 10 }),
+    ).toEqual([]);
+    expect(net.apiCalls()).toHaveLength(1);
+  });
+});

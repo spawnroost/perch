@@ -1,5 +1,11 @@
-export { createIgdbClient, createIgdbClientFromEnv, IgdbError, STEAM_SOURCE_ID } from './client.js';
-export type { IgdbClient, IgdbClientOptions } from './client.js';
+export {
+  createIgdbClient,
+  createIgdbClientFromEnv,
+  IGDB_MAX_LIMIT,
+  IgdbError,
+  STEAM_SOURCE_ID,
+} from './client.js';
+export type { IgdbClient, IgdbClientOptions, TagQuery } from './client.js';
 export { createIgdbCache, CACHE_TTL_MS } from './cache.js';
 export type { IgdbCache, IgdbCacheOptions } from './cache.js';
 export { RateQueue } from './queue.js';

@@ -1,5 +1,6 @@
 import { formatError } from '@perch/core';
 import { addCommand, dbUrl, importCommand, userCreateCommand } from './commands.js';
+import { recommendCommand } from './recommend.js';
 import { vocabCheck } from './vocab-check.js';
 
 const USAGE = `usage: perch <command>
@@ -9,6 +10,7 @@ commands:
   add "<game>" [--hours N] [--last YYYY-MM-DD] [--status playing|finished|dropped|backlog]
               [--platform pc] [--owned|--no-owned] [--igdb <id>] [--user <email>]
   import <file> [--platform pc] [--owned|--no-owned] [--user <email>]
+  recommend --dry [--user <email>] [--limit 20]
   vocab:check   list IGDB ids with no taste-vocab mapping
 
 --user defaults to the PERCH_USER environment variable.`;
@@ -25,6 +27,9 @@ async function main(argv: string[]): Promise<number> {
         return 0;
       case 'import':
         return await importCommand(rest);
+      case 'recommend':
+        await recommendCommand(rest, dbUrl);
+        return 0;
       case 'vocab:check': {
         console.log(await vocabCheck(dbUrl()));
         return 0;

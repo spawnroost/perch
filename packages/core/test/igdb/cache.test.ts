@@ -99,6 +99,60 @@ describe.skipIf(!url)('igdb db cache', () => {
     expect(rows).toHaveLength(0);
   });
 
+  describe('batched lookups', () => {
+    const celeste = fixture('Celeste');
+    const idsOf = (body: string) =>
+      (/where id = \(?([\d,]+)/.exec(body)?.[1] ?? '').split(',').map(Number);
+    const serve = ({ body }: { body: string }) => {
+      const ids = idsOf(body);
+      return json(fixtures.filter((f) => ids.includes(f.igdbId)).flatMap((f) => f.game));
+    };
+
+    it('getGames: fetches only the missing ids in one query and upserts them', async () => {
+      const { net, cache } = setup({ intercept: serve });
+      await cache.getGame(hades.igdbId);
+      const list = await cache.getGames([hades.igdbId, celeste.igdbId, 424242]);
+      expect(list.map((g) => g.igdbId)).toEqual([hades.igdbId, celeste.igdbId]);
+      const calls = net.apiCalls();
+      expect(calls).toHaveLength(2); // getGame + one batch
+      expect(idsOf(calls[1]!.body)).toEqual([celeste.igdbId, 424242]);
+      const rows = await db.select().from(games).where(eq(games.igdbId, celeste.igdbId));
+      expect(rows).toHaveLength(1);
+      // Second call is fully cached except the unknown id.
+      await cache.getGames([hades.igdbId, celeste.igdbId]);
+      expect(net.apiCalls()).toHaveLength(2);
+    });
+
+    it('getGames keeps vocab on refetch', async () => {
+      const { cache, setNow } = setup({ intercept: serve });
+      await cache.getGames([hades.igdbId]);
+      await db
+        .update(games)
+        .set({ vocab: { roguelike: 1 } })
+        .where(eq(games.igdbId, hades.igdbId));
+      setNow(new Date(T0.getTime() + CACHE_TTL_MS + DAY));
+      await cache.getGames([hades.igdbId]);
+      const [row] = await db.select().from(games).where(eq(games.igdbId, hades.igdbId));
+      expect(row?.vocab).toEqual({ roguelike: 1 });
+    });
+
+    it('queryByTags: upserts every result', async () => {
+      const { cache } = setup({ intercept: () => json([...hades.game, ...celeste.game]) });
+      const list = await cache.queryByTags({
+        genres: [12],
+        themes: [],
+        minRatingCount: 50,
+        limit: 10,
+      });
+      expect(list).toHaveLength(2);
+      const rows = await db
+        .select()
+        .from(games)
+        .where(inArray(games.igdbId, [hades.igdbId, celeste.igdbId]));
+      expect(rows).toHaveLength(2);
+    });
+  });
+
   describe('time to beat', () => {
     it('miss: fetches the game and time-to-beat, then hits the cache', async () => {
       const { net, cache, setNow } = setup();

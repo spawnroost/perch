@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import { RateQueue } from './queue.js';
 import {
+  igdbGameSchema,
   igdbGamesResponseSchema,
   igdbSearchResponseSchema,
   igdbTimeToBeatResponseSchema,
@@ -54,11 +55,56 @@ export interface IgdbClientOptions {
   backoffMs?: number;
 }
 
+export interface TagQuery {
+  /** IGDB genre / theme ids; a game matches if it has any of them. */
+  genres: readonly number[];
+  themes: readonly number[];
+  minRatingCount: number;
+  /** Capped at 500 (the IGDB maximum per query). */
+  limit: number;
+}
+
+/** IGDB's maximum page size, and so the id-batch size for getGames. */
+export const IGDB_MAX_LIMIT = 500;
+
 export interface IgdbClient {
   searchGames(name: string): Promise<SearchResult>;
   getGame(igdbId: number): Promise<Game | null>;
+  /** Batched lookup (<= 500 ids per query). Unknown ids are omitted; order is not preserved. */
+  getGames(igdbIds: readonly number[]): Promise<Game[]>;
+  /** Most-rated games matching any of the genres/themes, best first. */
+  queryByTags(q: TagQuery): Promise<Game[]>;
   getTimeToBeat(igdbId: number): Promise<TimeToBeat | null>;
 }
+
+type RawGame = z.output<typeof igdbGameSchema>;
+
+function toGame(g: RawGame): Game {
+  const steam = g.external_games?.find(
+    (e) => e.external_game_source === STEAM_SOURCE_ID && e.uid && /^\d+$/.test(e.uid),
+  );
+  return {
+    igdbId: g.id,
+    name: g.name,
+    slug: g.slug,
+    coverUrl: g.cover
+      ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${g.cover.image_id}.jpg`
+      : null,
+    firstRelease: g.first_release_date ? new Date(g.first_release_date * 1000) : null,
+    genres: g.genres ?? [],
+    themes: g.themes ?? [],
+    keywords: g.keywords ?? [],
+    perspectives: g.player_perspectives ?? [],
+    gameModes: g.game_modes ?? [],
+    platforms: g.platforms ?? [],
+    similarIds: g.similar_games ?? [],
+    rating: g.total_rating ?? null,
+    ratingCount: g.total_rating_count ?? null,
+    steamAppId: steam?.uid ? Number(steam.uid) : null,
+  };
+}
+
+const idList = (ids: readonly number[]) => ids.map((n) => Math.trunc(n)).join(',');
 
 export function createIgdbClient(opts: IgdbClientOptions): IgdbClient {
   const doFetch: typeof fetch = opts.fetch ?? ((...args) => fetch(...args));
@@ -131,29 +177,36 @@ export function createIgdbClient(opts: IgdbClientOptions): IgdbClient {
         `fields ${GAME_FIELDS}; where id = ${Math.trunc(igdbId)};`,
         igdbGamesResponseSchema,
       );
-      if (!g) return null;
-      const steam = g.external_games?.find(
-        (e) => e.external_game_source === STEAM_SOURCE_ID && e.uid && /^\d+$/.test(e.uid),
+      return g ? toGame(g) : null;
+    },
+
+    async getGames(igdbIds) {
+      const ids = [...new Set(igdbIds)];
+      const out: Game[] = [];
+      for (let i = 0; i < ids.length; i += IGDB_MAX_LIMIT) {
+        const batch = ids.slice(i, i + IGDB_MAX_LIMIT);
+        const rows = await query(
+          'games',
+          `fields ${GAME_FIELDS}; where id = (${idList(batch)}); limit ${IGDB_MAX_LIMIT};`,
+          igdbGamesResponseSchema,
+        );
+        out.push(...rows.map(toGame));
+      }
+      return out;
+    },
+
+    async queryByTags({ genres, themes, minRatingCount, limit }) {
+      const tags: string[] = [];
+      if (genres.length > 0) tags.push(`genres = (${idList(genres)})`);
+      if (themes.length > 0) tags.push(`themes = (${idList(themes)})`);
+      if (tags.length === 0) return [];
+      const rows = await query(
+        'games',
+        `fields ${GAME_FIELDS}; where (${tags.join(' | ')}) & total_rating_count > ${Math.trunc(minRatingCount)}; ` +
+          `sort total_rating_count desc; limit ${Math.min(Math.max(Math.trunc(limit), 1), IGDB_MAX_LIMIT)};`,
+        igdbGamesResponseSchema,
       );
-      return {
-        igdbId: g.id,
-        name: g.name,
-        slug: g.slug,
-        coverUrl: g.cover
-          ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${g.cover.image_id}.jpg`
-          : null,
-        firstRelease: g.first_release_date ? new Date(g.first_release_date * 1000) : null,
-        genres: g.genres ?? [],
-        themes: g.themes ?? [],
-        keywords: g.keywords ?? [],
-        perspectives: g.player_perspectives ?? [],
-        gameModes: g.game_modes ?? [],
-        platforms: g.platforms ?? [],
-        similarIds: g.similar_games ?? [],
-        rating: g.total_rating ?? null,
-        ratingCount: g.total_rating_count ?? null,
-        steamAppId: steam?.uid ? Number(steam.uid) : null,
-      };
+      return rows.map(toGame);
     },
 
     async getTimeToBeat(igdbId) {

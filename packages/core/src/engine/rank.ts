@@ -1,0 +1,84 @@
+import type { Candidate, EngineGame, TasteProfile, Vocab } from './types.js';
+
+export const W_COSINE = 0.6;
+export const W_RATING = 0.2;
+export const BACKLOG_BONUS = 0.15;
+export const MAX_RECENCY_BOOST = 0.05;
+/** The release-recency boost fades to 0 over this many years. */
+export const RECENCY_YEARS = 10;
+export const DIVERSITY_WINDOW = 5;
+export const DIVERSITY_MAX_SAME = 2;
+/** IGDB genre ids that say nothing about the kind of game (Indie). */
+const GENERIC_GENRES = new Set([32]);
+const YEAR_MS = 365.25 * 86_400_000;
+
+export function cosine(a: Vocab, b: Vocab): number {
+  let dot = 0;
+  let na = 0;
+  let nb = 0;
+  for (const [k, v] of Object.entries(a)) {
+    na += v * v;
+    const w = b[k];
+    if (w) dot += v * w;
+  }
+  for (const v of Object.values(b)) nb += v * v;
+  return na === 0 || nb === 0 ? 0 : dot / Math.sqrt(na * nb);
+}
+
+export function scoreCandidate(profile: TasteProfile, c: Candidate, now: Date): number {
+  const { game } = c;
+  let recency = 0;
+  if (game.firstRelease) {
+    const years = Math.max(0, (now.getTime() - game.firstRelease.getTime()) / YEAR_MS);
+    recency = MAX_RECENCY_BOOST * Math.max(0, 1 - years / RECENCY_YEARS);
+  }
+  return (
+    cosine(profile.vocab, game.vocab) * W_COSINE +
+    ((game.rating ?? 0) / 100) * W_RATING +
+    (c.backlog ? BACKLOG_BONUS : 0) +
+    recency
+  );
+}
+
+export function primaryGenre(game: Pick<EngineGame, 'genres'>): number | undefined {
+  return game.genres.find((g) => !GENERIC_GENRES.has(g));
+}
+
+/**
+ * Greedy re-order of a score-sorted list: at each position take the best remaining item that
+ * keeps at most 2 of one primary genre in the last 5; if none does, take the best remaining.
+ */
+export function diversify<T extends { game: Pick<EngineGame, 'genres'> }>(
+  sorted: readonly T[],
+  window = DIVERSITY_WINDOW,
+  maxSame = DIVERSITY_MAX_SAME,
+): T[] {
+  const rest = [...sorted];
+  const out: T[] = [];
+  while (rest.length > 0) {
+    const recent = out.slice(-(window - 1)).map((o) => primaryGenre(o.game));
+    let pick = rest.findIndex((r) => {
+      const g = primaryGenre(r.game);
+      return g === undefined || recent.filter((x) => x === g).length < maxSame;
+    });
+    if (pick < 0) pick = 0;
+    out.push(...rest.splice(pick, 1));
+  }
+  return out;
+}
+
+export interface RankedCandidate extends Candidate {
+  score: number;
+}
+
+/** Scores every candidate, sorts best first, then applies the diversity rule. */
+export function rankCandidates(
+  profile: TasteProfile,
+  candidates: readonly Candidate[],
+  now: Date,
+): RankedCandidate[] {
+  const scored = candidates
+    .map((c) => ({ ...c, score: scoreCandidate(profile, c, now) }))
+    .sort((a, b) => b.score - a.score);
+  return diversify(scored);
+}
