@@ -93,6 +93,30 @@ describe('matchGpu', () => {
     expect(gpuKey('GeForce GTX 780M')).not.toBe('780m');
   });
 
+
+  it('ignores memory sizes, bit widths and core counts after the model', () => {
+    expect(gpuKey('GTX 1050 Ti 4096 MB')).toBe('gtx 1050 ti');
+    expect(gpuKey('RTX 3060 12G')).toBe('rtx 3060');
+    expect(gpuKey('GeForce GTX 1060 3/6GB')).toBe('gtx 1060');
+  });
+
+  it('splits glued variant suffixes', () => {
+    expect(gpuKey('GeForce GTX 1050Ti')).toBe('gtx 1050 ti');
+    expect(gpuKey('Radeon RX 6600XT')).toBe('rx 6600 xt');
+    expect(gpuKey('RTX 2080Super')).toBe('rtx 2080 super');
+  });
+
+  it('falls back to the base key when a laptop variant is not tabled', () => {
+    expect(gpuKey('Intel HD Graphics 4000 Mobile')).toBe('hd 4000');
+    expect(gpuKey('AMD Radeon Vega 8 Mobile Graphics')).toBe('vega 8');
+    expect(gpuKey('GeForce GTX 1660 Ti Mobile')).toBe('gtx 1660 ti laptop');
+  });
+
+  it('keeps alternatives that follow a w/ clause', () => {
+    expect(gpuKey('Intel HD 4000 w/ 1GB or AMD Radeon RX 580')).toBe('hd 4000');
+    expect(gpuKey('Intel Graphics w/ shared memory or AMD Radeon RX 580')).toBe('rx 580');
+  });
+
   it('returns null for junk and generic strings', () => {
     expect(matchGpu('')).toBeNull();
     expect(matchGpu('Unknown')).toBeNull();
@@ -144,6 +168,20 @@ describe('matchCpu', () => {
     expect(cpuKey('AMD Ryzen 5 3600X')).toBe('ryzen 5 3600x');
     expect(cpuKey('AMD Ryzen 5 36000')).toBeNull();
     expect(cpuKey('Intel Core i7-9750HK')).toBeNull();
+  });
+
+
+  it('ignores core/thread/bit notes', () => {
+    expect(cpuKey('AMD Ryzen 5 3600 6 cores')).toBe('ryzen 5 3600');
+    expect(cpuKey('Intel Core i5-8400 64-bit')).toBe('i5-8400');
+    expect(cpuKey('Ryzen 5 1600 6 Cores 12 Threads')).toBe('ryzen 5 1600');
+    expect(cpuKey('Intel Core i7-4770K (4 cores/8 threads)')).toBe('i7-4770k');
+    expect(cpuKey('Intel Core i7-4770K 4 cores/8 threads')).toBe('i7-4770k');
+  });
+
+  it('keeps alternatives that follow a w/ clause', () => {
+    expect(cpuKey('Intel Core i5 w/ 4 cores or AMD Ryzen 5 1600')).toBe('ryzen 5 1600');
+    expect(cpuKey('AMD Ryzen 5 5600G with Radeon Graphics')).toBe('ryzen 5 5600g');
   });
 
   it('returns null for junk and generic strings', () => {

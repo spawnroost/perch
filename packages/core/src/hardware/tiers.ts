@@ -6,23 +6,29 @@ export interface TierMatch {
   score: number;
 }
 
-interface IndexedEntry extends TierMatch {
+interface IndexedEntry {
+  match: TierMatch;
   tokens: string[];
 }
 
 interface TierTable {
   byKey: Map<string, TierMatch>;
-  entries: IndexedEntry[];
+  /** Entries grouped by the first token of their key. */
+  byFirstToken: Map<string, IndexedEntry[]>;
 }
 
 function buildTable(data: readonly TierMatch[]): TierTable {
   const byKey = new Map<string, TierMatch>();
-  const entries: IndexedEntry[] = [];
-  for (const { key, score } of data) {
-    byKey.set(key, { key, score });
-    entries.push({ key, score, tokens: key.split(' ') });
+  const byFirstToken = new Map<string, IndexedEntry[]>();
+  for (const match of data) {
+    byKey.set(match.key, match);
+    const tokens = match.key.split(' ');
+    const first = tokens[0] ?? '';
+    const bucket = byFirstToken.get(first);
+    if (bucket) bucket.push({ match, tokens });
+    else byFirstToken.set(first, [{ match, tokens }]);
   }
-  return { byKey, entries };
+  return { byKey, byFirstToken };
 }
 
 const GPU_TABLE = buildTable(gpuTierData);
@@ -44,6 +50,7 @@ function stripCommon(raw: string): string {
     .replace(/direct3d\w*|\bd3d\d+\w*|opengl(?: engine)?|\bangle\b|metal renderer|unspecified version/g, ' ')
     .replace(/\b0x[0-9a-f]+\b|\bpcie\b|\bsse2\b|\bmesa\b/g, ' ')
     .replace(/\b\d+(?:\.\d+)?\s*ghz\+?/g, ' ')
+    .replace(/\b\d+[- ]?(?:cores?|threads?|bit)\b|\b\d+\s*mb\b/g, ' ')
     .replace(/@/g, ' ')
     .replace(/\b(?:intel|amd|apple|ati|corporation|edition)\b/g, ' ');
 }
@@ -61,8 +68,9 @@ function finish(s: string): string {
 export function normaliseGpu(raw: string): string {
   const s = stripCommon(raw)
     .replace(/\bwith max-?q design\b|\bmax-?q\b|\b(?:mobile|notebook)\b/g, ' laptop ')
-    .replace(/\blaptop\s+(?:gpu|edition)\b/g, 'laptop')
-    .replace(/\b\d+\s*gb\b|\bgddr\w*\b|\bvram\b/g, ' ')
+    .replace(/\blaptop\s+gpu\b/g, 'laptop')
+    .replace(/\b\d+(?:\/\d+)*\s*(?:gb|g)\b|\bgddr\w*\b|\bvram\b/g, ' ')
+    .replace(/(\d{3,4})(ti|xtx|xt|super|gre)\b/g, '$1 $2')
     .replace(/\b(?:nvidia|geforce|series|graphics)\b/g, ' ')
     .replace(/\bradeon\b(?!\s+vii)/g, ' ')
     .replace(/\b(gtx|gts|gt|rtx|rx|hd|uhd|vega|titan|mx)(?=\d)/g, '$1 ')
@@ -73,7 +81,6 @@ export function normaliseGpu(raw: string): string {
 /** Normalise one CPU name (not a list of alternatives) to its table-key form. */
 export function normaliseCpu(raw: string): string {
   const s = stripCommon(raw)
-    .replace(/\bw\/.*$|\bwith radeon.*$/g, ' ')
     .replace(/(?<!deck )\bcpu\b|\bprocessor\b|\b(?:gold|silver)\b|\bseries\b/g, ' ')
     .replace(/\b(?:dual|triple|tri|quad|six|hexa|eight|octa|\d+)[- ]core\b/g, ' ')
     .replace(/\bcore\s*2\s+(duo|quad|extreme)\b/g, 'core2 $1')
@@ -94,30 +101,35 @@ function findInTable(table: TierTable, norm: string): TierMatch | null {
   if (exact) return exact;
   const tokens = norm.split(' ');
   let best: IndexedEntry | null = null;
-  for (const entry of table.entries) {
-    const n = entry.tokens.length;
-    for (let i = 0; i + n <= tokens.length; i++) {
+  for (let i = 0; i < tokens.length; i++) {
+    const prev = tokens[i - 1];
+    if (prev !== undefined && PREFIX_TOKENS.has(prev)) continue;
+    for (const entry of table.byFirstToken.get(tokens[i] ?? '') ?? []) {
+      const n = entry.tokens.length;
+      if (i + n > tokens.length) continue;
       if (!entry.tokens.every((t, j) => tokens[i + j] === t)) continue;
-      const prev = tokens[i - 1];
-      if (prev !== undefined && PREFIX_TOKENS.has(prev)) continue;
       if (isSuffixBlocked(tokens[i + n])) continue;
       if (
         !best ||
         n > best.tokens.length ||
-        (n === best.tokens.length && entry.key.length > best.key.length)
+        (n === best.tokens.length && entry.match.key.length > best.match.key.length)
       ) {
         best = entry;
       }
     }
   }
-  return best ? { key: best.key, score: best.score } : null;
+  return best?.match ?? null;
 }
 
-/** Split "A / B", "A or B", WebGL comma lists and "w/ ..." tails into candidates. */
+/**
+ * Split "A / B", "A or B" and WebGL comma lists into candidates. "w/ ..." and
+ * "(4 cores/8 threads)" notes are dropped first; a "/" between digits ("3/6GB") is kept.
+ */
 function candidates(raw: string): string[] {
   return raw
-    .replace(/\bw\/.*$/i, '')
-    .split(/[/,|;]|\bor\b|\band\b/i)
+    .replace(/\([^)]*\b(?:cores?|threads?)\b[^)]*\)/gi, ' ')
+    .replace(/\b(?:w\/|with\s+radeon)\s*[^/,|;]*?(?=\bor\b|\band\b|[/,|;]|$)/gi, ' ')
+    .split(/(?<!\d)\/|\/(?!\d)|[,|;]|\bor\b|\band\b/i)
     .map((s) => s.trim())
     .filter(Boolean);
 }
@@ -125,7 +137,13 @@ function candidates(raw: string): string[] {
 /** Match a GPU string to a tier entry; with alternatives, the first that matches wins. */
 export function matchGpu(raw: string): TierMatch | null {
   for (const part of candidates(raw)) {
-    const found = findInTable(GPU_TABLE, normaliseGpu(part));
+    const norm = normaliseGpu(part);
+    const found =
+      findInTable(GPU_TABLE, norm) ??
+      // No laptop key: fall back to the base part.
+      (/\blaptop\b/.test(norm)
+        ? findInTable(GPU_TABLE, norm.replace(/\s*\blaptop\b/g, '').trim())
+        : null);
     if (found) return found;
   }
   return null;
