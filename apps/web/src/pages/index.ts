@@ -1,5 +1,8 @@
+export { DevicesPage } from './DevicesPage';
 export { ForgotPasswordPage } from './ForgotPasswordPage';
+export { GamePage } from './GamePage';
 export { HomePage } from './HomePage';
+export { LibraryPage } from './LibraryPage';
 export { LoginPage } from './LoginPage';
 export { OnboardingPage } from './OnboardingPage';
 export { ResetPasswordPage } from './ResetPasswordPage';

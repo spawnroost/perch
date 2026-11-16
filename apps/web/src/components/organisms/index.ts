@@ -1,12 +1,16 @@
+export { AccountMenu } from './AccountMenu';
+export { AppLayout } from './AppLayout';
 export { AuthLayout } from './AuthLayout';
 export { DevicesStep } from './DevicesStep';
 export { ForgotPasswordForm } from './ForgotPasswordForm';
+export { ForYou } from './ForYou';
+export { GameDetail } from './GameDetail';
 export { GamesStep } from './GamesStep';
 export { LoginForm } from './LoginForm';
 export { OnboardingLayout } from './OnboardingLayout';
 export { PcDeviceForm } from './PcDeviceForm';
 export { PicksStep } from './PicksStep';
 export { ResetPasswordForm } from './ResetPasswordForm';
-export { SignedInHome } from './SignedInHome';
+export { SectionPlaceholder } from './SectionPlaceholder';
 export { SignupForm } from './SignupForm';
 export { VerifyEmailNotice } from './VerifyEmailNotice';

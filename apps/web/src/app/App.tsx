@@ -1,9 +1,13 @@
 import { lazy, Suspense } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
+import { AppLayout } from '@/components/organisms';
 import {
+  DevicesPage,
   ForgotPasswordPage,
+  GamePage,
   HomePage,
+  LibraryPage,
   LoginPage,
   OnboardingPage,
   ResetPasswordPage,
@@ -32,7 +36,12 @@ export function App() {
       <BrowserRouter>
         <Routes>
           <Route element={<RouteGuard />}>
-            <Route index element={<HomePage />} />
+            <Route element={<AppLayout />}>
+              <Route index element={<HomePage />} />
+              <Route path="library" element={<LibraryPage />} />
+              <Route path="devices" element={<DevicesPage />} />
+              <Route path="games/:id" element={<GamePage />} />
+            </Route>
             <Route path="onboarding" element={<OnboardingPage />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="signup" element={<SignupPage />} />

@@ -3,6 +3,8 @@ export type { BadgeProps } from './Badge';
 export { Button, buttonVariants } from './Button';
 export type { ButtonProps } from './Button';
 export { Card, cardVariants } from './Card';
+export { Cover } from './Cover';
+export type { CoverProps } from './Cover';
 export type { CardProps } from './Card';
 export { Input } from './Input';
 export type { InputProps } from './Input';

@@ -1,5 +1,5 @@
-import { SignedInHome } from '@/components/organisms';
+import { ForYou } from '@/components/organisms';
 
 export function HomePage() {
-  return <SignedInHome />;
+  return <ForYou />;
 }
