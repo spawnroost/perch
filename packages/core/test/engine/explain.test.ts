@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNoneProvider } from '../../src/engine/explain.js';
 import { buildProfile } from '../../src/engine/profile.js';
-import { CANDIDATES, LIBRARY, NOW } from './fixtures.js';
+import { CANDIDATES, LIBRARY, NOW, game } from './fixtures.js';
 
 const labels = {
   roguelike: 'Roguelike',
@@ -52,5 +52,32 @@ describe('none explain provider', () => {
       CANDIDATES.slice(0, 4).map((game) => ({ game, profile, library })),
     );
     expect(reasons).toHaveLength(4);
+  });
+});
+
+describe('none explain provider with idf', () => {
+  const labels2 = { fantasy: 'Fantasy', rare: 'Rare', mid: 'Mid', extra: 'Extra' };
+  const lib = [game(1, 'Lib', { fantasy: 1, rare: 1, mid: 1, extra: 1 })];
+  const cand = game(2, 'Cand', { fantasy: 1, rare: 1, mid: 1, extra: 1 });
+  const idf = { fantasy: 1, mid: 1.5, extra: 2, rare: 3 };
+
+  it('puts the rare shared tag first', async () => {
+    const p = { vocab: lib[0]!.vocab, genres: {}, themes: {}, weights: [] };
+    const [reason] = await createNoneProvider({ labels: labels2 }).explain([
+      { game: cand, profile: p, library: lib, idf },
+    ]);
+    expect(reason).toBe('Similar to Lib: Rare, Extra, Mid');
+  });
+
+  it('picks the closest game by idf-weighted cosine', async () => {
+    const p = { vocab: {}, genres: {}, themes: {}, weights: [] };
+    const c = game(9, 'C', { fantasy: 1, rare: 1 });
+    const fantasyTwin = game(3, 'FantasyTwin', { fantasy: 1, other: 0.1 });
+    const rareTwin = game(4, 'RareTwin', { rare: 1, other: 0.1 });
+    const base = { game: c, profile: p, library: [fantasyTwin, rareTwin] };
+    const [plain] = await createNoneProvider({ labels: labels2 }).explain([base]);
+    expect(plain).toMatch(/^Similar to FantasyTwin/);
+    const [weighted] = await createNoneProvider({ labels: labels2 }).explain([{ ...base, idf }]);
+    expect(weighted).toMatch(/^Similar to RareTwin/);
   });
 });

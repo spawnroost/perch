@@ -4,7 +4,14 @@ export { createNoneProvider } from './explain.js';
 export type { ExplainProvider, ExplainRequest } from './explain.js';
 export { buildProfile, weighGames } from './profile.js';
 export type { ProfileInput } from './profile.js';
-export { cosine, diversify, primaryGenre, rankCandidates, scoreCandidate } from './rank.js';
+export {
+  computeIdf,
+  cosine,
+  diversify,
+  primaryGenre,
+  rankCandidates,
+  scoreCandidate,
+} from './rank.js';
 export type { RankedCandidate } from './rank.js';
 export { mergeLibrary, recommend } from './recommend.js';
 export type { RecommendDeps, RecommendInput } from './recommend.js';

@@ -14,20 +14,42 @@ export const DIVERSITY_POOL_FACTOR = 3;
 const GENERIC_GENRES = new Set([32]);
 const YEAR_MS = 365.25 * 86_400_000;
 
-export function cosine(a: Vocab, b: Vocab): number {
+/** Smoothed inverse document frequency per vocab tag: ln((N+1)/(df+1)) + 1, df = games with tag > 0. */
+export function computeIdf(games: readonly { vocab: Vocab }[]): Record<string, number> {
+  const df: Record<string, number> = {};
+  for (const g of games) {
+    for (const [k, v] of Object.entries(g.vocab)) if (v > 0) df[k] = (df[k] ?? 0) + 1;
+  }
+  const n = games.length;
+  return Object.fromEntries(
+    Object.entries(df).map(([k, d]) => [k, Math.log((n + 1) / (d + 1)) + 1]),
+  );
+}
+
+/** Cosine similarity; with `idf`, every entry is first multiplied by its tag's idf (default 1). */
+export function cosine(a: Vocab, b: Vocab, idf?: Readonly<Record<string, number>>): number {
   let dot = 0;
   let na = 0;
   let nb = 0;
   for (const [k, v] of Object.entries(a)) {
-    na += v * v;
+    const x = v * (idf?.[k] ?? 1);
+    na += x * x;
     const w = b[k];
-    if (w) dot += v * w;
+    if (w) dot += x * w * (idf?.[k] ?? 1);
   }
-  for (const v of Object.values(b)) nb += v * v;
+  for (const [k, v] of Object.entries(b)) {
+    const y = v * (idf?.[k] ?? 1);
+    nb += y * y;
+  }
   return na === 0 || nb === 0 ? 0 : dot / Math.sqrt(na * nb);
 }
 
-export function scoreCandidate(profile: TasteProfile, c: Candidate, now: Date): number {
+export function scoreCandidate(
+  profile: TasteProfile,
+  c: Candidate,
+  now: Date,
+  idf?: Readonly<Record<string, number>>,
+): number {
   const { game } = c;
   let recency = 0;
   if (game.firstRelease) {
@@ -35,7 +57,7 @@ export function scoreCandidate(profile: TasteProfile, c: Candidate, now: Date): 
     recency = MAX_RECENCY_BOOST * Math.max(0, 1 - years / RECENCY_YEARS);
   }
   return (
-    cosine(profile.vocab, game.vocab) * W_COSINE +
+    cosine(profile.vocab, game.vocab, idf) * W_COSINE +
     ((game.rating ?? 0) / 100) * W_RATING +
     (c.backlog ? BACKLOG_BONUS : 0) +
     recency
@@ -82,9 +104,10 @@ export function rankCandidates(
   candidates: readonly Candidate[],
   now: Date,
   limit?: number,
+  idf?: Readonly<Record<string, number>>,
 ): RankedCandidate[] {
   const scored = candidates
-    .map((c) => ({ ...c, score: scoreCandidate(profile, c, now) }))
+    .map((c) => ({ ...c, score: scoreCandidate(profile, c, now, idf) }))
     .sort((a, b) => b.score - a.score);
   return diversify(limit === undefined ? scored : scored.slice(0, limit * DIVERSITY_POOL_FACTOR));
 }

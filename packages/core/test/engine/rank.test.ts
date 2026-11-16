@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildProfile } from '../../src/engine/profile.js';
 import {
+  computeIdf,
   cosine,
   diversify,
   primaryGenre,
@@ -158,5 +159,47 @@ describe('rankCandidates on the fixed 12-game library', () => {
       'Backlog',
       'Plain',
     ]);
+  });
+});
+
+describe('computeIdf', () => {
+  it('= ln((N+1)/(df+1)) + 1, counting games with tag > 0', () => {
+    const games: { vocab: Record<string, number> }[] = [
+      { vocab: { fantasy: 1, rare: 0.5 } },
+      { vocab: { fantasy: 0.3, zero: 0 } },
+      { vocab: { fantasy: 1 } },
+    ];
+    const idf = computeIdf(games);
+    expect(idf.fantasy).toBeCloseTo(Math.log(4 / 4) + 1, 10);
+    expect(idf.rare).toBeCloseTo(Math.log(4 / 2) + 1, 10);
+    expect(idf.zero).toBeUndefined();
+  });
+  it('is empty for no games', () => {
+    expect(computeIdf([])).toEqual({});
+  });
+});
+
+describe('idf-weighted cosine', () => {
+  it('is unchanged without idf and with an all-ones idf', () => {
+    const a = { x: 1, y: 2 };
+    const b = { x: 2, z: 1 };
+    expect(cosine(a, b, { x: 1, y: 1, z: 1 })).toBeCloseTo(cosine(a, b), 10);
+  });
+  it('a common tag shared by everything no longer outranks a rare shared tag', () => {
+    const profile = { vocab: { common: 1, rare: 1 }, genres: {}, themes: {}, weights: [] };
+    const commonOnly = game(1, 'C', { common: 1, other: 1 }, { rating: 0, firstRelease: null });
+    const rareOnly = game(2, 'R', { rare: 1, other: 1 }, { rating: 0, firstRelease: null });
+    const cands = [commonOnly, rareOnly].map((g) => ({ game: g, backlog: false }));
+    // Without idf the two tie; with idf the rare-tag game wins.
+    const tie = cands.map((c) => scoreCandidate(profile, c, NOW));
+    expect(tie[0]).toBeCloseTo(tie[1]!, 10);
+    const idf = computeIdf([
+      { vocab: { common: 1, rare: 1 } },
+      ...Array.from({ length: 20 }, () => ({ vocab: { common: 1 } })),
+      commonOnly,
+      rareOnly,
+    ]);
+    const ranked = rankCandidates(profile, cands, NOW, undefined, idf);
+    expect(ranked[0]!.game.name).toBe('R');
   });
 });
