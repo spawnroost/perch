@@ -1,7 +1,7 @@
 import { useId, useState, type FormEvent } from 'react';
 import { Button, Notice } from '../atoms';
 import { FormField } from '../molecules';
-import { useAddDevice, useHardwareSuggestions } from '@/hooks/queries';
+import { useHardwareSuggestions } from '@/hooks/queries';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { readDeviceMemory, readWebglRenderer } from '@/lib/gpuHint';
 
@@ -41,34 +41,45 @@ function HardwareField({
   );
 }
 
+export interface PcValues {
+  gpu: string;
+  cpu: string;
+  ramGb: number;
+}
+
 export function PcDeviceForm({
-  add,
-  onDone,
+  initial,
+  submitLabel,
+  pending,
+  error,
+  onSubmit,
   onCancel,
 }: {
-  /** Shared with DevicesStep so presets disable while a PC is being added. */
-  add: ReturnType<typeof useAddDevice>;
-  onDone: () => void;
+  /** Editing an existing PC: fields start from it and browser hints are not used. */
+  initial?: { gpu: string | null; cpu: string | null; ramGb: number | null };
+  submitLabel: string;
+  pending: boolean;
+  error: string | null;
+  onSubmit: (values: PcValues) => void;
   onCancel: () => void;
 }) {
   // Browser hints are read once on mount; the user confirms or edits them.
-  const [gpuHint] = useState(readWebglRenderer);
-  const [memory] = useState(readDeviceMemory);
-  const [gpu, setGpu] = useState(gpuHint ?? '');
-  const [cpu, setCpu] = useState('');
-  const [ram, setRam] = useState(memory ? String(memory.gb) : '');
+  const [gpuHint] = useState(() => (initial ? null : readWebglRenderer()));
+  const [memory] = useState(() => (initial ? null : readDeviceMemory()));
+  const [gpu, setGpu] = useState(initial?.gpu ?? gpuHint ?? '');
+  const [cpu, setCpu] = useState(initial?.cpu ?? '');
+  const [ram, setRam] = useState(
+    initial?.ramGb ? String(initial.ramGb) : memory ? String(memory.gb) : '',
+  );
 
-  function onSubmit(e: FormEvent) {
+  function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    add.mutate(
-      { pc: { gpu: gpu.trim(), cpu: cpu.trim(), ramGb: Number(ram) } },
-      { onSuccess: onDone },
-    );
+    onSubmit({ gpu: gpu.trim(), cpu: cpu.trim(), ramGb: Number(ram) });
   }
 
   return (
     <form
-      onSubmit={onSubmit}
+      onSubmit={handleSubmit}
       className="flex flex-col gap-4 rounded-lg border border-line bg-surface-1 p-4"
     >
       <HardwareField
@@ -95,10 +106,10 @@ export function PcDeviceForm({
         }
         required
       />
-      {add.error && <Notice tone="error">{add.error.message}</Notice>}
+      {error && <Notice tone="error">{error}</Notice>}
       <div className="flex gap-2">
-        <Button type="submit" variant="primary" loading={add.isPending}>
-          Add PC
+        <Button type="submit" variant="primary" loading={pending}>
+          {submitLabel}
         </Button>
         <Button variant="ghost" onClick={onCancel}>
           Cancel

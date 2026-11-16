@@ -1,5 +1,5 @@
-import { SectionPlaceholder } from '@/components/organisms';
+import { DevicesView } from '@/components/organisms';
 
 export function DevicesPage() {
-  return <SectionPlaceholder title="Devices" />;
+  return <DevicesView />;
 }

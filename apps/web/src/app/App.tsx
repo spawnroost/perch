@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { AppLayout } from '@/components/organisms';
 import {
+  AccountPage,
   DevicesPage,
   ForgotPasswordPage,
   GamePage,
@@ -41,6 +42,7 @@ export function App() {
               <Route path="library" element={<LibraryPage />} />
               <Route path="devices" element={<DevicesPage />} />
               <Route path="games/:id" element={<GamePage />} />
+              <Route path="account" element={<AccountPage />} />
             </Route>
             <Route path="onboarding" element={<OnboardingPage />} />
             <Route path="login" element={<LoginPage />} />

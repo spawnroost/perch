@@ -1,5 +1,5 @@
-import { SectionPlaceholder } from '@/components/organisms';
+import { LibraryView } from '@/components/organisms';
 
 export function LibraryPage() {
-  return <SectionPlaceholder title="Library" />;
+  return <LibraryView />;
 }

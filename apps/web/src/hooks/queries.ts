@@ -1,6 +1,14 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+  type QueryKey,
+} from '@tanstack/react-query';
 import type {
   DeviceCreate,
+  DevicePatchInput,
   DevicePresetsResponse,
   DeviceView,
   FeedbackKind,
@@ -8,8 +16,11 @@ import type {
   GameDetailResponse,
   GameSearchResponse,
   HardwareResponse,
+  ImportConfirm,
+  ImportPreviewResponse,
   LibraryCreate,
   LibraryEntry,
+  LibraryPatchInput,
   RecommendationsResponse,
 } from '@perch/core';
 import { api } from '@/lib/api';
@@ -21,6 +32,7 @@ import {
   revertFeedback,
   type FeedbackMap,
 } from '@/lib/feedback';
+import { devicesAffected, libraryAffected } from '@/lib/invalidation';
 import { queryKeys } from '@/lib/queryKeys';
 
 export function useLibrary(enabled = true) {
@@ -132,17 +144,50 @@ export function useFeedback() {
   };
 }
 
+const invalidateAll = (qc: QueryClient, keys: readonly QueryKey[]) =>
+  Promise.all(keys.map((queryKey) => qc.invalidateQueries({ queryKey })));
+
 export function useAddToLibrary() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: LibraryCreate) => api.post<{ entry: LibraryEntry }>('/api/library', body),
     // A new library entry changes the picks and the game's page too.
-    onSuccess: (_data, { igdbId }) =>
-      Promise.all([
-        qc.invalidateQueries({ queryKey: queryKeys.library }),
-        qc.invalidateQueries({ queryKey: queryKeys.recommendationsAll }),
-        qc.invalidateQueries({ queryKey: queryKeys.game(igdbId) }),
-      ]),
+    onSuccess: () => invalidateAll(qc, libraryAffected),
+  });
+}
+
+export function useUpdateLibraryEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: LibraryPatchInput }) =>
+      api.patch<{ entry: LibraryEntry }>(`/api/library/${id}`, patch),
+    onSuccess: () => invalidateAll(qc, libraryAffected),
+  });
+}
+
+export function useRemoveLibraryEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/api/library/${id}`),
+    onSuccess: () => invalidateAll(qc, libraryAffected),
+  });
+}
+
+export function useImportPreview() {
+  return useMutation({
+    mutationFn: (text: string) => api.post<ImportPreviewResponse>('/api/library/import', { text }),
+  });
+}
+
+export function useImportConfirm() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ImportConfirm) =>
+      api.post<{
+        imported: { igdbId: number; name: string }[];
+        failed: { igdbId: number; error: string }[];
+      }>('/api/library/import/confirm', body),
+    onSuccess: () => invalidateAll(qc, libraryAffected),
   });
 }
 
@@ -151,10 +196,27 @@ export function useAddDevice() {
   return useMutation({
     mutationFn: (body: DeviceCreate) => api.post<{ device: DeviceView }>('/api/devices', body),
     // Picks depend on the device list.
-    onSuccess: () =>
-      Promise.all([
-        qc.invalidateQueries({ queryKey: queryKeys.devices }),
-        qc.invalidateQueries({ queryKey: queryKeys.recommendationsAll }),
-      ]),
+    onSuccess: () => invalidateAll(qc, devicesAffected),
+  });
+}
+
+export function useUpdateDevice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: DevicePatchInput }) =>
+      api.patch<{ device: DeviceView }>(`/api/devices/${id}`, patch),
+    onSuccess: () => invalidateAll(qc, devicesAffected),
+  });
+}
+
+/** Deletes a device; `promoteId` (see `successorDefault`) becomes the default when the default goes. */
+export function useDeleteDevice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, promoteId }: { id: string; promoteId: string | null }) => {
+      await api.delete(`/api/devices/${id}`);
+      if (promoteId) await api.patch(`/api/devices/${promoteId}`, { isDefault: true });
+    },
+    onSettled: () => invalidateAll(qc, devicesAffected),
   });
 }

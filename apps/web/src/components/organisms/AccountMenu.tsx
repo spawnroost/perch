@@ -1,5 +1,6 @@
+import { Link } from 'react-router';
 import { CircleUser } from 'lucide-react';
-import { Button, Notice, Sheet, SheetContent, SheetTrigger } from '../atoms';
+import { Button, Notice, Sheet, SheetClose, SheetContent, SheetTrigger } from '../atoms';
 import { useSignOut } from '@/hooks/useSignOut';
 import { authClient } from '@/lib/auth-client';
 
@@ -19,6 +20,11 @@ export function AccountMenu() {
         description={data ? `Signed in as ${data.user.email}` : 'Signed in'}
       >
         {signOut.error && <Notice tone="error">{signOut.error}</Notice>}
+        <SheetClose asChild>
+          <Button asChild variant="secondary">
+            <Link to="/account">Account settings</Link>
+          </Button>
+        </SheetClose>
         <Button variant="secondary" loading={signOut.pending} onClick={() => void signOut.run()}>
           Sign out
         </Button>

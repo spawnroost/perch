@@ -1,3 +1,4 @@
+export { AccountPage } from './AccountPage';
 export { DevicesPage } from './DevicesPage';
 export { ForgotPasswordPage } from './ForgotPasswordPage';
 export { GamePage } from './GamePage';
