@@ -3,6 +3,7 @@ import { addCommand, dbUrl, importCommand, userCreateCommand } from './commands.
 import { igdbRefresh } from './igdb-refresh.js';
 import { recommendCommand } from './recommend.js';
 import { deckCommand } from './deck.js';
+import { deviceCommand } from './device.js';
 import { feedbackCommand } from './feedback.js';
 import { reqsCommand } from './reqs.js';
 import { vocabCheck } from './vocab-check.js';
@@ -15,7 +16,8 @@ commands:
   add "<game>" [--hours N] [--last YYYY-MM-DD] [--status playing|finished|dropped|backlog]
               [--platform pc] [--owned|--no-owned] [--igdb <id>] [--user <email>]
   import <file> [--platform pc] [--owned|--no-owned] [--user <email>]
-  recommend --dry [--user <email>] [--limit 20]
+  device add <preset-id|pc> [--default] [--gpu N --cpu N --ram GB]  |  device list  |  device rm <id>
+  recommend [--device <id|preset-id|all|none>] [--user <email>] [--limit 20]
   reqs <game name or igdb id>  Steam PC requirements with matched tiers
   deck <game name or igdb id>  Steam Deck compatibility (cached 7 days)
   feedback <game> <up|down|played|not-interested> [--user <email>]
@@ -45,6 +47,9 @@ async function main(argv: string[]): Promise<number> {
         return 0;
       case 'deck':
         await deckCommand(rest, dbUrl);
+        return 0;
+      case 'device':
+        await deviceCommand(rest, dbUrl);
         return 0;
       case 'feedback':
         await feedbackCommand(rest, dbUrl);
