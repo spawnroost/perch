@@ -76,13 +76,18 @@ export function findUnmapped(games: readonly GameIgdbIds[]): UnmappedReport {
 /** Plain-text report for `perch vocab:check`: all genres/themes, top N keywords. */
 export function formatUnmappedReport(
   report: UnmappedReport,
-  opts: { topKeywords?: number } = {},
+  opts: { topKeywords?: number; names?: Readonly<Record<number, string>> } = {},
 ): string {
   const topKeywords = opts.topKeywords ?? 30;
+  const names = opts.names ?? {};
   const section = (title: string, rows: UnmappedCount[], limit = rows.length): string =>
     [
       `${title} (${limit < rows.length ? `top ${limit} of ${rows.length}` : rows.length} unmapped)`,
-      ...rows.slice(0, limit).map((r) => `  ${r.id}\t${r.count}`),
+      ...rows
+        .slice(0, limit)
+        .map((r) =>
+          names[r.id] ? `  ${r.id}  ${names[r.id]}  ${r.count}` : `  ${r.id}\t${r.count}`,
+        ),
     ].join('\n');
   return [
     section('Genres', report.genres),

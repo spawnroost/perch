@@ -126,6 +126,21 @@ describe('findUnmapped', () => {
     expect(out).not.toContain('60030');
     expect(out).toContain('top 30 of 50 unmapped');
   });
+
+  test('report prints keyword names when given, ids alone otherwise', () => {
+    const report = {
+      genres: [],
+      themes: [],
+      keywords: [
+        { id: 7, count: 9 },
+        { id: 8, count: 3 },
+      ],
+    };
+    const out = formatUnmappedReport(report, { topKeywords: 5, names: { 7: 'open world' } });
+    expect(out).toContain('7  open world  9');
+    expect(out).toContain('8\t3');
+    expect(out).not.toContain('undefined');
+  });
 });
 
 test('VocabId type is usable', () => {

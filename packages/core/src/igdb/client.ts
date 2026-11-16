@@ -3,6 +3,7 @@ import { RateQueue } from './queue.js';
 import {
   igdbGameSchema,
   igdbGamesResponseSchema,
+  igdbKeywordsResponseSchema,
   igdbSearchResponseSchema,
   igdbTimeToBeatResponseSchema,
   type Game,
@@ -75,6 +76,8 @@ export interface IgdbClient {
   /** Best-rated main games (game_type 0) matching any genre/theme, with at least minRatingCount ratings. */
   queryByTags(q: TagQuery): Promise<Game[]>;
   getTimeToBeat(igdbId: number): Promise<TimeToBeat | null>;
+  /** Keyword id -> name (<= 500 ids per query). Unknown ids are omitted. */
+  keywordNames(ids: readonly number[]): Promise<Record<number, string>>;
 }
 
 type RawGame = z.output<typeof igdbGameSchema>;
@@ -207,6 +210,21 @@ export function createIgdbClient(opts: IgdbClientOptions): IgdbClient {
         igdbGamesResponseSchema,
       );
       return rows.map(toGame);
+    },
+
+    async keywordNames(ids) {
+      const unique = [...new Set(ids)];
+      const out: Record<number, string> = {};
+      for (let i = 0; i < unique.length; i += IGDB_MAX_LIMIT) {
+        const batch = unique.slice(i, i + IGDB_MAX_LIMIT);
+        const rows = await query(
+          'keywords',
+          `fields id,name; where id = (${idList(batch)}); limit ${IGDB_MAX_LIMIT};`,
+          igdbKeywordsResponseSchema,
+        );
+        for (const r of rows) out[r.id] = r.name;
+      }
+      return out;
     },
 
     async getTimeToBeat(igdbId) {

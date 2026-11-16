@@ -296,3 +296,34 @@ describe('queryByTags', () => {
     expect(net.apiCalls()).toHaveLength(1);
   });
 });
+
+describe('keywordNames', () => {
+  it('maps keyword ids to names from the keywords endpoint, deduped', async () => {
+    const net = fakeFetch({
+      intercept: ({ url }) =>
+        url.endsWith('/keywords')
+          ? json([
+              { id: 11, name: 'open world' },
+              { id: 22, name: 'permadeath' },
+            ])
+          : undefined,
+    });
+    const names = await make(net).keywordNames([11, 22, 11]);
+    expect(names).toEqual({ 11: 'open world', 22: 'permadeath' });
+    const call = net.apiCalls()[0]!;
+    expect(call.url).toBe('https://api.igdb.com/v4/keywords');
+    expect(call.body).toBe('fields id,name; where id = (11,22); limit 500;');
+  });
+
+  it('returns {} without a request for no ids', async () => {
+    const net = fakeFetch();
+    expect(await make(net).keywordNames([])).toEqual({});
+    expect(net.apiCalls()).toHaveLength(0);
+  });
+
+  it('batches more than 500 ids', async () => {
+    const net = fakeFetch({ intercept: () => json([]) });
+    await make(net).keywordNames(Array.from({ length: 501 }, (_, i) => i + 1));
+    expect(net.apiCalls()).toHaveLength(2);
+  });
+});

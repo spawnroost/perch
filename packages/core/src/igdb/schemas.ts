@@ -36,6 +36,10 @@ export const igdbGameSchema = z.object({
     )
     .optional(),
 });
+export const igdbKeywordsResponseSchema = z.array(
+  z.object({ id: z.number().int(), name: z.string() }),
+);
+
 export const igdbGamesResponseSchema = z.array(igdbGameSchema);
 
 export const igdbTimeToBeatSchema = z.object({
