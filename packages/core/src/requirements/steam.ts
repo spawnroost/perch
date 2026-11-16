@@ -77,8 +77,7 @@ async function readEntry(
 
 export function createSteamClient(opts: SteamClientOptions = {}): SteamClient {
   const doFetch: typeof fetch = opts.fetch ?? ((...args) => fetch(...args));
-  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
-  const queue = new RateQueue(opts.maxPerSecond ?? 1, { now: opts.now, sleep });
+  const queue = new RateQueue(opts.maxPerSecond ?? 1, { now: opts.now, sleep: opts.sleep });
   const maxRetries = opts.maxRetries ?? 3;
   const backoffMs = opts.backoffMs ?? 1000;
 
@@ -126,7 +125,8 @@ export function requirementsExcerpt(pc: PcRequirementsHtml): string | null {
   const block = (label: string, html?: string) => {
     // Drop only the block's own leading header: an inline "Recommended:" line is the boundary.
     const all = html ? htmlToLines(html) : [];
-    const lines = all[0] && new RegExp(`^${label}:?$`, 'i').test(all[0]) ? all.slice(1) : all;
+    const isHeader = all[0]?.replace(/:$/, '').toLowerCase() === label.toLowerCase();
+    const lines = isHeader ? all.slice(1) : all;
     return lines.length ? [`${label}:`, ...lines].join('\n').slice(0, RAW_MAX_CHARS) : null;
   };
   const text = [block('Minimum', pc.minimum), block('Recommended', pc.recommended)]
@@ -147,10 +147,8 @@ export async function getRequirements(
   opts: GetRequirementsOptions = {},
 ): Promise<RequirementsRow | null> {
   const { ttlMs = REQUIREMENTS_TTL_MS, now = () => new Date() } = opts;
-  const [cached] = await db
-    .select()
-    .from(gameRequirements)
-    .where(and(eq(gameRequirements.igdbId, igdbId), eq(gameRequirements.source, 'steam')));
+  const steamRow = and(eq(gameRequirements.igdbId, igdbId), eq(gameRequirements.source, 'steam'));
+  const [cached] = await db.select().from(gameRequirements).where(steamRow);
   if (cached && now().getTime() - cached.parsedAt.getTime() < ttlMs) return cached;
 
   const [game] = await db
@@ -174,7 +172,7 @@ export async function getRequirements(
     const [kept] = await db
       .update(gameRequirements)
       .set({ parsedAt: now() })
-      .where(and(eq(gameRequirements.igdbId, igdbId), eq(gameRequirements.source, 'steam')))
+      .where(steamRow)
       .returning();
     return kept ?? cached;
   }

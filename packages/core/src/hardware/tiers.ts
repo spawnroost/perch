@@ -160,12 +160,6 @@ function candidates(raw: string): string[] {
 
 const BARE_MODEL = /^(\d{3,4})( ti| super)?$/;
 
-/**
- * "NVIDIA 2060 Super", "nVidia 450" or "1060": a lone model number gets its GTX / RTX prefix.
- * Only with an NVIDIA/GeForce mention, or a 4-digit GTX 10/16 or RTX 20-50 number; never when
- * AMD/Intel is the current brand (a bare "5570" is not guessable) and only if the prefixed key
- * exists. The brand carries over from earlier alternatives: "NVIDIA 450 / 550".
- */
 type Brand = 'nvidia' | 'other' | null;
 
 function brandOf(part: string, previous: Brand): Brand {
@@ -174,6 +168,12 @@ function brandOf(part: string, previous: Brand): Brand {
   return previous;
 }
 
+/**
+ * "NVIDIA 2060 Super", "nVidia 450" or "1060": a lone model number gets its GTX / RTX prefix.
+ * Only with an NVIDIA/GeForce mention, or a 4-digit GTX 10/16 or RTX 20-50 number; never when
+ * AMD/Intel is the current brand (a bare "5570" is not guessable) and only if the prefixed key
+ * exists. The brand carries over from earlier alternatives: "NVIDIA 450 / 550".
+ */
 function bareNvidia(brand: Brand, norm: string): TierMatch | null {
   const m = BARE_MODEL.exec(norm);
   if (!m || brand === 'other') return null;
