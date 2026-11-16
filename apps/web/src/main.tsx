@@ -1,10 +1,10 @@
+import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles/tokens.css';
+import { App } from './app/App';
 
-const root = createRoot(document.getElementById('root')!);
-
-if (import.meta.env.DEV) {
-  void import('./dev/Showcase').then(({ Showcase }) => root.render(<Showcase />));
-} else {
-  root.render(<p>Perch</p>);
-}
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);

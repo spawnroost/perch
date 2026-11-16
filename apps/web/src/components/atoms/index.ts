@@ -11,3 +11,6 @@ export { Sheet, SheetClose, SheetContent, SheetTrigger } from './Sheet';
 export type { SheetContentProps } from './Sheet';
 export { Skeleton } from './Skeleton';
 export { Tabs, TabsContent, TabsList, TabsTrigger } from './Tabs';
+export { Label } from './Label';
+export { Notice, noticeVariants } from './Notice';
+export type { NoticeProps } from './Notice';

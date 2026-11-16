@@ -64,3 +64,4 @@ export type DevicePresetsResponse = z.infer<typeof devicePresetsResponseSchema>;
 export type DeviceView = z.infer<typeof deviceSchema>;
 export type DeviceCreate = z.input<typeof deviceCreateSchema>;
 export type DevicePatchInput = z.input<typeof devicePatchSchema>;
+export type HardwareResponse = z.infer<typeof hardwareResponseSchema>;
