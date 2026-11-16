@@ -5,6 +5,7 @@ import {
   cosine,
   diversify,
   MAX_PER_SERIES,
+  MIN_SLOT_SIM,
   primaryGenre,
   rankCandidates,
   scoreCandidate,
@@ -252,9 +253,43 @@ describe('per-source slots', () => {
   const cands = [...mv, fps].map((g) => ({ game: g, backlog: false }));
 
   it('moves the best match of an unshown source inside the limit', () => {
-    const top = rankCandidates(profile, cands, NOW, 3, { sources, slots: 1 }).slice(0, 3);
+    const top = rankCandidates(profile, cands, NOW, 4, { sources, slots: 1 }).slice(0, 4);
     expect(top.map((t) => t.game.name)).toContain('F');
     expect(top.map((t) => t.game.name)).toContain('M1');
+  });
+  it('limit under 4: no slots, so organic games are not pushed out', () => {
+    const withSlots = rankCandidates(profile, cands, NOW, 3, { sources, slots: 5 });
+    const without = rankCandidates(profile, cands, NOW, 3, { sources, slots: 0 });
+    expect(withSlots.map((t) => t.game.name)).toEqual(without.map((t) => t.game.name));
+  });
+  it('slots are capped at a quarter of the limit', () => {
+    const src3 = [...sources, { vocab: { rpg: 1 } }, { vocab: { puz: 1 } }];
+    const extra = [
+      game(98, 'R', { rpg: 1 }, { ...plain, genres: [98] }),
+      game(97, 'P', { puz: 1 }, { ...plain, genres: [97] }),
+    ].map((g) => ({ game: g, backlog: false }));
+    const top = rankCandidates(profile, [...cands, ...extra], NOW, 4, {
+      sources: src3,
+      slots: 5,
+    }).slice(0, 4);
+    const names = top.map((t) => t.game.name);
+    expect(names.filter((n) => ['F', 'R', 'P'].includes(n))).toHaveLength(1);
+  });
+  it('MIN_SLOT_SIM: a source whose best match is only weakly similar gets no slot', () => {
+    expect(MIN_SLOT_SIM).toBe(0.3);
+    const weakSources = [...sources, { vocab: { zz: 1 } }];
+    // cosine to { zz: 1 } is about 0.1, below the floor.
+    const weak = game(50, 'W', { zz: 0.1, junk: 1 }, { ...plain, genres: [50] });
+    const c = [...cands.filter((x) => x.game.name !== 'F'), { game: weak, backlog: false }];
+    const top = rankCandidates(profile, c, NOW, 4, { sources: weakSources, slots: 5 }).slice(0, 4);
+    expect(top.map((t) => t.game.name)).not.toContain('W');
+  });
+  it('MIN_SLOT_SIM: a close enough best match still gets the slot', () => {
+    const weakSources = [...sources, { vocab: { zz: 1 } }];
+    const ok = game(51, 'OK', { zz: 1, junk: 1 }, { ...plain, genres: [51] }); // cosine ~0.71
+    const c = [...cands.filter((x) => x.game.name !== 'F'), { game: ok, backlog: false }];
+    const top = rankCandidates(profile, c, NOW, 4, { sources: weakSources, slots: 1 }).slice(0, 4);
+    expect(top.map((t) => t.game.name)).toContain('OK');
   });
   it('no slots, no change', () => {
     const top = rankCandidates(profile, cands, NOW, 3, { sources, slots: 0 }).slice(0, 3);

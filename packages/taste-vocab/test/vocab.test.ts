@@ -159,10 +159,25 @@ describe('findUnmapped', () => {
         { id: 8, count: 3 },
       ],
     };
-    const out = formatUnmappedReport(report, { topKeywords: 5, names: { 7: 'open world' } });
+    const out = formatUnmappedReport(report, { topKeywords: 5, keywordNames: { 7: 'open world' } });
     expect(out).toContain('7  open world  9');
     expect(out).toContain('8\t3');
     expect(out).not.toContain('undefined');
+  });
+
+  test('keyword names apply only in the Keywords section, not genres or themes', () => {
+    const report = {
+      genres: [{ id: 7, count: 4 }],
+      themes: [{ id: 7, count: 2 }],
+      keywords: [{ id: 7, count: 9 }],
+    };
+    const out = formatUnmappedReport(report, { keywordNames: { 7: 'open world' } });
+    const [genres, themes, keywords] = out.split('\n\n');
+    expect(genres).toContain('7\t4');
+    expect(genres).not.toContain('open world');
+    expect(themes).toContain('7\t2');
+    expect(themes).not.toContain('open world');
+    expect(keywords).toContain('7  open world  9');
   });
 });
 

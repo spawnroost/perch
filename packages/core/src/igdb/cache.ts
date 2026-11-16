@@ -1,6 +1,6 @@
 import { eq, inArray, sql } from 'drizzle-orm';
 import { games, timeToBeat, type Db } from '@perch/db';
-import { IGDB_MAX_LIMIT, type IgdbClient, type TagQuery } from './client.js';
+import { type IgdbClient, type TagQuery } from './client.js';
 import type { Game, TimeToBeat } from './schemas.js';
 
 export const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -21,8 +21,8 @@ export interface IgdbCache {
   getGames(igdbIds: readonly number[]): Promise<Game[]>;
   /** Runs the tag query on IGDB and upserts every result so later lookups hit the cache. */
   queryByTags(q: TagQuery): Promise<Game[]>;
-  /** Refetches every cached game by id (batches of 500) and upserts it. Returns rows refreshed. */
-  refreshAll(): Promise<number>;
+  /** Refetches every cached game by id and upserts it. Also lists ids IGDB did not return. */
+  refreshAll(): Promise<{ refreshed: number; missing: number[] }>;
   /** Same for time-to-beat. A game with no IGDB record is cached as an empty row (returns null). */
   getTimeToBeat(igdbId: number): Promise<TimeToBeat | null>;
 }
@@ -168,15 +168,16 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
     return { hastilySeconds, normallySeconds, completelySeconds, count };
   }
 
-  async function refreshAll(): Promise<number> {
+  async function refreshAll(): Promise<{ refreshed: number; missing: number[] }> {
     const rows = await db.select({ id: games.igdbId }).from(games).orderBy(games.igdbId);
-    let n = 0;
-    for (let i = 0; i < rows.length; i += IGDB_MAX_LIMIT) {
-      const fetched = await client.getGames(rows.slice(i, i + IGDB_MAX_LIMIT).map((r) => r.id));
-      await upsertGames(fetched);
-      n += fetched.length;
-    }
-    return n;
+    // client.getGames batches the ids itself.
+    const fetched = await client.getGames(rows.map((r) => r.id));
+    await upsertGames(fetched);
+    const got = new Set(fetched.map((g) => g.igdbId));
+    return {
+      refreshed: fetched.length,
+      missing: rows.map((r) => r.id).filter((id) => !got.has(id)),
+    };
   }
 
   return { getGame, getGames, queryByTags, refreshAll, getTimeToBeat };

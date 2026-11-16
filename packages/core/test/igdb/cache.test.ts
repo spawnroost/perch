@@ -88,11 +88,21 @@ describe.skipIf(!url)('igdb db cache', () => {
     const { net, cache } = setup({
       intercept: () => json([{ id: hades.igdbId, name: 'Hades', slug: 'hades', collections: [3] }]),
     });
-    const n = await cache.refreshAll();
-    expect(n).toBeGreaterThanOrEqual(1);
+    const { refreshed, missing } = await cache.refreshAll();
+    expect(refreshed).toBeGreaterThanOrEqual(1);
+    expect(missing).not.toContain(hades.igdbId);
     expect(net.apiCalls().length).toBeGreaterThanOrEqual(1);
     const [row] = await db.select().from(games).where(eq(games.igdbId, hades.igdbId));
     expect(row?.series).toEqual([3]);
+  });
+
+  it('refreshAll reports ids IGDB did not return', async () => {
+    const first = setup();
+    await first.cache.getGame(hades.igdbId);
+    const { cache } = setup({ intercept: () => json([]) });
+    const { refreshed, missing } = await cache.refreshAll();
+    expect(refreshed).toBe(0);
+    expect(missing).toContain(hades.igdbId);
   });
 
   it('hit: serves from the DB without touching the network', async () => {

@@ -52,7 +52,11 @@ export async function recommend(
     deps,
     now,
   });
-  const idf = computeIdf([...candidates.map((c) => c.game), ...library.map((l) => l.game)]);
+  // A backlog game is both a candidate and a library entry: count it once.
+  const idfGames = new Map(
+    [...candidates.map((c) => c.game), ...library.map((l) => l.game)].map((g) => [g.igdbId, g]),
+  );
+  const idf = computeIdf([...idfGames.values()]);
   // Sources (for kNN scoring and reasons) are games that really say something about taste.
   const weight = new Map(profile.weights.map((w) => [w.igdbId, w.weight]));
   const downed = new Set(input.feedback.filter((f) => f.kind === 'down').map((f) => f.igdbId));

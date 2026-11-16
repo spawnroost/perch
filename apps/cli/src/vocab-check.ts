@@ -20,7 +20,7 @@ export async function vocabCheck(databaseUrl: string): Promise<string> {
     } catch (err) {
       warning = `warning: could not fetch keyword names (${err instanceof Error ? err.message : String(err)}); showing ids only\n`;
     }
-    return `${warning}${rows.length} games\n\n${formatUnmappedReport(report, { topKeywords: TOP_KEYWORDS, names })}`;
+    return `${warning}${rows.length} games\n\n${formatUnmappedReport(report, { topKeywords: TOP_KEYWORDS, keywordNames: names })}`;
   } finally {
     await db.$client.end();
   }

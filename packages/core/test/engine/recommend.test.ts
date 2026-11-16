@@ -97,6 +97,32 @@ describe('recommend', () => {
     expect(recs.find((r) => r.game.igdbId === 900)!.backlog).toBe(true);
   });
 
+  it('counts a backlog game once in idf, not as both candidate and library entry', async () => {
+    const waiting = { ...CANDIDATES[3]!, igdbId: 900, name: 'Waiting Game', vocab: { uniq: 1 } };
+    const seen: (Readonly<Record<string, number>> | undefined)[] = [];
+    const spy = {
+      name: 'spy',
+      explain: async (reqs: readonly { idf?: Readonly<Record<string, number>> }[]) => {
+        seen.push(reqs[0]?.idf);
+        return reqs.map(() => 'r');
+      },
+    };
+    await recommend(
+      {
+        ...deps,
+        explain: spy,
+        mapVocab: (g: { igdbId: number }) => (g.igdbId === 900 ? { uniq: 1 } : mapVocab(g)),
+      },
+      { library: [...LIBRARY, item(waiting, 0, null, 'backlog')], feedback: [], limit: 3 },
+    );
+    const n = new Set([
+      ...CANDIDATES.map((c) => c.igdbId),
+      ...LIBRARY.map((l) => l.game.igdbId),
+      900,
+    ]).size;
+    expect(seen[0]!.uniq).toBeCloseTo(Math.log((n + 1) / 2) + 1, 10);
+  });
+
   it('copes with an empty library', async () => {
     expect(await recommend(deps, { library: [], feedback: [], limit: 20 })).toEqual([]);
     void game;
