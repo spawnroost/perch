@@ -10,6 +10,7 @@ import {
   formatError,
   NoMatchError,
   parseImportFile,
+  rebuildProfile,
   userCreateSchema,
 } from '@perch/core';
 import { createDb } from '@perch/db';
@@ -77,6 +78,7 @@ export async function addCommand(argv: string[]): Promise<void> {
       mapVocab: mapGame,
     };
     const added = await addGame(deps, userId, args, 'manual');
+    await rebuildProfile(db, userId, new Date(), mapGame);
     console.log(`added "${added.name}" (igdb ${added.igdbId}) for ${email}`);
   } finally {
     await db.$client.end();
@@ -124,6 +126,7 @@ export async function importCommand(argv: string[]): Promise<number> {
         );
       }
     }
+    if (ok > 0) await rebuildProfile(db, userId, new Date(), mapGame);
   } finally {
     await db.$client.end();
   }
