@@ -2,6 +2,7 @@ import { formatError } from '@perch/core';
 import { addCommand, dbUrl, importCommand, userCreateCommand } from './commands.js';
 import { igdbRefresh } from './igdb-refresh.js';
 import { recommendCommand } from './recommend.js';
+import { deckCommand } from './deck.js';
 import { reqsCommand } from './reqs.js';
 import { vocabCheck } from './vocab-check.js';
 import { vocabRebuild } from './vocab-rebuild.js';
@@ -15,6 +16,7 @@ commands:
   import <file> [--platform pc] [--owned|--no-owned] [--user <email>]
   recommend --dry [--user <email>] [--limit 20]
   reqs <game name or igdb id>  Steam PC requirements with matched tiers
+  deck <game name or igdb id>  Steam Deck compatibility (cached 7 days)
   igdb:refresh  refetch every cached game from IGDB (fills new fields)
   vocab:check   list IGDB ids with no taste-vocab mapping
   vocab:rebuild recompute stored games.vocab with the current mapping
@@ -38,6 +40,9 @@ async function main(argv: string[]): Promise<number> {
         return 0;
       case 'reqs':
         await reqsCommand(rest, dbUrl);
+        return 0;
+      case 'deck':
+        await deckCommand(rest, dbUrl);
         return 0;
       case 'igdb:refresh': {
         console.log(await igdbRefresh(dbUrl()));

@@ -16,6 +16,7 @@ export {
   SteamError,
 } from './steam.js';
 export type {
+  DeckCategory,
   GetRequirementsOptions,
   PcRequirementsHtml,
   RequirementsRow,

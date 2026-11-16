@@ -39,10 +39,22 @@ export interface SteamClientOptions {
   backoffMs?: number;
 }
 
+export type DeckCategory = 'verified' | 'playable' | 'unsupported' | 'unknown';
+
 export interface SteamClient {
   /** `{}` when the app is unknown to Steam or lists no PC requirements. */
   getPcRequirements(appId: number): Promise<PcRequirementsHtml>;
+  /** Steam Deck compatibility; 'unknown' when Steam has no (readable) report for the app. */
+  getDeckCompat(appId: number): Promise<DeckCategory>;
 }
+
+const DECK_URL = 'https://store.steampowered.com/saleaction/ajaxgetdeckappcompatibilityreport';
+const DECK_CATEGORIES: Record<number, DeckCategory> = {
+  0: 'unknown',
+  1: 'unsupported',
+  2: 'playable',
+  3: 'verified',
+};
 
 const responseSchema = z.record(
   z.string(),
@@ -56,6 +68,8 @@ const dataSchema = z.object({
     ])
     .optional(),
 });
+
+const deckSchema = z.object({ results: z.object({ resolved_category: z.number() }) });
 
 /** The `{ "<id>": { success, data } }` entry for an app; anything else is a SteamError('body'). */
 async function readEntry(
@@ -81,31 +95,50 @@ export function createSteamClient(opts: SteamClientOptions = {}): SteamClient {
   const maxRetries = opts.maxRetries ?? 3;
   const backoffMs = opts.backoffMs ?? 1000;
 
+  /** GET with the shared queue and retry/backoff; throws SteamError on a final HTTP failure. */
+  async function request(url: string, label: string, id: number): Promise<Response> {
+    for (let attempt = 0; ; attempt++) {
+      const res = await queue.schedule(() =>
+        doFetch(url, { headers: { accept: 'application/json' } }),
+      );
+      if (res.ok) return res;
+      const retryable = res.status === 429 || res.status >= 500;
+      if (!retryable || attempt >= maxRetries) {
+        throw new SteamError(`Steam ${label} ${id} failed: HTTP ${res.status}`, res.status);
+      }
+      // Pause the shared queue so concurrent callers back off too, not just this one.
+      const retryAfter = Number(res.headers.get('retry-after'));
+      queue.pause(retryAfter > 0 ? retryAfter * 1000 : backoffMs * 2 ** attempt);
+    }
+  }
+
   return {
     async getPcRequirements(appId) {
       const id = Math.trunc(appId);
       // `filters=pc_requirements` alone now returns data: []; `basic` is needed alongside it.
       const url = `${API_URL}?appids=${id}&filters=basic,pc_requirements`;
-      for (let attempt = 0; ; attempt++) {
-        const res = await queue.schedule(() =>
-          doFetch(url, { headers: { accept: 'application/json' } }),
-        );
-        if (res.ok) {
-          const entry = await readEntry(res, id);
-          if (!entry.success) return {};
-          const data = dataSchema.safeParse(entry.data);
-          const pc = data.success ? data.data.pc_requirements : undefined;
-          if (!pc || Array.isArray(pc)) return {};
-          return { minimum: pc.minimum, recommended: pc.recommended };
-        }
-        const retryable = res.status === 429 || res.status >= 500;
-        if (!retryable || attempt >= maxRetries) {
-          throw new SteamError(`Steam appdetails ${id} failed: HTTP ${res.status}`, res.status);
-        }
-        // Pause the shared queue so concurrent callers back off too, not just this one.
-        const retryAfter = Number(res.headers.get('retry-after'));
-        queue.pause(retryAfter > 0 ? retryAfter * 1000 : backoffMs * 2 ** attempt);
+      const entry = await readEntry(await request(url, 'appdetails', id), id);
+      if (!entry.success) return {};
+      const data = dataSchema.safeParse(entry.data);
+      const pc = data.success ? data.data.pc_requirements : undefined;
+      if (!pc || Array.isArray(pc)) return {};
+      return { minimum: pc.minimum, recommended: pc.recommended };
+    },
+
+    async getDeckCompat(appId) {
+      const id = Math.trunc(appId);
+      const res = await request(`${DECK_URL}?nAppID=${id}`, 'deck report', id);
+      let body: unknown;
+      try {
+        body = JSON.parse(await res.text());
+      } catch {
+        throw new SteamError(`Steam deck report ${id}: response is not JSON`, res.status, 'body');
       }
+      // Unknown apps answer `results: []`; any other unexpected shape also means no report.
+      const parsed = deckSchema.safeParse(body);
+      return (
+        (parsed.success && DECK_CATEGORIES[parsed.data.results.resolved_category]) || 'unknown'
+      );
     },
   };
 }
