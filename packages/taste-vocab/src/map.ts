@@ -20,8 +20,8 @@ function blank(): TasteVector {
 export function mapGame({ genres, themes, keywords }: GameIgdbIds): TasteVector {
   const sums = blank();
   const add = (ids: readonly number[] | null | undefined, table: IgdbMap): void => {
-    for (const id of ids ?? []) {
-      const targets = Object.hasOwn(table, id) ? table[id] : undefined;
+    for (const id of new Set(ids ?? [])) {
+      const targets = table[id];
       if (!targets) continue;
       for (const [vocabId, w] of Object.entries(targets)) sums[vocabId as VocabId] += w;
     }
@@ -32,7 +32,7 @@ export function mapGame({ genres, themes, keywords }: GameIgdbIds): TasteVector 
 
   const max = Math.max(...Object.values(sums));
   if (max <= 0) return sums;
-  for (const id of VOCAB_IDS) sums[id] = Math.min(1, sums[id] / max);
+  for (const id of VOCAB_IDS) sums[id] /= max;
   return sums;
 }
 
@@ -79,11 +79,14 @@ export function formatUnmappedReport(
   opts: { topKeywords?: number } = {},
 ): string {
   const topKeywords = opts.topKeywords ?? 30;
-  const section = (title: string, rows: UnmappedCount[]): string =>
-    [`${title} (${rows.length} unmapped)`, ...rows.map((r) => `  ${r.id}\t${r.count}`)].join('\n');
+  const section = (title: string, rows: UnmappedCount[], limit = rows.length): string =>
+    [
+      `${title} (${limit < rows.length ? `top ${limit} of ${rows.length}` : rows.length} unmapped)`,
+      ...rows.slice(0, limit).map((r) => `  ${r.id}\t${r.count}`),
+    ].join('\n');
   return [
     section('Genres', report.genres),
     section('Themes', report.themes),
-    section(`Keywords (top ${topKeywords})`, report.keywords.slice(0, topKeywords)),
+    section('Keywords', report.keywords, topKeywords),
   ].join('\n\n');
 }

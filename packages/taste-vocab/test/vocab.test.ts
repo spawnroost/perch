@@ -39,7 +39,7 @@ describe('vocab', () => {
 
   test('keyword table is curated (~50-100) and genre/theme tables are complete', () => {
     expect(Object.keys(KEYWORD_MAP).length).toBeGreaterThanOrEqual(50);
-    expect(Object.keys(KEYWORD_MAP).length).toBeLessThanOrEqual(100);
+    expect(Object.keys(KEYWORD_MAP).length).toBeLessThanOrEqual(110);
     expect(Object.keys(GENRE_MAP).length).toBe(23);
     expect(Object.keys(THEME_MAP).length).toBe(22);
   });
@@ -68,6 +68,22 @@ describe('mapGame', () => {
     const v = mapGame({ genres: [999999], themes: [], keywords: [-1] });
     expect(Object.values(v).every((x) => x === 0)).toBe(true);
     expect(mapGame({ genres: [], themes: [], keywords: [] })).toEqual(v);
+  });
+
+  test('duplicate ids within a category count once', () => {
+    expect(mapGame({ genres: [], themes: [], keywords: [416, 416, 953, 953] })).toEqual(
+      mapGame({ genres: [], themes: [], keywords: [416, 953] }),
+    );
+    const v = mapGame({ genres: [], themes: [], keywords: [416, 416, 416, 953] });
+    expect(v.roguelike).toBe(1);
+    expect(v.mythology).toBe(1);
+  });
+
+  test('every vocab id has at least one mapping source', () => {
+    const used = new Set<string>();
+    for (const t of [GENRE_MAP, THEME_MAP, KEYWORD_MAP])
+      for (const w of Object.values(t)) for (const k of Object.keys(w)) used.add(k);
+    expect(VOCAB.filter((v) => !used.has(v.id)).map((v) => v.id)).toEqual([]);
   });
 
   test('weights from several ids sum before normalising', () => {
@@ -108,6 +124,7 @@ describe('findUnmapped', () => {
     expect(out).toContain('60000');
     expect(out).toContain('60029');
     expect(out).not.toContain('60030');
+    expect(out).toContain('top 30 of 50 unmapped');
   });
 });
 

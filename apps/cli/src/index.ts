@@ -3,12 +3,6 @@ import { vocabCheck } from './vocab-check.js';
 const USAGE =
   'usage: perch <command>\n\ncommands:\n  vocab:check   list IGDB ids with no taste-vocab mapping';
 
-try {
-  process.loadEnvFile('.env');
-} catch {
-  // no .env file; rely on the real environment
-}
-
 async function main(argv: string[]): Promise<number> {
   const [command] = argv;
   switch (command) {

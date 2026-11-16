@@ -157,6 +157,10 @@ export const KEYWORD_MAP: IgdbMap = {
   1697: { atmospheric: 1 }, // atmospheric
   2202: { emotional: 1 }, // emotional
   423: { dark: 0.7, atmospheric: 0.4 }, // gothic
+  42165: { melancholic: 1, emotional: 0.4 }, // melancholy
+  5411: { melancholic: 0.8, dark: 0.4, emotional: 0.4 }, // depression
+  51417: { melancholic: 0.7, emotional: 0.3 }, // loneliness
+  2500: { melancholic: 0.6, emotional: 0.5, dark: 0.3 }, // tragedy
   2426: { 'story-rich': 1, 'slow-burn': 0.3 }, // story rich
   17268: { 'story-rich': 0.7 }, // narrative
   3534: { 'story-rich': 0.6 }, // choices matter

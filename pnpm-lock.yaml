@@ -280,11 +280,7 @@ importers:
         specifier: ^0.31.11
         version: 0.31.11
 
-  packages/taste-vocab:
-    dependencies:
-      '@perch/core':
-        specifier: workspace:*
-        version: link:../core
+  packages/taste-vocab: {}
 
 packages:
 

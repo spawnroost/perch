@@ -13,7 +13,7 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit && tsc --noEmit -p apps/web",
     "test": "vitest run",
-    "perch": "tsx apps/cli/src/index.ts",
+    "perch": "tsx --env-file-if-exists=.env apps/cli/src/index.ts",
     "db:up": "docker compose up -d --wait postgres",
     "db:down": "docker compose down",
     "db:generate": "pnpm --filter @perch/db generate",
