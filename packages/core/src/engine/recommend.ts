@@ -33,9 +33,6 @@ export interface RecommendInput {
   fitOptions?: FitOptions;
 }
 
-/** With devices, rank this many times `limit` deep so hidden games can be replaced. */
-export const DEVICE_RANK_FACTOR = 3;
-
 type Fit = NonNullable<Recommendation['fit']>;
 
 /**
@@ -53,22 +50,21 @@ async function filterByDevices<T extends { game: EngineGame }>(
   for (const item of ranked) {
     if (kept.length >= limit) break;
     const { game } = item;
-    // A device that needs no lookup (console) may already settle it.
-    let best = bestFit(game, devices, () => ({}), opts);
-    if (best.status !== 'green') {
+    // Cheapest first: a console may already settle it, and a green PC makes the Deck lookup moot.
+    const info: FitInfo = {};
+    const fit = () => bestFit(game, devices, () => info, opts);
+    let best = fit();
+    const appId = game.steamAppId ?? null;
+    if (best.status !== 'green' && appId !== null) {
       const live = devices.filter((d) => platformMatches(game, d));
-      const info = new Map<string, FitInfo>();
-      const appId = game.steamAppId ?? null;
-      if (appId !== null) {
-        const needReq = live.some((d) => deviceKind(d) === 'pc') && deps.fetchRequirements;
-        const needDeck = live.some((d) => deviceKind(d) === 'deck') && deps.fetchDeck;
-        const requirements = needReq
-          ? await deps.fetchRequirements!(game).catch(() => null)
-          : undefined;
-        const deck = needDeck ? await deps.fetchDeck!(appId).catch(() => undefined) : undefined;
-        for (const d of live) info.set(d.id, { requirements, deck });
+      if (deps.fetchRequirements && live.some((d) => deviceKind(d) === 'pc')) {
+        info.requirements = await deps.fetchRequirements(game).catch(() => null);
+        best = fit();
       }
-      best = bestFit(game, devices, (d) => info.get(d.id) ?? {}, opts);
+      if (best.status !== 'green' && deps.fetchDeck && live.some((d) => deviceKind(d) === 'deck')) {
+        info.deck = await deps.fetchDeck(appId).catch(() => undefined);
+        best = fit();
+      }
     }
     if (best.status === 'hidden' || best.deviceId === null) continue;
     kept.push({ item, fit: { status: best.status, deviceId: best.deviceId } });
@@ -131,12 +127,18 @@ export async function recommend(
     .sort((a, b) => (weight.get(b.game.igdbId) ?? 0) - (weight.get(a.game.igdbId) ?? 0))
     .map((l) => l.game);
   const devices = input.devices?.length ? input.devices : null;
+  // With devices, rank every candidate (ranking is cheap, fetching is not): the walk below then
+  // never runs dry while candidates remain. The series cap defers extra games to the end.
   const ranked = rankCandidates(
     profile,
     candidates,
     now,
-    devices ? input.limit * DEVICE_RANK_FACTOR : input.limit,
-    { idf, sources: similarSources, slots: MAX_SLOTS },
+    devices ? candidates.length : input.limit,
+    {
+      idf,
+      sources: similarSources,
+      slots: MAX_SLOTS,
+    },
   );
   const fits = new Map<number, Fit>();
   let top = ranked.slice(0, input.limit);

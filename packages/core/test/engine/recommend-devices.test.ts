@@ -149,12 +149,17 @@ describe('recommend with devices', () => {
     expect(fetchRequirements).not.toHaveBeenCalled();
   });
 
+  it('keeps walking past the first ranked pool when a weak device hides most of it', async () => {
+    // limit 2: the old pool was the top ~18; ids 10..27 are hidden, so only 28 and 29 remain.
+    const fetchRequirements = async (g: EngineGame) =>
+      g.igdbId < 28 ? { ...reqOk, minGpuScore: 99999 } : reqOk;
+    const recs = await recommend(mkDeps(pool(30), { fetchRequirements }), input([pcDev()], 2));
+    expect(recs.map((r) => r.game.igdbId)).toEqual([28, 29]);
+  });
+
   it('fetches lazily: only as many games as needed to fill the limit', async () => {
     const fetchRequirements = vi.fn(async () => reqOk);
-    const recs = await recommend(
-      mkDeps(pool(30), { fetchRequirements }),
-      input([pcDev()], 3),
-    );
+    const recs = await recommend(mkDeps(pool(30), { fetchRequirements }), input([pcDev()], 3));
     expect(recs).toHaveLength(3);
     expect(fetchRequirements).toHaveBeenCalledTimes(3);
   });
