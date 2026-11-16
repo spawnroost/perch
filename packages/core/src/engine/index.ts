@@ -13,9 +13,19 @@ export {
   scoreCandidate,
 } from './rank.js';
 export type { RankedCandidate } from './rank.js';
+export { bestFit, deviceFit, deviceKind, platformMatches } from './filters.js';
+export type {
+  BestFit,
+  DeckCategory,
+  FilterDevice,
+  FitInfo,
+  FitOptions,
+  FitRequirements,
+  FitStatus,
+} from './filters.js';
 export { mergeLibrary, recommend } from './recommend.js';
 export type { RecommendDeps, RecommendInput } from './recommend.js';
-export { loadRecommendInput } from './load.js';
+export { createFitFetchers, loadDevices, loadRecommendInput } from './load.js';
 export type {
   Candidate,
   EngineGame,

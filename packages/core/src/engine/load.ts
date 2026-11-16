@@ -1,5 +1,8 @@
 import { eq } from 'drizzle-orm';
-import { feedback, games, libraryEntries, type Db } from '@perch/db';
+import { devices, feedback, games, libraryEntries, type Db } from '@perch/db';
+import { getDeckCategory } from '../deck/index.js';
+import { getRequirements } from '../requirements/steam.js';
+import type { DeckCategory, FilterDevice, FitRequirements } from './filters.js';
 import type { Status } from '../library/fields.js';
 import type { FeedbackItem, LibraryItem, Vocab } from './types.js';
 
@@ -33,6 +36,8 @@ export async function loadRecommendInput(
         series: game.series,
         rating: game.rating,
         ratingCount: game.ratingCount,
+        platforms: game.platforms,
+        steamAppId: game.steamAppId,
         vocab: mapVocab(game),
       },
       hours: entry.hoursPlayed,
@@ -41,5 +46,31 @@ export async function loadRecommendInput(
       owned: entry.owned,
     })),
     feedback: fb.map((f) => ({ igdbId: f.igdbId, kind: f.kind as FeedbackItem['kind'] })),
+  };
+}
+
+/** A user's devices; the default one first. */
+export async function loadDevices(db: Db, userId: string): Promise<FilterDevice[]> {
+  const rows = await db.select().from(devices).where(eq(devices.userId, userId));
+  return rows
+    .sort((a, b) => Number(b.isDefault) - Number(a.isDefault))
+    .map((d) => ({
+      id: d.id,
+      kind: d.kind,
+      platformIds: d.platformIds,
+      gpuScore: d.gpuScore,
+      cpuScore: d.cpuScore,
+      ramGb: d.ramGb,
+    }));
+}
+
+/** DB-backed (cached, Steam-rate-limited) fetchers for `RecommendDeps`. */
+export function createFitFetchers(db: Db): {
+  fetchRequirements(game: { igdbId: number }): Promise<FitRequirements | null>;
+  fetchDeck(steamAppId: number): Promise<DeckCategory>;
+} {
+  return {
+    fetchRequirements: (game) => getRequirements(db, game.igdbId),
+    fetchDeck: (steamAppId) => getDeckCategory(db, steamAppId),
   };
 }

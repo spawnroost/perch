@@ -16,7 +16,12 @@ export type EngineGame = Pick<
   | 'series'
   | 'rating'
   | 'ratingCount'
-> & { vocab: Vocab };
+> & {
+  vocab: Vocab;
+  /** IGDB platform ids; needed by device filters (missing = plays nowhere). */
+  platforms?: number[];
+  steamAppId?: number | null;
+};
 
 /** What IGDB (or the cache) returns before vocab is computed. */
 export type RawGame = Omit<EngineGame, 'vocab'>;
@@ -63,4 +68,6 @@ export interface Recommendation {
   score: number;
   backlog: boolean;
   reason: string;
+  /** Set only when devices were given. */
+  fit?: { status: 'green' | 'yellow' | 'unknown'; deviceId: string };
 }

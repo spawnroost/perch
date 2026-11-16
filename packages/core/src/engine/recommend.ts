@@ -1,19 +1,79 @@
 import { buildCandidates, type CandidateDeps } from './candidates.js';
 import type { ExplainProvider } from './explain.js';
+import {
+  bestFit,
+  deviceKind,
+  platformMatches,
+  type DeckCategory,
+  type FilterDevice,
+  type FitInfo,
+  type FitOptions,
+  type FitRequirements,
+} from './filters.js';
 import { buildProfile } from './profile.js';
 import { computeIdf, rankCandidates, MAX_SLOTS } from './rank.js';
-import type { FeedbackItem, LibraryItem, Recommendation } from './types.js';
+import type { EngineGame, FeedbackItem, LibraryItem, Recommendation } from './types.js';
 import { hiddenIds, isBacklog } from './visibility.js';
 
 export interface RecommendDeps extends CandidateDeps {
   explain: ExplainProvider;
   now?: () => Date;
+  /** Steam requirement scores for a game (null = none). Called lazily, only for PC devices. */
+  fetchRequirements?(game: EngineGame): Promise<FitRequirements | null>;
+  /** Steam Deck category for a Steam app. Called lazily, only for Deck devices. */
+  fetchDeck?(steamAppId: number): Promise<DeckCategory>;
 }
 
 export interface RecommendInput {
   library: readonly LibraryItem[];
   feedback: readonly FeedbackItem[];
   limit: number;
+  /** Filter to games these devices can run. Omit for no filtering. */
+  devices?: readonly FilterDevice[];
+  fitOptions?: FitOptions;
+}
+
+/** With devices, rank this many times `limit` deep so hidden games can be replaced. */
+export const DEVICE_RANK_FACTOR = 3;
+
+type Fit = NonNullable<Recommendation['fit']>;
+
+/**
+ * Walks `ranked` in order, fetching Steam info only for games that still need it, until `limit`
+ * games are kept. A fetch error counts as unknown. Steam is rate limited, so never fetch ahead.
+ */
+async function filterByDevices<T extends { game: EngineGame }>(
+  deps: RecommendDeps,
+  ranked: readonly T[],
+  devices: readonly FilterDevice[],
+  limit: number,
+  opts: FitOptions,
+): Promise<{ item: T; fit: Fit }[]> {
+  const kept: { item: T; fit: Fit }[] = [];
+  for (const item of ranked) {
+    if (kept.length >= limit) break;
+    const { game } = item;
+    // A device that needs no lookup (console) may already settle it.
+    let best = bestFit(game, devices, () => ({}), opts);
+    if (best.status !== 'green') {
+      const live = devices.filter((d) => platformMatches(game, d));
+      const info = new Map<string, FitInfo>();
+      const appId = game.steamAppId ?? null;
+      if (appId !== null) {
+        const needReq = live.some((d) => deviceKind(d) === 'pc') && deps.fetchRequirements;
+        const needDeck = live.some((d) => deviceKind(d) === 'deck') && deps.fetchDeck;
+        const requirements = needReq
+          ? await deps.fetchRequirements!(game).catch(() => null)
+          : undefined;
+        const deck = needDeck ? await deps.fetchDeck!(appId).catch(() => undefined) : undefined;
+        for (const d of live) info.set(d.id, { requirements, deck });
+      }
+      best = bestFit(game, devices, (d) => info.get(d.id) ?? {}, opts);
+    }
+    if (best.status === 'hidden' || best.deviceId === null) continue;
+    kept.push({ item, fit: { status: best.status, deviceId: best.deviceId } });
+  }
+  return kept;
 }
 
 /** One library row per game: hours add up, the latest play and status win, owned if any is. */
@@ -70,11 +130,21 @@ export async function recommend(
     )
     .sort((a, b) => (weight.get(b.game.igdbId) ?? 0) - (weight.get(a.game.igdbId) ?? 0))
     .map((l) => l.game);
-  const top = rankCandidates(profile, candidates, now, input.limit, {
-    idf,
-    sources: similarSources,
-    slots: MAX_SLOTS,
-  }).slice(0, input.limit);
+  const devices = input.devices?.length ? input.devices : null;
+  const ranked = rankCandidates(
+    profile,
+    candidates,
+    now,
+    devices ? input.limit * DEVICE_RANK_FACTOR : input.limit,
+    { idf, sources: similarSources, slots: MAX_SLOTS },
+  );
+  const fits = new Map<number, Fit>();
+  let top = ranked.slice(0, input.limit);
+  if (devices) {
+    const kept = await filterByDevices(deps, ranked, devices, input.limit, input.fitOptions ?? {});
+    top = kept.map((k) => k.item);
+    for (const k of kept) fits.set(k.item.game.igdbId, k.fit);
+  }
   const reasons = await deps.explain.explain(
     top.map((t) => ({ game: t.game, profile, library: similarSources, idf })),
   );
@@ -84,5 +154,6 @@ export async function recommend(
     score: t.score,
     backlog: t.backlog,
     reason: reasons[i] ?? '',
+    ...(fits.has(t.game.igdbId) ? { fit: fits.get(t.game.igdbId) } : {}),
   }));
 }
