@@ -1,7 +1,7 @@
 import { buildCandidates, type CandidateDeps } from './candidates.js';
 import type { ExplainProvider } from './explain.js';
 import { buildProfile } from './profile.js';
-import { computeIdf, rankCandidates } from './rank.js';
+import { computeIdf, rankCandidates, MAX_SLOTS } from './rank.js';
 import type { FeedbackItem, LibraryItem, Recommendation } from './types.js';
 import { hiddenIds, isBacklog } from './visibility.js';
 
@@ -53,8 +53,7 @@ export async function recommend(
     now,
   });
   const idf = computeIdf([...candidates.map((c) => c.game), ...library.map((l) => l.game)]);
-  const top = rankCandidates(profile, candidates, now, input.limit, idf).slice(0, input.limit);
-  // Reasons only cite games that really say something about the user's taste.
+  // Sources (for kNN scoring and reasons) are games that really say something about taste.
   const weight = new Map(profile.weights.map((w) => [w.igdbId, w.weight]));
   const downed = new Set(input.feedback.filter((f) => f.kind === 'down').map((f) => f.igdbId));
   const similarSources = library
@@ -65,7 +64,13 @@ export async function recommend(
         !downed.has(l.game.igdbId) &&
         !isBacklog(l),
     )
+    .sort((a, b) => (weight.get(b.game.igdbId) ?? 0) - (weight.get(a.game.igdbId) ?? 0))
     .map((l) => l.game);
+  const top = rankCandidates(profile, candidates, now, input.limit, {
+    idf,
+    sources: similarSources,
+    slots: MAX_SLOTS,
+  }).slice(0, input.limit);
   const reasons = await deps.explain.explain(
     top.map((t) => ({ game: t.game, profile, library: similarSources, idf })),
   );

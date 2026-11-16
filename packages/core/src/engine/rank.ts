@@ -1,6 +1,11 @@
 import type { Candidate, EngineGame, TasteProfile, Vocab } from './types.js';
 
 export const W_COSINE = 0.6;
+/** Taste match = W_CENTROID x profile cosine + W_KNN x best cosine to one source library game. */
+export const W_CENTROID = 0.5;
+export const W_KNN = 0.5;
+/** Max slots for sources (heaviest first) with no match in the list. */
+export const MAX_SLOTS = 5;
 export const W_RATING = 0.2;
 export const BACKLOG_BONUS = 0.15;
 export const MAX_RECENCY_BOOST = 0.05;
@@ -44,11 +49,31 @@ export function cosine(a: Vocab, b: Vocab, idf?: Readonly<Record<string, number>
   return na === 0 || nb === 0 ? 0 : dot / Math.sqrt(na * nb);
 }
 
+export interface ScoreOptions {
+  idf?: Readonly<Record<string, number>>;
+  /** Library games that speak for the user's taste; a close match to any one of them counts. */
+  sources?: readonly { vocab: Vocab }[];
+  /** With a limit: at most this many unshown sources (in source order) get a slot. */
+  slots?: number;
+}
+
+/**
+ * Centroid cosine blended with item-kNN (max cosine to any source game), so a light taste
+ * cluster (a short FPS among long RPGs) can still surface its matches. No sources: centroid only.
+ */
+export function tasteMatch(profile: TasteProfile, game: { vocab: Vocab }, opts: ScoreOptions = {}) {
+  const { idf, sources = [] } = opts;
+  const centroid = cosine(profile.vocab, game.vocab, idf);
+  if (sources.length === 0) return centroid;
+  const knn = Math.max(...sources.map((s) => cosine(s.vocab, game.vocab, idf)));
+  return W_CENTROID * centroid + W_KNN * knn;
+}
+
 export function scoreCandidate(
   profile: TasteProfile,
   c: Candidate,
   now: Date,
-  idf?: Readonly<Record<string, number>>,
+  opts: ScoreOptions = {},
 ): number {
   const { game } = c;
   let recency = 0;
@@ -57,7 +82,7 @@ export function scoreCandidate(
     recency = MAX_RECENCY_BOOST * Math.max(0, 1 - years / RECENCY_YEARS);
   }
   return (
-    cosine(profile.vocab, game.vocab, idf) * W_COSINE +
+    tasteMatch(profile, game, opts) * W_COSINE +
     ((game.rating ?? 0) / 100) * W_RATING +
     (c.backlog ? BACKLOG_BONUS : 0) +
     recency
@@ -91,23 +116,61 @@ export function diversify<T extends { game: Pick<EngineGame, 'genres'> }>(
   return out;
 }
 
+/** Index of the source game closest to `game` (idf-weighted cosine), or undefined. */
+export function closestSource(game: { vocab: Vocab }, opts: ScoreOptions): number | undefined {
+  let best: number | undefined;
+  let bestSim = 0;
+  (opts.sources ?? []).forEach((s, i) => {
+    const sim = cosine(s.vocab, game.vocab, opts.idf);
+    if (sim > bestSim) [best, bestSim] = [i, sim];
+  });
+  return best;
+}
+
 export interface RankedCandidate extends Candidate {
   score: number;
 }
 
+/** Best-scoring match per source game (by closest source), keyed by source index. */
+export function bestPerSource<T extends Candidate>(
+  scored: readonly T[],
+  opts: ScoreOptions,
+): Map<number, T> {
+  const best = new Map<number, T>();
+  for (const c of scored) {
+    const src = closestSource(c.game, opts);
+    if (src !== undefined && !best.has(src)) best.set(src, c);
+  }
+  return best;
+}
+
 /**
  * Scores every candidate, sorts best first, then applies the diversity rule. With `limit`, only
- * the top limit x 3 are diversified and returned (the greedy pass is quadratic).
+ * the top limit x 3 are diversified and returned (the greedy pass is quadratic). Then up to
+ * `slots` sources with no match inside the limit (heaviest first) get their best match moved in,
+ * replacing the lowest items, so a light taste cluster still shows.
  */
 export function rankCandidates(
   profile: TasteProfile,
   candidates: readonly Candidate[],
   now: Date,
   limit?: number,
-  idf?: Readonly<Record<string, number>>,
+  opts: ScoreOptions = {},
 ): RankedCandidate[] {
   const scored = candidates
-    .map((c) => ({ ...c, score: scoreCandidate(profile, c, now, idf) }))
+    .map((c) => ({ ...c, score: scoreCandidate(profile, c, now, opts) }))
     .sort((a, b) => b.score - a.score);
-  return diversify(limit === undefined ? scored : scored.slice(0, limit * DIVERSITY_POOL_FACTOR));
+  if (limit === undefined) return diversify(scored);
+  const ranked = diversify(scored.slice(0, limit * DIVERSITY_POOL_FACTOR));
+  const head = ranked.slice(0, limit);
+  const shown = new Set(head.map((r) => closestSource(r.game, opts)));
+  const missing = [...bestPerSource(scored, opts)]
+    .sort((a, b) => a[0] - b[0])
+    .filter(([src]) => !shown.has(src))
+    .slice(0, Math.min(opts.slots ?? 0, limit))
+    .map(([, c]) => c);
+  if (missing.length === 0) return ranked;
+  const kept = head.slice(0, limit - missing.length);
+  const placed = new Set([...kept, ...missing]);
+  return [...kept, ...missing, ...ranked.filter((r) => !placed.has(r))];
 }

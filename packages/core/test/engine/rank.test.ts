@@ -7,6 +7,9 @@ import {
   primaryGenre,
   rankCandidates,
   scoreCandidate,
+  W_CENTROID,
+  W_COSINE,
+  W_KNN,
 } from '../../src/engine/rank.js';
 import { CANDIDATES, LIBRARY, NOW, game } from './fixtures.js';
 
@@ -199,7 +202,61 @@ describe('idf-weighted cosine', () => {
       commonOnly,
       rareOnly,
     ]);
-    const ranked = rankCandidates(profile, cands, NOW, undefined, idf);
+    const ranked = rankCandidates(profile, cands, NOW, undefined, { idf });
     expect(ranked[0]!.game.name).toBe('R');
+  });
+});
+
+describe('item-kNN blend', () => {
+  // Profile dominated by a heavy metroidvania; a light FPS sits in the library as a source.
+  const profile = { vocab: { metroidvania: 1, fps: 0.1 }, genres: {}, themes: {}, weights: [] };
+  const sources: { vocab: Record<string, number> }[] = [
+    { vocab: { metroidvania: 1 } },
+    { vocab: { fps: 1, stealth: 1 } },
+  ];
+  const plain = { rating: 0, firstRelease: null };
+  const fpsGame = { game: game(1, 'F', { fps: 1, stealth: 1 }, plain), backlog: false };
+
+  it('without sources, the score is the centroid score', () => {
+    expect(scoreCandidate(profile, fpsGame, NOW, { sources: [] })).toBeCloseTo(
+      scoreCandidate(profile, fpsGame, NOW),
+      10,
+    );
+  });
+  it('blends centroid cosine with the max cosine to any source game', () => {
+    const centroid = cosine(profile.vocab, fpsGame.game.vocab);
+    const expected = (W_CENTROID * centroid + W_KNN * 1) * W_COSINE;
+    expect(scoreCandidate(profile, fpsGame, NOW, { sources })).toBeCloseTo(expected, 10);
+  });
+  it('lifts a game that matches one light library game', () => {
+    const mv = { game: game(2, 'M', { metroidvania: 0.5, other: 1 }, plain), backlog: false };
+    const without = rankCandidates(profile, [mv, fpsGame], NOW);
+    expect(without[0]!.game.name).toBe('M');
+    const withSources = rankCandidates(profile, [mv, fpsGame], NOW, undefined, { sources });
+    expect(withSources[0]!.game.name).toBe('F');
+  });
+});
+
+describe('per-source slots', () => {
+  const plain = { rating: 0, firstRelease: null };
+  const sources: { vocab: Record<string, number> }[] = [
+    { vocab: { mv: 1 } },
+    { vocab: { fps: 1 } },
+  ];
+  const profile = { vocab: { mv: 1 }, genres: {}, themes: {}, weights: [] };
+  const mv = Array.from({ length: 6 }, (_, i) =>
+    game(i + 1, `M${i + 1}`, { mv: 1, [`x${i}`]: 0.1 * i }, { ...plain, genres: [i + 1] }),
+  );
+  const fps = game(99, 'F', { fps: 1, mv: 0.05 }, { ...plain, genres: [99] });
+  const cands = [...mv, fps].map((g) => ({ game: g, backlog: false }));
+
+  it('moves the best match of an unshown source inside the limit', () => {
+    const top = rankCandidates(profile, cands, NOW, 3, { sources, slots: 1 }).slice(0, 3);
+    expect(top.map((t) => t.game.name)).toContain('F');
+    expect(top.map((t) => t.game.name)).toContain('M1');
+  });
+  it('no slots, no change', () => {
+    const top = rankCandidates(profile, cands, NOW, 3, { sources, slots: 0 }).slice(0, 3);
+    expect(top.map((t) => t.game.name)).not.toContain('F');
   });
 });
