@@ -90,4 +90,24 @@ describe.skipIf(!url)('feedback + rebuildProfile', () => {
     expect(rows[0]!.genres).toEqual({ '31': 1 });
     expect(rows[0]!.builtAt.getTime()).toBeGreaterThan(0);
   });
+
+  it('rebuildProfile merges a game owned on several platforms like recommend does', async () => {
+    const U2 = 'feedback-test-user-2';
+    await db.delete(users).where(eq(users.id, U2));
+    await db.insert(users).values({ id: U2, name: 'T', email: 'feedback2@test.local' });
+    await db
+      .insert(games)
+      .values({ igdbId: G1, name: 'G1', slug: 'g1', genres: [12] })
+      .onConflictDoNothing();
+    await db.insert(libraryEntries).values([
+      { userId: U2, igdbId: G1, platform: 'pc', hoursPlayed: 10, lastPlayed: NOW },
+      { userId: U2, igdbId: G2, platform: 'pc', hoursPlayed: 10, lastPlayed: NOW },
+      { userId: U2, igdbId: G2, platform: 'ps5', hoursPlayed: 10, lastPlayed: NOW },
+    ]);
+    await rebuildProfile(db, U2, NOW, mapVocab);
+    const [row] = await db.select().from(tasteProfiles).where(eq(tasteProfiles.userId, U2));
+    // G2 has 20 merged hours: weight log1p(20) vs G1's log1p(10).
+    expect(row!.vocab['g12']).toBeCloseTo(Math.log1p(10) / Math.log1p(20), 6);
+    await db.delete(users).where(eq(users.id, U2));
+  });
 });

@@ -5,9 +5,11 @@ import {
   findUserId,
   listDevices,
   removeDevice,
+  shortDeviceId,
   type AddDeviceInput,
 } from '@perch/core';
 import { createDb } from '@perch/db';
+import { userEmail } from './commands.js';
 
 const USAGE = `usage: perch device add <preset-id|pc> [--default] [--gpu "<name>" --cpu "<name>" --ram <gb> --name N]
        perch device list
@@ -30,8 +32,7 @@ export async function deviceCommand(argv: string[], dbUrl: () => string): Promis
     },
   });
   if (sub !== 'add' && sub !== 'list' && sub !== 'rm') throw new Error(USAGE);
-  const email = (values.user ?? process.env.PERCH_USER)?.toLowerCase();
-  if (!email) throw new Error('no user: pass --user <email> or set PERCH_USER');
+  const email = userEmail(values.user);
 
   const db = createDb(dbUrl());
   try {
@@ -43,7 +44,9 @@ export async function deviceCommand(argv: string[], dbUrl: () => string): Promis
         const hw = d.gpuName
           ? `  gpu ${d.gpuName} (${d.gpuScore}), cpu ${d.cpuName} (${d.cpuScore}), ${d.ramGb} GB`
           : '';
-        console.log(`${d.id}  ${d.kind}  ${d.name}${d.isDefault ? ' [default]' : ''}${hw}`);
+        console.log(
+          `${shortDeviceId(d.id)}  ${d.kind}  ${d.name}${d.isDefault ? ' [default]' : ''}${hw}`,
+        );
       }
     } else if (sub === 'rm') {
       const id = positionals[0];
@@ -66,7 +69,7 @@ export async function deviceCommand(argv: string[], dbUrl: () => string): Promis
         input = { preset: target, isDefault: values.default };
       }
       const d = await addDevice(db, userId, input);
-      console.log(`added ${d.name} (${d.id})${d.isDefault ? ' [default]' : ''}`);
+      console.log(`added ${d.name} (${shortDeviceId(d.id)})${d.isDefault ? ' [default]' : ''}`);
     }
   } finally {
     await db.$client.end();

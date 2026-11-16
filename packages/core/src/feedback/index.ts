@@ -2,6 +2,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { feedback, games, tasteProfiles, type Db } from '@perch/db';
 import { buildProfile } from '../engine/profile.js';
 import { loadRecommendInput } from '../engine/load.js';
+import { mergeLibrary } from '../engine/recommend.js';
 import type { FeedbackKind, Vocab } from '../engine/types.js';
 import type { IgdbCache } from '../igdb/cache.js';
 
@@ -41,7 +42,7 @@ export async function addFeedback(
 }
 
 /**
- * Builds the user's taste profile from library + feedback and upserts the cached row.
+ * Builds the user's taste profile (same merged library as `recommend`) from library + feedback and upserts the cached row.
  * `recommend` still computes its own profile live; this row is for other consumers.
  */
 export async function rebuildProfile(
@@ -51,7 +52,7 @@ export async function rebuildProfile(
   mapVocab: (game: typeof games.$inferSelect) => Vocab,
 ): Promise<void> {
   const { library, feedback: fb } = await loadRecommendInput(db, userId, mapVocab);
-  const profile = buildProfile({ library, feedback: fb, now });
+  const profile = buildProfile({ library: mergeLibrary(library), feedback: fb, now });
   const row = { vocab: profile.vocab, genres: profile.genres, builtAt: now };
   await db
     .insert(tasteProfiles)

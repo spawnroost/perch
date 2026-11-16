@@ -12,6 +12,7 @@ import {
   type Recommendation,
 } from '@perch/core';
 import { createDb } from '@perch/db';
+import { userEmail } from './commands.js';
 import { mapGame, VOCAB } from '@perch/taste-vocab';
 
 const DEFAULT_LIMIT = 20;
@@ -44,8 +45,7 @@ export async function recommendCommand(argv: string[], dbUrl: () => string): Pro
   });
   const limit = values.limit === undefined ? DEFAULT_LIMIT : Number(values.limit);
   if (!Number.isInteger(limit) || limit < 1) throw new Error('--limit must be a positive integer');
-  const email = (values.user ?? process.env.PERCH_USER)?.toLowerCase();
-  if (!email) throw new Error('no user: pass --user <email> or set PERCH_USER');
+  const email = userEmail(values.user);
 
   const db = createDb(dbUrl());
   try {

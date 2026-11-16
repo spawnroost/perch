@@ -8,6 +8,7 @@ import {
   type FeedbackKind,
 } from '@perch/core';
 import { createDb } from '@perch/db';
+import { userEmail } from './commands.js';
 import { mapGame } from '@perch/taste-vocab';
 import { resolveGame } from './resolve-game.js';
 
@@ -29,8 +30,7 @@ export async function feedbackCommand(argv: string[], dbUrl: () => string): Prom
   const kind = KINDS[positionals.at(-1) ?? ''];
   const query = positionals.slice(0, -1).join(' ').trim();
   if (!kind || !query) throw new Error(usage);
-  const email = (values.user ?? process.env.PERCH_USER)?.toLowerCase();
-  if (!email) throw new Error('no user: pass --user <email> or set PERCH_USER');
+  const email = userEmail(values.user);
 
   const db = createDb(dbUrl());
   try {

@@ -81,6 +81,20 @@ describe.skipIf(!url)('device store', () => {
     expect(await db.select().from(devices).where(eq(devices.id, list[0]!.id))).toHaveLength(0);
     await expect(removeDevice(db, USER, list[0]!.id)).rejects.toThrow(/no device/);
   });
+
+  it('removeDevice accepts a unique id prefix, rejects ambiguous or unknown ones', async () => {
+    const base = { userId: USER, kind: 'pc', name: 'P', platformIds: [6] };
+    const ids = ['abcd0000-0000-4000-8000-000000000001', 'abcd0000-0000-4000-8000-000000000002'];
+    await db.insert(devices).values(ids.map((id) => ({ ...base, id })));
+    await expect(removeDevice(db, USER, 'abcd0000')).rejects.toThrow(/ambiguous/);
+    await expect(removeDevice(db, USER, 'zzzz')).rejects.toThrow(/no device/);
+    await expect(
+      removeDevice(db, 'someone-else', 'abcd0000-0000-4000-8000-000000000001'),
+    ).rejects.toThrow(/no device/);
+    await removeDevice(db, USER, 'ABCD0000-0000-4000-8000-000000000001');
+    await removeDevice(db, USER, 'abcd0000-0000-4000-8000-000000000002');
+    expect(await db.select().from(devices).where(eq(devices.id, ids[0]!))).toHaveLength(0);
+  });
 });
 
 describe('selectDevices', () => {

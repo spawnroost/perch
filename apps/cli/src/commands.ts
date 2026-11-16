@@ -30,7 +30,7 @@ const sharedOptions = {
 // `--no-owned` sets owned=false; omitting both leaves it to the DB default / existing row.
 const NEGATABLE = { allowNegative: true } as const;
 
-function userEmail(flag: string | undefined): string {
+export function userEmail(flag: string | undefined): string {
   const email = flag ?? process.env.PERCH_USER;
   if (!email) throw new Error('no user: pass --user <email> or set PERCH_USER');
   return email.toLowerCase();

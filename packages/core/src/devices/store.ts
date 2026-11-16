@@ -89,12 +89,21 @@ export async function listDevices(db: Db, userId: string): Promise<Device[]> {
   );
 }
 
-export async function removeDevice(db: Db, userId: string, id: string): Promise<void> {
-  const gone = await db
-    .delete(devices)
-    .where(and(eq(devices.userId, userId), eq(devices.id, id)))
-    .returning({ id: devices.id });
-  if (gone.length === 0) throw new Error(`no device ${id}`);
+/** The short form of a device id shown by `device list`; any unique prefix resolves back to it. */
+export function shortDeviceId(id: string): string {
+  return id.slice(0, 8);
+}
+
+/** Removes the user's device by full id or unique id prefix (like a git short hash). */
+export async function removeDevice(db: Db, userId: string, idOrPrefix: string): Promise<void> {
+  const prefix = idOrPrefix.toLowerCase();
+  const matches = (await listDevices(db, userId)).filter((d) => d.id.startsWith(prefix));
+  if (matches.length === 0 || !prefix) throw new Error(`no device ${idOrPrefix}`);
+  if (matches.length > 1) {
+    const ids = matches.map((d) => d.id).join(', ');
+    throw new Error(`device id "${idOrPrefix}" is ambiguous (${ids}); use more characters`);
+  }
+  await db.delete(devices).where(and(eq(devices.userId, userId), eq(devices.id, matches[0]!.id)));
 }
 
 /**
