@@ -30,6 +30,7 @@ export async function loadRecommendInput(
         genres: game.genres,
         themes: game.themes,
         similarIds: game.similarIds,
+        series: game.series,
         rating: game.rating,
         ratingCount: game.ratingCount,
         vocab: mapVocab(game),

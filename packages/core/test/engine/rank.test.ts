@@ -4,6 +4,7 @@ import {
   computeIdf,
   cosine,
   diversify,
+  MAX_PER_SERIES,
   primaryGenre,
   rankCandidates,
   scoreCandidate,
@@ -258,5 +259,56 @@ describe('per-source slots', () => {
   it('no slots, no change', () => {
     const top = rankCandidates(profile, cands, NOW, 3, { sources, slots: 0 }).slice(0, 3);
     expect(top.map((t) => t.game.name)).not.toContain('F');
+  });
+});
+
+describe('series cap', () => {
+  const plain = { rating: 0, firstRelease: null };
+  const profile = { vocab: { a: 1 }, genres: {}, themes: {}, weights: [] };
+  // Descending scores: C1..C4 (series 7) are best, then O1..O4 with no series.
+  const mk = (id: number, name: string, series: number[], a: number) =>
+    game(id, name, { a, b: 1 - a }, { ...plain, series, genres: [id] });
+  const cands = [
+    ...[1, 2, 3, 4].map((i) => mk(i, `C${i}`, [7], 1 - i * 0.01)),
+    ...[1, 2, 3, 4].map((i) => mk(10 + i, `O${i}`, [], 0.5 - i * 0.01)),
+  ].map((g) => ({ game: g, backlog: false }));
+  const names = (r: { game: { name: string } }[]) => r.map((x) => x.game.name);
+
+  it('exports MAX_PER_SERIES = 2', () => {
+    expect(MAX_PER_SERIES).toBe(2);
+  });
+  it('puts at most 2 games of one series in the top limit and moves the next up', () => {
+    const top = rankCandidates(profile, cands, NOW, 4);
+    expect(names(top.slice(0, 4))).toEqual(['C1', 'C2', 'O1', 'O2']);
+    expect(names(top.slice(4)).sort()).toEqual(['C3', 'C4', 'O3', 'O4']);
+  });
+  it('games sharing any series id count together', () => {
+    const c = [
+      mk(1, 'A1', [1, 2], 0.99),
+      mk(2, 'A2', [2], 0.98),
+      mk(3, 'A3', [9, 2], 0.97),
+      mk(4, 'B', [], 0.5),
+    ].map((g) => ({ game: g, backlog: false }));
+    expect(names(rankCandidates(profile, c, NOW, 3).slice(0, 3))).toEqual(['A1', 'A2', 'B']);
+  });
+  it('never caps games with an empty series', () => {
+    const c = [1, 2, 3, 4].map((i) => ({ game: mk(i, `O${i}`, [], 1 - i * 0.01), backlog: false }));
+    expect(names(rankCandidates(profile, c, NOW, 4))).toEqual(['O1', 'O2', 'O3', 'O4']);
+  });
+  it('without a limit the list is unchanged', () => {
+    expect(names(rankCandidates(profile, cands, NOW)).slice(0, 4)).toEqual([
+      'C1',
+      'C2',
+      'C3',
+      'C4',
+    ]);
+  });
+  it('slot picks count toward the cap but are never removed', () => {
+    const sources: { vocab: Record<string, number> }[] = [{ vocab: { a: 1 } }, { vocab: { z: 1 } }];
+    const z = game(99, 'Z', { z: 1 }, { ...plain, series: [7], genres: [99] });
+    const c = [...cands, { game: z, backlog: false }];
+    const top = rankCandidates(profile, c, NOW, 4, { sources, slots: 1 }).slice(0, 4);
+    expect(names(top)).toContain('Z');
+    expect(top.filter((t) => t.game.series.includes(7)).length).toBeLessThanOrEqual(2);
   });
 });

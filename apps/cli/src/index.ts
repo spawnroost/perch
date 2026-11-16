@@ -1,5 +1,6 @@
 import { formatError } from '@perch/core';
 import { addCommand, dbUrl, importCommand, userCreateCommand } from './commands.js';
+import { igdbRefresh } from './igdb-refresh.js';
 import { recommendCommand } from './recommend.js';
 import { vocabCheck } from './vocab-check.js';
 import { vocabRebuild } from './vocab-rebuild.js';
@@ -12,6 +13,7 @@ commands:
               [--platform pc] [--owned|--no-owned] [--igdb <id>] [--user <email>]
   import <file> [--platform pc] [--owned|--no-owned] [--user <email>]
   recommend --dry [--user <email>] [--limit 20]
+  igdb:refresh  refetch every cached game from IGDB (fills new fields)
   vocab:check   list IGDB ids with no taste-vocab mapping
   vocab:rebuild recompute stored games.vocab with the current mapping
 
@@ -32,6 +34,10 @@ async function main(argv: string[]): Promise<number> {
       case 'recommend':
         await recommendCommand(rest, dbUrl);
         return 0;
+      case 'igdb:refresh': {
+        console.log(await igdbRefresh(dbUrl()));
+        return 0;
+      }
       case 'vocab:check': {
         console.log(await vocabCheck(dbUrl()));
         return 0;

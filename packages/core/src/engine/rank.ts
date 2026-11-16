@@ -15,6 +15,8 @@ export const DIVERSITY_WINDOW = 5;
 export const DIVERSITY_MAX_SAME = 2;
 /** With a limit, diversify only this many times the limit. */
 export const DIVERSITY_POOL_FACTOR = 3;
+/** At most this many games of one series (IGDB collection / franchise) in the top `limit`. */
+export const MAX_PER_SERIES = 2;
 /** IGDB genre ids that say nothing about the kind of game (Indie). */
 const GENERIC_GENRES = new Set([32]);
 const YEAR_MS = 365.25 * 86_400_000;
@@ -127,6 +129,38 @@ export function closestSource(game: { vocab: Vocab }, opts: ScoreOptions): numbe
   return best;
 }
 
+/**
+ * Series cap: walking `list` in order, a game that shares a series id with MAX_PER_SERIES games
+ * already placed in the top `limit` is moved below it and the next eligible game moves up. Games
+ * with no series are never capped. `pinned` games (slot picks) count toward the cap but are never
+ * moved. If too few eligible games remain, the best deferred ones fill the head.
+ */
+export function capSeries<T extends { game: Pick<EngineGame, 'series'> }>(
+  list: readonly T[],
+  limit: number,
+  pinned: ReadonlySet<T> = new Set(),
+): T[] {
+  const count = new Map<number, number>();
+  const bump = (g: T) => {
+    for (const id of g.game.series) count.set(id, (count.get(id) ?? 0) + 1);
+  };
+  for (const p of pinned) bump(p);
+  const full = (g: T) => g.game.series.some((id) => (count.get(id) ?? 0) >= MAX_PER_SERIES);
+  const head: T[] = [];
+  const rest: T[] = [];
+  for (const g of list) {
+    if (head.length < limit && (pinned.has(g) || !full(g))) {
+      head.push(g);
+      if (!pinned.has(g)) bump(g);
+    } else {
+      rest.push(g);
+    }
+  }
+  // Not enough eligible games: keep the head full with the best deferred ones.
+  const fill = rest.splice(0, Math.max(0, limit - head.length));
+  return [...head, ...fill, ...rest];
+}
+
 export interface RankedCandidate extends Candidate {
   score: number;
 }
@@ -148,7 +182,8 @@ export function bestPerSource<T extends Candidate>(
  * Scores every candidate, sorts best first, then applies the diversity rule. With `limit`, only
  * the top limit x 3 are diversified and returned (the greedy pass is quadratic). Then up to
  * `slots` sources with no match inside the limit (heaviest first) get their best match moved in,
- * replacing the lowest items, so a light taste cluster still shows.
+ * replacing the lowest items, so a light taste cluster still shows. Last, the series cap
+ * (MAX_PER_SERIES per series in the top `limit`) is enforced.
  */
 export function rankCandidates(
   profile: TasteProfile,
@@ -169,8 +204,9 @@ export function rankCandidates(
     .filter(([src]) => !shown.has(src))
     .slice(0, Math.min(opts.slots ?? 0, limit))
     .map(([, c]) => c);
-  if (missing.length === 0) return ranked;
+  if (missing.length === 0) return capSeries(ranked, limit);
   const kept = head.slice(0, limit - missing.length);
   const placed = new Set([...kept, ...missing]);
-  return [...kept, ...missing, ...ranked.filter((r) => !placed.has(r))];
+  const slotted = [...kept, ...missing, ...ranked.filter((r) => !placed.has(r))];
+  return capSeries(slotted, limit, new Set(missing));
 }

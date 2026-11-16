@@ -173,6 +173,21 @@ describe('getGame', () => {
     }
   });
 
+  it('requests collections and franchises, and maps them to one series id list', async () => {
+    const net = fakeFetch({
+      intercept: () =>
+        json([{ id: 9, name: 'X', slug: 'x', collections: [5, 6], franchises: [5, 7] }]),
+    });
+    const game = await make(net).getGame(9);
+    expect(game?.series).toEqual([5, 6, 1_000_005, 1_000_007]);
+    expect(net.apiCalls()[0]?.body).toMatch(/collections,franchises/);
+  });
+
+  it('series is [] when IGDB sends neither collections nor franchises', async () => {
+    const net = fakeFetch({ intercept: () => json([{ id: 9, name: 'X', slug: 'x' }]) });
+    expect((await make(net).getGame(9))?.series).toEqual([]);
+  });
+
   it('ignores non-Steam sources and uses null / [] for missing fields', async () => {
     const net = fakeFetch({
       intercept: () =>

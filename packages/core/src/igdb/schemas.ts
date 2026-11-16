@@ -27,6 +27,8 @@ export const igdbGameSchema = z.object({
   game_modes: ids,
   platforms: ids,
   similar_games: ids,
+  collections: ids,
+  franchises: ids,
   external_games: z
     .array(
       z.object({
@@ -56,6 +58,19 @@ export const twitchTokenSchema = z.object({
   expires_in: z.number().positive(),
 });
 
+/** Franchise ids are shifted by this so they can't clash with collection ids. */
+export const FRANCHISE_ID_OFFSET = 1_000_000;
+
+/** One series id list from IGDB `collections` and `franchises` (deduplicated). */
+export function seriesIds(raw: { collections?: number[]; franchises?: number[] }): number[] {
+  return [
+    ...new Set([
+      ...(raw.collections ?? []),
+      ...(raw.franchises ?? []).map((id) => id + FRANCHISE_ID_OFFSET),
+    ]),
+  ];
+}
+
 // ---- Domain types returned by the client (match the `games` / `time_to_beat` tables) ----
 
 export interface Game {
@@ -71,6 +86,8 @@ export interface Game {
   gameModes: number[];
   platforms: number[];
   similarIds: number[];
+  /** Series ids: IGDB collection ids plus franchise ids offset by FRANCHISE_ID_OFFSET. */
+  series: number[];
   /** IGDB `total_rating` (0-100). */
   rating: number | null;
   ratingCount: number | null;

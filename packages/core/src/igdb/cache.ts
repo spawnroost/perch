@@ -1,6 +1,6 @@
 import { eq, inArray, sql } from 'drizzle-orm';
 import { games, timeToBeat, type Db } from '@perch/db';
-import type { IgdbClient, TagQuery } from './client.js';
+import { IGDB_MAX_LIMIT, type IgdbClient, type TagQuery } from './client.js';
 import type { Game, TimeToBeat } from './schemas.js';
 
 export const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -21,6 +21,8 @@ export interface IgdbCache {
   getGames(igdbIds: readonly number[]): Promise<Game[]>;
   /** Runs the tag query on IGDB and upserts every result so later lookups hit the cache. */
   queryByTags(q: TagQuery): Promise<Game[]>;
+  /** Refetches every cached game by id (batches of 500) and upserts it. Returns rows refreshed. */
+  refreshAll(): Promise<number>;
   /** Same for time-to-beat. A game with no IGDB record is cached as an empty row (returns null). */
   getTimeToBeat(igdbId: number): Promise<TimeToBeat | null>;
 }
@@ -39,6 +41,7 @@ function toGame(row: typeof games.$inferSelect): Game {
     gameModes: row.gameModes,
     platforms: row.platforms,
     similarIds: row.similarIds,
+    series: row.series,
     rating: row.rating,
     ratingCount: row.ratingCount,
     steamAppId: row.steamAppId,
@@ -87,6 +90,7 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
             gameModes: sql`excluded.game_modes`,
             platforms: sql`excluded.platforms`,
             similarIds: sql`excluded.similar_ids`,
+            series: sql`excluded.series`,
             rating: sql`excluded.rating`,
             ratingCount: sql`excluded.rating_count`,
             steamAppId: sql`excluded.steam_app_id`,
@@ -164,5 +168,16 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
     return { hastilySeconds, normallySeconds, completelySeconds, count };
   }
 
-  return { getGame, getGames, queryByTags, getTimeToBeat };
+  async function refreshAll(): Promise<number> {
+    const rows = await db.select({ id: games.igdbId }).from(games).orderBy(games.igdbId);
+    let n = 0;
+    for (let i = 0; i < rows.length; i += IGDB_MAX_LIMIT) {
+      const fetched = await client.getGames(rows.slice(i, i + IGDB_MAX_LIMIT).map((r) => r.id));
+      await upsertGames(fetched);
+      n += fetched.length;
+    }
+    return n;
+  }
+
+  return { getGame, getGames, queryByTags, refreshAll, getTimeToBeat };
 }

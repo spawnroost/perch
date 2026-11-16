@@ -18,6 +18,7 @@ export function game(
     genres: [],
     themes: [],
     similarIds: [],
+    series: [],
     rating: 80,
     ratingCount: 1000,
     vocab,

@@ -69,6 +69,32 @@ describe.skipIf(!url)('igdb db cache', () => {
     expect(row?.genres).toEqual(game?.genres);
   });
 
+  it('stores and returns series (collections + offset franchises)', async () => {
+    const { cache } = setup({
+      intercept: () =>
+        json([
+          { id: hades.igdbId, name: 'Hades', slug: 'hades', collections: [3], franchises: [4] },
+        ]),
+    });
+    const game = await cache.getGame(hades.igdbId);
+    expect(game?.series).toEqual([3, 1_000_004]);
+    const [row] = await db.select().from(games).where(eq(games.igdbId, hades.igdbId));
+    expect(row?.series).toEqual([3, 1_000_004]);
+  });
+
+  it('refreshAll refetches every cached row by id and upserts it', async () => {
+    const first = setup();
+    await first.cache.getGame(hades.igdbId);
+    const { net, cache } = setup({
+      intercept: () => json([{ id: hades.igdbId, name: 'Hades', slug: 'hades', collections: [3] }]),
+    });
+    const n = await cache.refreshAll();
+    expect(n).toBeGreaterThanOrEqual(1);
+    expect(net.apiCalls().length).toBeGreaterThanOrEqual(1);
+    const [row] = await db.select().from(games).where(eq(games.igdbId, hades.igdbId));
+    expect(row?.series).toEqual([3]);
+  });
+
   it('hit: serves from the DB without touching the network', async () => {
     const { net, cache, setNow } = setup();
     const first = await cache.getGame(hades.igdbId);

@@ -56,6 +56,8 @@ export const games = pgTable(
     /** IGDB platform ids. */
     platforms: intArray('platforms'),
     similarIds: intArray('similar_ids'),
+    /** Series ids: IGDB collections, plus franchises offset by 1_000_000. */
+    series: intArray('series'),
     rating: real('rating'),
     ratingCount: integer('rating_count'),
     steamAppId: integer('steam_app_id'),

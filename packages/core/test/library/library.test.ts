@@ -152,6 +152,7 @@ describe('row builders', () => {
     gameModes: [],
     platforms: [6],
     similarIds: [],
+    series: [],
     rating: 90,
     ratingCount: 10,
     steamAppId: null,

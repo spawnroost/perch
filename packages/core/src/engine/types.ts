@@ -7,7 +7,15 @@ export type Vocab = Record<string, number>;
 /** The slice of a game the engine reads, plus its computed taste vocab. */
 export type EngineGame = Pick<
   Game,
-  'igdbId' | 'name' | 'firstRelease' | 'genres' | 'themes' | 'similarIds' | 'rating' | 'ratingCount'
+  | 'igdbId'
+  | 'name'
+  | 'firstRelease'
+  | 'genres'
+  | 'themes'
+  | 'similarIds'
+  | 'series'
+  | 'rating'
+  | 'ratingCount'
 > & { vocab: Vocab };
 
 /** What IGDB (or the cache) returns before vocab is computed. */
