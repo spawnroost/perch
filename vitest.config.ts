@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
 // Load DATABASE_URL_TEST etc. from .env when present (DB tests skip if unset).
@@ -8,6 +9,9 @@ try {
 }
 
 export default defineConfig({
+  resolve: {
+    alias: { '@': fileURLToPath(new URL('./apps/web/src', import.meta.url)) },
+  },
   test: {
     setupFiles: ['packages/core/test/setup.ts'],
     include: ['packages/*/test/**/*.test.ts', 'apps/*/test/**/*.test.ts'],
