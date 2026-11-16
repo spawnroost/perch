@@ -13,19 +13,19 @@ export async function parseBody<T extends z.ZodType>(c: Context, schema: T): Pro
   } catch {
     return badRequest('invalid JSON body');
   }
-  const res = schema.safeParse(json);
-  if (!res.success) return badRequest(formatZodError(res.error));
-  return res.data;
+  return parseWith(schema, json);
 }
 
 export function parseQuery<T extends z.ZodType>(c: Context, schema: T): z.infer<T> {
-  const res = schema.safeParse(c.req.query());
-  if (!res.success) return badRequest(formatZodError(res.error));
-  return res.data;
+  return parseWith(schema, c.req.query());
 }
 
 export function parseParams<T extends z.ZodType>(c: Context, schema: T): z.infer<T> {
-  const res = schema.safeParse(c.req.param());
+  return parseWith(schema, c.req.param());
+}
+
+function parseWith<T extends z.ZodType>(schema: T, data: unknown): z.infer<T> {
+  const res = schema.safeParse(data);
   if (!res.success) return badRequest(formatZodError(res.error));
   return res.data;
 }

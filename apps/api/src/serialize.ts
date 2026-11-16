@@ -1,7 +1,13 @@
-import type { Device, LibraryRow, Recommendation } from '@perch/core';
-import type { DeviceView, LibraryEntry, RecommendationsResponse } from '@perch/core';
+import type {
+  Device,
+  DeviceView,
+  LibraryEntry,
+  LibraryRow,
+  Recommendation,
+  RecommendationsResponse,
+} from '@perch/core';
 
-const iso = (d: Date | null) => (d ? d.toISOString() : null);
+export const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
 export function libraryDto(r: LibraryRow): LibraryEntry {
   return {

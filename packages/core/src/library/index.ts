@@ -13,6 +13,7 @@ export {
   createVerifiedUser,
   findUserId,
   GameNotFoundError,
+  importLibraryGames,
   NoMatchError,
   upsertLibraryGame,
   UserExistsError,

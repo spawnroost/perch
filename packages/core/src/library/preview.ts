@@ -1,5 +1,5 @@
 import type { IgdbClient } from '../igdb/client.js';
-import { pickBestMatch, type Suggestion } from './match.js';
+import { pickBestMatch, toSuggestion, type Suggestion } from './match.js';
 import { parseImportFile, type ImportEntry } from './parse.js';
 
 export interface ImportPreviewLine {
@@ -52,13 +52,7 @@ export async function previewImport(
     return {
       line,
       entry: value,
-      match: match
-        ? {
-            igdbId: match.igdbId,
-            name: match.name,
-            year: match.firstRelease ? match.firstRelease.getUTCFullYear() : null,
-          }
-        : null,
+      match: match ? toSuggestion(match) : null,
       suggestions: suggestions ?? [],
     };
   });

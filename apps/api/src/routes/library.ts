@@ -1,12 +1,11 @@
 import { Hono } from 'hono';
 import {
   IMPORT_MAX_LINES,
-  GameNotFoundError,
   deleteLibraryEntry,
   findLibraryEntry,
-  formatError,
   idParamSchema,
   importConfirmSchema,
+  importLibraryGames,
   importPreviewSchema,
   libraryCreateSchema,
   libraryPatchSchema,
@@ -20,7 +19,7 @@ import {
 import type { AppVars, RouteDeps } from '../app.js';
 import { parseBody, parseParams } from '../http.js';
 import { requireAuth, requireIgdb } from '../middleware.js';
-import { libraryDto } from '../serialize.js';
+import { iso, libraryDto } from '../serialize.js';
 
 export function libraryRoutes(deps: RouteDeps) {
   const { db, mapVocab } = deps;
@@ -66,7 +65,7 @@ export function libraryRoutes(deps: RouteDeps) {
         line: l.line,
         name: l.entry.name,
         hoursPlayed: l.entry.hours ?? null,
-        lastPlayed: l.entry.lastPlayed?.toISOString() ?? null,
+        lastPlayed: iso(l.entry.lastPlayed ?? null),
         status: l.entry.status ?? null,
         match: l.match,
         suggestions: l.suggestions,
@@ -79,34 +78,16 @@ export function libraryRoutes(deps: RouteDeps) {
     const userId = c.get('user').id;
     const body = await parseBody(c, importConfirmSchema);
     const { cache } = requireIgdb(deps);
-    const imported: { igdbId: number; name: string }[] = [];
-    const failed: { igdbId: number; error: string }[] = [];
-    const found = new Map(
-      (await cache.getGames(body.items.map((i) => i.igdbId))).map((g) => [g.igdbId, g]),
-    );
-    for (const item of body.items) {
-      try {
-        const game = found.get(item.igdbId);
-        if (!game) throw new GameNotFoundError(item.igdbId);
-        const { igdbId, name } = await upsertLibraryGame(
-          { db, cache, mapVocab },
-          userId,
-          {
-            igdbId: item.igdbId,
-            platform: body.platform,
-            hours: item.hoursPlayed,
-            lastPlayed: item.lastPlayed,
-            status: item.status,
-            owned: body.owned,
-          },
-          'import',
-          game,
-        );
-        imported.push({ igdbId, name });
-      } catch (e) {
-        failed.push({ igdbId: item.igdbId, error: formatError(e) });
-      }
-    }
+    const { imported, failed } = await importLibraryGames({ db, cache, mapVocab }, userId, {
+      platform: body.platform,
+      owned: body.owned,
+      items: body.items.map((i) => ({
+        igdbId: i.igdbId,
+        hours: i.hoursPlayed,
+        lastPlayed: i.lastPlayed,
+        status: i.status,
+      })),
+    });
     if (imported.length > 0) await rebuild(userId);
     return c.json({ imported, failed });
   });

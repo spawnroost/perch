@@ -21,6 +21,15 @@ export interface Suggestion {
 export type MatchResult =
   { match: GameCandidate; suggestions?: undefined } | { match: null; suggestions: Suggestion[] };
 
+/** A candidate reduced to what a user needs to recognise it. */
+export function toSuggestion(c: GameCandidate): Suggestion {
+  return {
+    igdbId: c.igdbId,
+    name: c.name,
+    year: c.firstRelease ? c.firstRelease.getUTCFullYear() : null,
+  };
+}
+
 const byRatingCount = (a: GameCandidate, b: GameCandidate): number => b.ratingCount - a.ratingCount;
 
 /**
@@ -33,13 +42,6 @@ export function pickBestMatch(query: string, candidates: GameCandidate[]): Match
   if (exact[0]) return { match: exact[0] };
   return {
     match: null,
-    suggestions: [...candidates]
-      .sort(byRatingCount)
-      .slice(0, 3)
-      .map((c) => ({
-        igdbId: c.igdbId,
-        name: c.name,
-        year: c.firstRelease ? c.firstRelease.getUTCFullYear() : null,
-      })),
+    suggestions: [...candidates].sort(byRatingCount).slice(0, 3).map(toSuggestion),
   };
 }

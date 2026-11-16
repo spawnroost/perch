@@ -4,6 +4,7 @@ import { accounts, games, libraryEntries, sessions, users, type Db } from '@perc
 import type { IgdbCache } from '../igdb/cache.js';
 import type { IgdbClient } from '../igdb/client.js';
 import type { Game } from '../igdb/schemas.js';
+import { formatError } from './errors.js';
 import type { Status } from './fields.js';
 import type { AddArgs } from './args.js';
 import { pickBestMatch, type Suggestion } from './match.js';
@@ -173,4 +174,41 @@ export async function upsertLibraryGame(
     return rows[0]?.inserted === true;
   });
   return { igdbId, name: game.name, created };
+}
+
+/**
+ * Upserts many games for one platform from one batched cache lookup. A game that fails does not
+ * stop the rest: it lands in `failed` with the reason.
+ */
+export async function importLibraryGames(
+  deps: Pick<AddGameDeps, 'db' | 'cache' | 'mapVocab'>,
+  userId: string,
+  input: {
+    platform: string;
+    owned?: boolean;
+    items: Omit<LibraryGameInput, 'platform' | 'owned'>[];
+  },
+): Promise<{ imported: AddedGame[]; failed: { igdbId: number; error: string }[] }> {
+  const imported: AddedGame[] = [];
+  const failed: { igdbId: number; error: string }[] = [];
+  const found = new Map(
+    (await deps.cache.getGames(input.items.map((i) => i.igdbId))).map((g) => [g.igdbId, g]),
+  );
+  for (const item of input.items) {
+    try {
+      const game = found.get(item.igdbId);
+      if (!game) throw new GameNotFoundError(item.igdbId);
+      const { igdbId, name } = await upsertLibraryGame(
+        deps,
+        userId,
+        { ...item, platform: input.platform, owned: input.owned },
+        'import',
+        game,
+      );
+      imported.push({ igdbId, name });
+    } catch (e) {
+      failed.push({ igdbId: item.igdbId, error: formatError(e) });
+    }
+  }
+  return { imported, failed };
 }

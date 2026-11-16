@@ -10,6 +10,7 @@ import {
 import type { AppVars, RouteDeps } from '../app.js';
 import { parseParams, parseQuery } from '../http.js';
 import { requireAuth, requireIgdb } from '../middleware.js';
+import { iso } from '../serialize.js';
 
 export function gamesRoutes(deps: RouteDeps) {
   const r = new Hono<AppVars>();
@@ -25,7 +26,7 @@ export function gamesRoutes(deps: RouteDeps) {
         name: g.name,
         slug: g.slug,
         ratingCount: g.ratingCount,
-        firstRelease: g.firstRelease?.toISOString() ?? null,
+        firstRelease: iso(g.firstRelease),
       })),
     } satisfies GameSearchResponse);
   });
@@ -46,17 +47,13 @@ export function gamesRoutes(deps: RouteDeps) {
         name: game.name,
         slug: game.slug,
         coverUrl: game.coverUrl,
-        firstRelease: game.firstRelease?.toISOString() ?? null,
+        firstRelease: iso(game.firstRelease),
         platforms: game.platforms,
         rating: game.rating,
         ratingCount: game.ratingCount,
         steamAppId: game.steamAppId,
       },
-      fit: fits.map((f) => ({
-        deviceId: f.deviceId,
-        deviceName: f.deviceName,
-        status: f.status,
-      })),
+      fit: fits,
       deck,
       why,
     } satisfies GameDetailResponse);
