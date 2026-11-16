@@ -36,16 +36,26 @@ describe('pickBestMatch', () => {
     cand(4, 'Hades: Battle Out of Hell', 5000),
   ];
   it('prefers exact normalised name, then highest rating count', () => {
-    expect(pickBestMatch('hades', results)?.igdbId).toBe(3);
+    expect(pickBestMatch('hades', results).match?.igdbId).toBe(3);
   });
   it('matches ignoring punctuation and case', () => {
-    expect(pickBestMatch('HADES!', results)?.igdbId).toBe(3);
+    expect(pickBestMatch('HADES!', results).match?.igdbId).toBe(3);
   });
-  it('falls back to highest rating count when nothing matches exactly', () => {
-    expect(pickBestMatch('Hade', results)?.igdbId).toBe(4);
+  it('returns no match plus the top 3 suggestions when nothing matches exactly', () => {
+    const r = pickBestMatch('Hade', results);
+    expect(r.match).toBeNull();
+    expect(r.suggestions).toEqual([
+      { igdbId: 4, name: 'Hades: Battle Out of Hell', year: null },
+      { igdbId: 3, name: 'Hades', year: null },
+      { igdbId: 1, name: 'Hades II', year: null },
+    ]);
   });
-  it('returns null for no candidates', () => {
-    expect(pickBestMatch('x', [])).toBeNull();
+  it('includes the release year in suggestions', () => {
+    const c = { ...cand(9, 'Other', 5), firstRelease: new Date('2020-09-17T00:00:00Z') };
+    expect(pickBestMatch('x', [c]).suggestions?.[0]?.year).toBe(2020);
+  });
+  it('handles no candidates', () => {
+    expect(pickBestMatch('x', [])).toEqual({ match: null, suggestions: [] });
   });
 });
 
@@ -59,7 +69,7 @@ describe('parseImportLine', () => {
     expect(parseImportLine('Hades')).toEqual({ ok: true, value: { name: 'Hades' } });
   });
   it('parses all fields and trailing comments', () => {
-    const r = parseImportLine('Hades | 40 | 2026-11-10 | playing # fav');
+    const r = parseImportLine('Hades | 40 | 2026-11-10 | playing');
     expect(r).toEqual({
       ok: true,
       value: {
@@ -69,6 +79,14 @@ describe('parseImportLine', () => {
         status: 'playing',
       },
     });
+  });
+  it('only treats # as a comment at line start', () => {
+    expect(parseImportLine('Hitman #2 | 10')).toEqual({
+      ok: true,
+      value: { name: 'Hitman #2', hours: 10 },
+    });
+    expect(parseImportLine('  # indented comment')).toBeNull();
+    expect(parseImportLine('Hades | 1 # note')?.ok).toBe(false);
   });
   it('allows empty middle fields', () => {
     expect(parseImportLine('Celeste | | | finished')).toEqual({
@@ -100,7 +118,8 @@ describe('parseImportFile', () => {
 describe('addArgsSchema', () => {
   it('applies defaults and coerces', () => {
     const a = addArgsSchema.parse({ name: 'Hades', hours: '40', last: '2026-11-10' });
-    expect(a).toMatchObject({ name: 'Hades', hours: 40, platform: 'pc', owned: false });
+    expect(a).toMatchObject({ name: 'Hades', hours: 40, platform: 'pc' });
+    expect(a.owned).toBeUndefined();
     expect(a.lastPlayed).toEqual(new Date('2026-11-10T00:00:00Z'));
   });
   it('rejects bad input', () => {
@@ -159,10 +178,21 @@ describe('row builders', () => {
       hoursPlayed: null,
       lastPlayed: null,
       status: 'backlog',
-      owned: false,
       source: 'import',
     });
-    expect(update).toEqual({ source: 'import' });
+    expect(insert.owned).toBeUndefined();
+    expect(update).toEqual({});
+  });
+  it('buildLibraryRow: owned=false is passed through', () => {
+    const { insert, update } = buildLibraryRow({
+      userId: 'u',
+      igdbId: 7,
+      platform: 'pc',
+      source: 'manual',
+      owned: false,
+    });
+    expect(insert.owned).toBe(false);
+    expect(update).toEqual({ owned: false });
   });
   it('buildLibraryRow: provided fields flow to both', () => {
     const last = new Date('2026-11-10T00:00:00Z');
@@ -183,7 +213,6 @@ describe('row builders', () => {
       owned: true,
     });
     expect(update).toEqual({
-      source: 'manual',
       hoursPlayed: 40,
       lastPlayed: last,
       status: 'playing',

@@ -23,24 +23,25 @@ export interface LibraryInput {
 
 /**
  * `insert` fills defaults for a new row; `update` carries only the fields the caller
- * provided, so re-adding a game never wipes existing hours/status.
+ * provided, so re-adding a game never wipes existing hours/status/owned/source. May be empty.
  */
 export function buildLibraryRow(input: LibraryInput): {
   insert: typeof libraryEntries.$inferInsert;
   update: Partial<typeof libraryEntries.$inferInsert>;
 } {
   const { userId, igdbId, platform, source, hours, lastPlayed, status, owned } = input;
-  const insert = {
+  const insert: typeof libraryEntries.$inferInsert = {
     userId,
     igdbId,
     platform,
     hoursPlayed: hours ?? null,
     lastPlayed: lastPlayed ?? null,
     status: status ?? 'backlog',
-    owned: owned ?? false,
     source,
   };
-  const update: Partial<typeof libraryEntries.$inferInsert> = { source };
+  // `owned` undefined: DB default on insert, untouched on conflict.
+  if (owned !== undefined) insert.owned = owned;
+  const update: Partial<typeof libraryEntries.$inferInsert> = {};
   if (hours !== undefined) update.hoursPlayed = hours;
   if (lastPlayed !== undefined) update.lastPlayed = lastPlayed;
   if (status !== undefined) update.status = status;

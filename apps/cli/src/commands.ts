@@ -3,19 +3,19 @@ import { parseArgs } from 'node:util';
 import {
   addArgsSchema,
   addGame,
+  createIgdbCache,
   createIgdbClientFromEnv,
   createUser,
   findUserId,
   formatError,
+  NoMatchError,
   parseImportFile,
   userCreateSchema,
 } from '@perch/core';
 import { createDb } from '@perch/db';
 import { mapGame } from '@perch/taste-vocab';
 
-const mapVocab = (g: Parameters<typeof mapGame>[0]): Record<string, number> => mapGame(g);
-
-function dbUrl(): string {
+export function dbUrl(): string {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error('DATABASE_URL not set');
   return url;
@@ -26,6 +26,8 @@ const sharedOptions = {
   platform: { type: 'string' },
   owned: { type: 'boolean' },
 } as const;
+// `--no-owned` sets owned=false; omitting both leaves it to the DB default / existing row.
+const NEGATABLE = { allowNegative: true } as const;
 
 function userEmail(flag: string | undefined): string {
   const email = flag ?? process.env.PERCH_USER;
@@ -53,6 +55,7 @@ export async function addCommand(argv: string[]): Promise<void> {
   const { values, positionals } = parseArgs({
     args: argv,
     allowPositionals: true,
+    ...NEGATABLE,
     options: {
       ...sharedOptions,
       hours: { type: 'string' },
@@ -66,12 +69,9 @@ export async function addCommand(argv: string[]): Promise<void> {
   const db = createDb(dbUrl());
   try {
     const userId = await findUserId(db, email);
-    const added = await addGame(
-      { db, client: createIgdbClientFromEnv(), mapVocab },
-      userId,
-      args,
-      'manual',
-    );
+    const client = createIgdbClientFromEnv();
+    const deps = { db, client, cache: createIgdbCache({ db, client }), mapVocab: mapGame };
+    const added = await addGame(deps, userId, args, 'manual');
     console.log(`added "${added.name}" (igdb ${added.igdbId}) for ${email}`);
   } finally {
     await db.$client.end();
@@ -83,6 +83,7 @@ export async function importCommand(argv: string[]): Promise<number> {
   const { values, positionals } = parseArgs({
     args: argv,
     allowPositionals: true,
+    ...NEGATABLE,
     options: sharedOptions,
   });
   const file = positionals[0];
@@ -94,28 +95,28 @@ export async function importCommand(argv: string[]): Promise<number> {
 
   const db = createDb(dbUrl());
   let ok = 0;
+  let unmatched = 0;
   let failed = errors.length;
   try {
     const userId = await findUserId(db, email);
     const client = createIgdbClientFromEnv();
+    const deps = { db, client, cache: createIgdbCache({ db, client }), mapVocab: mapGame };
     for (const { line, value } of entries) {
       try {
-        const added = await addGame(
-          { db, client, mapVocab },
-          userId,
-          { ...common, ...value },
-          'import',
-        );
+        const added = await addGame(deps, userId, { ...common, ...value }, 'import');
         ok++;
         console.log(`line ${line}: "${value.name}" -> "${added.name}" (igdb ${added.igdbId})`);
       } catch (e) {
-        failed++;
-        console.error(`line ${line}: "${value.name}": ${formatError(e)}`);
+        if (e instanceof NoMatchError) unmatched++;
+        else failed++;
+        console.error(
+          `line ${line}: ${e instanceof NoMatchError ? 'unmatched: ' : `"${value.name}": `}${formatError(e)}`,
+        );
       }
     }
   } finally {
     await db.$client.end();
   }
-  console.log(`imported ${ok}, failed ${failed}`);
-  return failed > 0 ? 1 : 0;
+  console.log(`imported ${ok}, unmatched ${unmatched}, failed ${failed}`);
+  return failed + unmatched > 0 ? 1 : 0;
 }

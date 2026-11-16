@@ -12,15 +12,34 @@ export function normaliseName(name: string): string {
     .replace(/^the /, '');
 }
 
-const mostRated = (list: GameCandidate[]): GameCandidate | null =>
-  list.reduce<GameCandidate | null>(
-    (best, c) => (!best || c.ratingCount > best.ratingCount ? c : best),
-    null,
-  );
+export interface Suggestion {
+  igdbId: number;
+  name: string;
+  year: number | null;
+}
 
-/** Exact (normalised) name match first, then highest rating count; falls back to all candidates. */
-export function pickBestMatch(query: string, candidates: GameCandidate[]): GameCandidate | null {
+export type MatchResult =
+  { match: GameCandidate; suggestions?: undefined } | { match: null; suggestions: Suggestion[] };
+
+const byRatingCount = (a: GameCandidate, b: GameCandidate): number => b.ratingCount - a.ratingCount;
+
+/**
+ * Exact (normalised) name match only, highest rating count among duplicates. With no exact match
+ * there is no pick: the top 3 candidates come back as suggestions for `--igdb <id>`.
+ */
+export function pickBestMatch(query: string, candidates: GameCandidate[]): MatchResult {
   const q = normaliseName(query);
-  const exact = candidates.filter((c) => normaliseName(c.name) === q);
-  return mostRated(exact.length > 0 ? exact : candidates);
+  const exact = candidates.filter((c) => normaliseName(c.name) === q).sort(byRatingCount);
+  if (exact[0]) return { match: exact[0] };
+  return {
+    match: null,
+    suggestions: [...candidates]
+      .sort(byRatingCount)
+      .slice(0, 3)
+      .map((c) => ({
+        igdbId: c.igdbId,
+        name: c.name,
+        year: c.firstRelease ? c.firstRelease.getUTCFullYear() : null,
+      })),
+  };
 }

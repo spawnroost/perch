@@ -11,9 +11,9 @@ export type ParsedLine = { ok: true; value: ImportEntry } | { ok: false; error: 
 
 /** Parses `Name | hours | last-date | status`. Returns null for blank/comment lines. */
 export function parseImportLine(raw: string): ParsedLine | null {
-  // `#` starts a comment at line start or after whitespace (game names may contain '#').
-  const line = raw.replace(/(^|\s)#.*$/, '').trim();
-  if (!line) return null;
+  // Only whole-line comments: game names may contain '#'.
+  const line = raw.trim();
+  if (!line || line.startsWith('#')) return null;
   const parts = line.split('|').map((p) => p.trim());
   if (parts.length > 4) return { ok: false, error: 'too many fields (max 4)' };
   const [name, hours, last, status] = parts;

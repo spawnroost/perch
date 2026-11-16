@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { games, libraryEntries, users, type Db } from '@perch/db';
-import { createIgdbCache } from '../igdb/cache.js';
+import type { IgdbCache } from '../igdb/cache.js';
 import type { IgdbClient } from '../igdb/client.js';
 import type { Game } from '../igdb/schemas.js';
 import type { AddArgs } from './args.js';
-import { pickBestMatch } from './match.js';
+import { pickBestMatch, type Suggestion } from './match.js';
 import type { ImportEntry } from './parse.js';
 import { buildGameRow, buildLibraryRow } from './rows.js';
 
@@ -13,11 +13,13 @@ export async function createUser(
   db: Db,
   { email, name }: { email: string; name: string },
 ): Promise<{ id: string; created: boolean }> {
-  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email));
-  if (existing) return { id: existing.id, created: false };
-  const id = randomUUID();
-  await db.insert(users).values({ id, email, name });
-  return { id, created: true };
+  const inserted = await db
+    .insert(users)
+    .values({ id: randomUUID(), email, name })
+    .onConflictDoNothing({ target: users.email })
+    .returning({ id: users.id });
+  if (inserted[0]) return { id: inserted[0].id, created: true };
+  return { id: await findUserId(db, email), created: false };
 }
 
 export async function findUserId(db: Db, email: string): Promise<string> {
@@ -31,27 +33,51 @@ export interface AddedGame {
   name: string;
 }
 
-/** Resolves the game on IGDB (search or --igdb), upserts it with vocab, upserts the library entry. */
+/** No exact IGDB name match; carries the closest candidates so the caller can suggest `--igdb`. */
+export class NoMatchError extends Error {
+  constructor(
+    readonly query: string,
+    readonly suggestions: Suggestion[],
+  ) {
+    const close = suggestions
+      .map((s) => `${s.name} (${s.year ?? '?'}, igdb ${s.igdbId})`)
+      .join('; ');
+    super(
+      `no exact IGDB match for "${query}"` +
+        (close ? `; closest: ${close}; retry with --igdb <id>` : ''),
+    );
+    this.name = 'NoMatchError';
+  }
+}
+
+export interface AddGameDeps {
+  db: Db;
+  client: IgdbClient;
+  /** Build once per command and reuse across games. */
+  cache: IgdbCache;
+  /** Taste-vocab mapper, injected so core does not depend on taste-vocab. */
+  mapVocab: (game: Game) => Record<string, number>;
+}
+
+/** Resolves the game on IGDB (search or --igdb), then upserts the game and library entry atomically. */
 export async function addGame(
-  deps: { db: Db; client: IgdbClient; mapVocab: (game: Game) => Record<string, number> },
+  deps: AddGameDeps,
   userId: string,
   args: Omit<AddArgs, 'name'> & ImportEntry,
   source: 'manual' | 'import',
 ): Promise<AddedGame> {
-  const { db, client, mapVocab } = deps;
+  const { db, client, cache, mapVocab } = deps;
   let igdbId = args.igdb;
   if (igdbId === undefined) {
     const { candidates } = await client.searchGames(args.name);
-    const pick = pickBestMatch(args.name, candidates);
-    if (!pick) throw new Error(`no IGDB match for "${args.name}"`);
-    igdbId = pick.igdbId;
+    const { match, suggestions } = pickBestMatch(args.name, candidates);
+    if (!match) throw new NoMatchError(args.name, suggestions);
+    igdbId = match.igdbId;
   }
-  const game = await createIgdbCache({ db, client }).getGame(igdbId);
+  const game = await cache.getGame(igdbId);
   if (!game) throw new Error(`IGDB has no game with id ${igdbId}`);
 
   const row = buildGameRow(game, mapVocab(game));
-  await db.insert(games).values(row).onConflictDoUpdate({ target: games.igdbId, set: row });
-
   const { insert, update } = buildLibraryRow({
     userId,
     igdbId,
@@ -62,12 +88,19 @@ export async function addGame(
     status: args.status,
     owned: args.owned,
   });
-  await db
-    .insert(libraryEntries)
-    .values(insert)
-    .onConflictDoUpdate({
-      target: [libraryEntries.userId, libraryEntries.igdbId, libraryEntries.platform],
-      set: update,
-    });
+  await db.transaction(async (tx) => {
+    await tx.insert(games).values(row).onConflictDoUpdate({ target: games.igdbId, set: row });
+    const q = tx.insert(libraryEntries).values(insert);
+    if (Object.keys(update).length === 0) {
+      await q.onConflictDoNothing({
+        target: [libraryEntries.userId, libraryEntries.igdbId, libraryEntries.platform],
+      });
+    } else {
+      await q.onConflictDoUpdate({
+        target: [libraryEntries.userId, libraryEntries.igdbId, libraryEntries.platform],
+        set: update,
+      });
+    }
+  });
   return { igdbId, name: game.name };
 }

@@ -9,7 +9,7 @@ export const addArgsSchema = z
     last: dateField.optional(),
     status: statusField.optional(),
     platform: z.string().trim().min(1).toLowerCase().default('pc'),
-    owned: z.boolean().default(false),
+    owned: z.boolean().optional(),
     igdb: z.coerce.number().int().positive().optional(),
   })
   .transform(({ last, ...rest }) => ({ ...rest, lastPlayed: last }));
