@@ -5,6 +5,8 @@ import {
   canEditHardware,
   hasDeckDevice,
   deviceSummary,
+  deviceArtType,
+  DEVICE_ART_TYPES,
   deviceType,
 } from '../src/lib/devices.js';
 
@@ -64,5 +66,27 @@ describe('hasDeckDevice', () => {
     expect(hasDeckDevice([device({ kind: 'pc' }), device({ kind: 'steam-deck' })])).toBe(true);
     expect(hasDeckDevice([device({ kind: 'pc' }), device({ kind: 'rog-ally' })])).toBe(false);
     expect(hasDeckDevice([])).toBe(false);
+  });
+});
+
+describe('deviceArtType', () => {
+  it('maps each preset kind to its illustration', () => {
+    expect(deviceArtType('pc')).toBe('desktop');
+    expect(deviceArtType('mac')).toBe('laptop');
+    expect(deviceArtType('steam-deck')).toBe('handheld');
+    expect(deviceArtType('rog-ally')).toBe('handheld');
+    expect(deviceArtType('switch')).toBe('hybrid');
+    expect(deviceArtType('switch-2')).toBe('hybrid');
+    expect(deviceArtType('ps5')).toBe('console-slab');
+    expect(deviceArtType('ps4')).toBe('console-slab');
+    expect(deviceArtType('xbox-series')).toBe('console-box');
+  });
+  it('falls back to generic for unknown kinds', () => {
+    expect(deviceArtType('some-future-device')).toBe('generic');
+    expect(deviceArtType('toString')).toBe('generic');
+  });
+  it('lists every art type once', () => {
+    expect(new Set(DEVICE_ART_TYPES).size).toBe(DEVICE_ART_TYPES.length);
+    expect(DEVICE_ART_TYPES).toContain('generic');
   });
 });

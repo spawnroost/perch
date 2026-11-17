@@ -7,6 +7,7 @@ import {
   Button,
   Card,
   DeckBadge,
+  DeviceArt,
   FitBadge,
   HudChip,
   Input,
@@ -21,6 +22,7 @@ import {
   TabsTrigger,
 } from '@/components/atoms';
 import { GameCard, Hero, Shelf } from '@/components/molecules';
+import { DEVICE_ART_TYPES } from '@/lib/devices';
 
 // Stand-ins for the accent hex the API returns per game.
 const ACCENTS = ['#8a3b2c', '#2c6f8a', '#6b8a2c'];
@@ -263,6 +265,20 @@ export function Showcase() {
             <GameCard key={i} className="w-40" title="" skeleton />
           ))}
         </Shelf>
+      </Section>
+
+      <Section title="Device art (banner illustrations)">
+        <div data-testid="device-art-row" className="grid w-full grid-cols-3 gap-3">
+          {DEVICE_ART_TYPES.map((type) => (
+            <figure
+              key={type}
+              className="flex flex-col items-center gap-1 rounded-lg bg-linear-to-br from-device-handheld to-device-console-end p-2"
+            >
+              <DeviceArt type={type} className="h-28" />
+              <figcaption className="font-hud text-2xs text-fg-muted">{type}</figcaption>
+            </figure>
+          ))}
+        </div>
       </Section>
 
       <Section title="Sheet">

@@ -12,6 +12,37 @@ export function deviceType(kind: string): DeviceType {
   return HANDHELDS.has(kind) ? 'Handheld' : 'Console';
 }
 
+/** Which illustration a device gets: finer than DeviceType (a Switch and a Steam Deck are both handhelds, but look different). */
+export type DeviceArtType =
+  'desktop' | 'laptop' | 'handheld' | 'hybrid' | 'console-slab' | 'console-box' | 'generic';
+
+export const DEVICE_ART_TYPES: readonly DeviceArtType[] = [
+  'desktop',
+  'laptop',
+  'handheld',
+  'hybrid',
+  'console-slab',
+  'console-box',
+  'generic',
+];
+
+const ART_BY_KIND: Record<string, DeviceArtType> = {
+  pc: 'desktop',
+  mac: 'laptop',
+  'steam-deck': 'handheld',
+  'rog-ally': 'handheld',
+  switch: 'hybrid',
+  'switch-2': 'hybrid',
+  ps5: 'console-slab',
+  ps4: 'console-slab',
+  'xbox-series': 'console-box',
+};
+
+/** Illustration for a device kind; unknown kinds get a plain gamepad. */
+export function deviceArtType(kind: string): DeviceArtType {
+  return Object.hasOwn(ART_BY_KIND, kind) ? ART_BY_KIND[kind]! : 'generic';
+}
+
 /** Only PC hardware can be edited; presets have fixed specs. */
 export const canEditHardware = (d: DeviceView) => d.kind === 'pc';
 

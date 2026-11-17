@@ -1,17 +1,9 @@
 import { useState } from 'react';
-import { Gamepad2, Laptop, Monitor, Tv } from 'lucide-react';
 import { Notice, Skeleton } from '../atoms';
 import { DevicePresetCard } from '../molecules';
 import { PcDeviceForm } from './PcDeviceForm';
 import { useAddDevice, useDevicePresets, useDevices } from '@/hooks/queries';
-import { addedKinds, deviceType } from '@/lib/devices';
-
-function iconFor(kind: string) {
-  const type = deviceType(kind);
-  if (type === 'Mac') return <Laptop size={16} />;
-  if (type === 'Handheld') return <Gamepad2 size={16} />;
-  return <Tv size={16} />;
-}
+import { addedKinds } from '@/lib/devices';
 
 /** Presets plus the PC form. Used by onboarding and the Devices page. */
 export function DeviceAdder() {
@@ -33,7 +25,7 @@ export function DeviceAdder() {
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           <DevicePresetCard
             name="Gaming PC"
-            icon={<Monitor size={16} />}
+            kind="pc"
             added={kinds.has('pc')}
             disabled={busy}
             onSelect={() => setPcOpen(true)}
@@ -42,7 +34,7 @@ export function DeviceAdder() {
             <DevicePresetCard
               key={p.id}
               name={p.name}
-              icon={iconFor(p.id)}
+              kind={p.id}
               added={kinds.has(p.id)}
               disabled={busy || kinds.has(p.id)}
               onSelect={() => add.mutate({ preset: p.id })}
