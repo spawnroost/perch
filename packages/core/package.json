@@ -7,7 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./presets": "./src/devices/presets.ts",
-    "./igdb-image": "./src/igdb/image.ts"
+    "./igdb-image": "./src/igdb/image.ts",
+    "./session": "./src/engine/session.ts"
   },
   "dependencies": {
     "@perch/db": "workspace:*",

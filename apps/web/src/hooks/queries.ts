@@ -22,6 +22,8 @@ import type {
   LibraryEntry,
   LibraryPatchInput,
   RecommendationsResponse,
+  SessionQuery,
+  SessionResponse,
 } from '@perch/core';
 import { api } from '@/lib/api';
 import {
@@ -102,6 +104,18 @@ export function useRecommendations(device: string, limit = 5, keepPrevious = fal
   return useQuery({
     ...recommendationsQuery(device, limit),
     ...(keepPrevious ? { placeholderData: keepPreviousData } : {}),
+  });
+}
+
+/** Ranked picks for a play session; idle until `params` is set (no device yet, battery still being read). */
+export function useSession(params: SessionQuery | null) {
+  return useQuery({
+    queryKey: queryKeys.session(params),
+    queryFn: ({ signal }) =>
+      api.get<SessionResponse>('/api/session', { query: { ...params }, signal }),
+    select: (data) => data.recommendations,
+    enabled: params !== null,
+    placeholderData: keepPreviousData,
   });
 }
 

@@ -1,3 +1,5 @@
+import type { SessionQuery } from '@perch/core';
+
 export const queryKeys = {
   library: ['library'] as const,
   devices: ['devices'] as const,
@@ -9,5 +11,7 @@ export const queryKeys = {
   gameSearch: (q: string) => ['games', 'search', q] as const,
   hardware: (kind: 'gpus' | 'cpus', q: string) => ['hardware', kind, q] as const,
   recommendationsAll: ['recommendations'] as const,
+  /** Under `recommendationsAll`, so library and feedback changes refresh sessions too. */
+  session: (q: SessionQuery | null) => ['recommendations', 'session', q] as const,
   recommendations: (device: string, limit: number) => ['recommendations', device, limit] as const,
 };

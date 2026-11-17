@@ -40,7 +40,7 @@ export type {
   WeightedGame,
 } from './types.js';
 export { hiddenIds, isBacklog } from './visibility.js';
-export { batteryMatters, rankForSession } from './session.js';
+export { batteryMatters, isHandheldKind, rankForSession } from './session.js';
 export type { SessionDevice, SessionOptions, SessionRanked, SessionRec } from './session.js';
 export {
   explainGameForUser,

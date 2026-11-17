@@ -11,6 +11,7 @@ import {
   LoadError,
   Shelf,
 } from '../molecules';
+import { QuickSession } from './QuickSession';
 import { useDevices, useFeedback, useRecommendations } from '@/hooks/queries';
 import { useCardReturn } from '@/hooks/useCardReturn';
 import { hasDeckDevice } from '@/lib/devices';
@@ -118,12 +119,16 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
       )}
       <div className="flex flex-col gap-10 px-gutter">
         {devices.length > 0 && (
-          <DeviceSwitcher
-            label="Show picks for"
-            options={deviceOptions(devices)}
-            value={selected}
-            onChange={setPicked}
-          />
+          <div className="flex items-center justify-between gap-3">
+            <DeviceSwitcher
+              label="Show picks for"
+              options={deviceOptions(devices)}
+              value={selected}
+              onChange={setPicked}
+              className="min-w-0"
+            />
+            <QuickSession devices={devices} pickedId={selected} />
+          </div>
         )}
         {shelfFeed.isError && (
           <LoadError message={shelfFeed.error.message} onRetry={() => void shelfFeed.refetch()} />
