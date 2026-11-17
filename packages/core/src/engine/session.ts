@@ -34,6 +34,9 @@ const PICK_UP_AND_PLAY = ['roguelike', 'puzzle', 'platformer'] as const;
 /** Sessions at or below this many minutes favour short-run games and punish epics. */
 const SHORT_SESSION_MIN = 60;
 
+/** Floor for the magnitude an adjustment scales, so a boost still moves a zero score. */
+const MIN_SCALE = 0.05;
+
 export type SessionRanked<T extends SessionRec> = T & { sessionReason: string };
 
 interface Fit {
@@ -42,7 +45,8 @@ interface Fit {
 }
 
 function lengthFit(ttb: TimeToBeatHours | null, minutes: number): Fit {
-  const hours = ttb?.hastilyHours ?? ttb?.normallyHours ?? null;
+  // Normally is the honest figure; hastily is the fallback. Zero or less means "not known".
+  const hours = [ttb?.normallyHours, ttb?.hastilyHours].find((h) => h != null && h > 0) ?? null;
   if (hours === null) return { factor: 1, reason: null };
   const needed = hours * 60;
   if (needed <= minutes) return { factor: 1.3, reason: `Finishable in ${minutes} min` };
@@ -78,31 +82,32 @@ function lightOnBattery(rec: SessionRec, opts: SessionOptions): boolean | null {
 }
 
 /**
- * Re-ranks recommendations for a play session: base score x fit for the session length x
- * pick-up-and-play tags (short sessions) x backlog boost, red-fit games dropped, and on a
- * handheld below 40% battery heavy games are penalised. Pure; returns new objects, best first,
- * each with a `sessionReason`.
+ * Re-ranks recommendations for a play session: base score adjusted for the session length and
+ * pick-up-and-play tags (short sessions), and on a handheld below 40% battery heavy games are
+ * penalised. The backlog is already boosted in the base score. Callers pass picks already
+ * filtered for the device. Pure; returns new objects, best first, each with a `sessionReason`.
  */
 export function rankForSession<T extends SessionRec>(
   recs: readonly T[],
   opts: SessionOptions,
 ): SessionRanked<T>[] {
-  const { minutes, device } = opts;
+  const { minutes } = opts;
   return recs
-    .filter((r) => !device || r.fits.find((f) => f.deviceId === device.id)?.status !== 'hidden')
     .map((rec) => {
       const run = runFit(rec, minutes);
       const length = lengthFit(rec.timeToBeat, minutes);
       const light = lightOnBattery(rec, opts);
-      const factor =
-        run.factor * length.factor * (rec.backlog ? 1.2 : 1) * (light === false ? 0.7 : 1);
+      const factor = run.factor * length.factor * (light === false ? 0.7 : 1);
       const sessionReason =
         (light === true ? 'Light on battery' : null) ??
         run.reason ??
         length.reason ??
         (rec.backlog ? 'Waiting in your backlog' : null) ??
         `A fit for ${minutes} min`;
-      return { rec, sessionScore: rec.score * factor, sessionReason };
+      // Additive on the score's magnitude, so a boost raises and a penalty lowers even when the
+      // base score is negative (multiplying would flip both).
+      const sessionScore = rec.score + Math.max(Math.abs(rec.score), MIN_SCALE) * (factor - 1);
+      return { rec, sessionScore, sessionReason };
     })
     .sort((a, b) => b.sessionScore - a.sessionScore || a.rec.rank - b.rec.rank)
     .map(({ rec, sessionReason }, i) => ({ ...rec, rank: i + 1, sessionReason }));

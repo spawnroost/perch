@@ -645,6 +645,23 @@ describe.skipIf(!testUrl)('api routes', () => {
         expect(rows).toHaveLength(1);
       });
     });
+
+    it('a session waits for the warm-up, so the first response is already cached', async () => {
+      await ctx.db.delete(schema.timeToBeat).where(inArray(schema.timeToBeat.igdbId, [B]));
+      const u = await newUser();
+      await call('POST', '/api/library', u.cookie, {
+        igdbId: A,
+        hoursPlayed: 50,
+        status: 'playing',
+        lastPlayed: '2026-11-10',
+      });
+      expect((await get('/api/session?minutes=30', u.cookie)).status).toBe(200);
+      const rows = await ctx.db
+        .select()
+        .from(schema.timeToBeat)
+        .where(inArray(schema.timeToBeat.igdbId, [B]));
+      expect(rows).toHaveLength(1);
+    });
   });
 
   describe('session', () => {
@@ -686,6 +703,9 @@ describe.skipIf(!testUrl)('api routes', () => {
       expect((await get('/api/session?minutes=0', mine.cookie)).status).toBe(400);
       expect((await get('/api/session?minutes=30&battery=101', mine.cookie)).status).toBe(400);
       expect((await get('/api/session?minutes=30&deviceId=nope', mine.cookie)).status).toBe(404);
+      // A session needs one concrete device: 'none' and 'all' are not devices.
+      expect((await get('/api/session?minutes=30&deviceId=none', mine.cookie)).status).toBe(400);
+      expect((await get('/api/session?minutes=30&deviceId=all', mine.cookie)).status).toBe(400);
       expect((await get('/api/session?minutes=30')).status).toBe(401);
     });
   });

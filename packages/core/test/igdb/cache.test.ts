@@ -469,6 +469,16 @@ describe.skipIf(!url)('igdb db cache', () => {
       expect(net.apiCalls().at(-1)?.url).toMatch(/game_time_to_beats$/);
     });
 
+    it('warmTimeToBeat resolves once rows are written and dedupes ids already in flight', async () => {
+      const { net, cache } = setup();
+      const first = cache.warmTimeToBeat([hades.igdbId]);
+      const second = cache.warmTimeToBeat([hades.igdbId]);
+      await Promise.all([first, second]);
+      const [row] = await db.select().from(timeToBeat).where(eq(timeToBeat.igdbId, hades.igdbId));
+      expect(row?.normallySeconds).toBe(253600);
+      expect(net.apiCalls().filter((c) => /game_time_to_beats$/.test(c.url))).toHaveLength(1);
+    });
+
     it('warmTimeToBeat swallows IGDB errors', async () => {
       const { cache } = setup({ intercept: () => json({ message: 'bad' }, 400) });
       cache.warmTimeToBeat([hades.igdbId]);

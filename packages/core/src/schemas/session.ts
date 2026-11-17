@@ -6,8 +6,14 @@ export const sessionQuerySchema = z.object({
   minutes: z.coerce.number().int().min(5).max(480),
   /** Battery left on a handheld, 0-100. */
   battery: z.coerce.number().int().min(0).max(100).optional(),
-  /** A device id or preset id; defaults to the user's default device. */
-  deviceId: z.string().trim().min(1).max(64).optional(),
+  /** One device id or preset id; defaults to the user's default device. 'none' and 'all' are not one device. */
+  deviceId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(64)
+    .refine((v) => v !== 'none' && v !== 'all', 'a session needs one device')
+    .optional(),
 });
 
 export type SessionQuery = z.infer<typeof sessionQuerySchema>;

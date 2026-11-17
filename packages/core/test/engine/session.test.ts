@@ -30,7 +30,7 @@ const deck = { id: 'd1', kind: 'steam-deck', gpuScore: 5600 };
 
 describe('rankForSession', () => {
   it('boosts a game that fits the session over a long one, when scores tie', () => {
-    const short = rec({ timeToBeat: ttb(0.5, 0.7) });
+    const short = rec({ timeToBeat: ttb(0.4, 0.5) });
     const long = rec({ timeToBeat: ttb(40, 60) });
     const out = rankForSession([long, short], { minutes: 40, device: pc });
     expect(out.map((r) => r.game.igdbId)).toEqual([short.game.igdbId, long.game.igdbId]);
@@ -40,7 +40,7 @@ describe('rankForSession', () => {
 
   it('treats unknown time-to-beat as neutral', () => {
     const unknown = rec({ score: 1 });
-    const known = rec({ score: 1, timeToBeat: ttb(0.5, 0.7) });
+    const known = rec({ score: 1, timeToBeat: ttb(0.4, 0.5) });
     const [first] = rankForSession([unknown, known], { minutes: 30, device: pc });
     expect(first!.game.igdbId).toBe(known.game.igdbId);
     const out = rankForSession([unknown], { minutes: 30, device: pc });
@@ -57,19 +57,40 @@ describe('rankForSession', () => {
     expect(long.map((r) => r.game.igdbId)).toEqual([plain.game.igdbId, run.game.igdbId]);
   });
 
-  it('boosts the backlog', () => {
-    const fresh = rec();
-    const backlog = rec({ backlog: true });
-    const out = rankForSession([fresh, backlog], { minutes: 60, device: pc });
-    expect(out[0]!.game.igdbId).toBe(backlog.game.igdbId);
-    expect(out[0]!.sessionReason).toBe('Waiting in your backlog');
+  it('boosts the backlog once: rank.ts already adds its bonus', () => {
+    const plain = rec({ score: 1 });
+    const backlog = rec({ score: 1, backlog: true });
+    // Same score and no session fit: nothing extra for the backlog, so the better rank wins.
+    const out = rankForSession([plain, backlog], { minutes: 120, device: pc });
+    expect(out.map((r) => r.game.igdbId)).toEqual([plain.game.igdbId, backlog.game.igdbId]);
+    expect(out[1]!.sessionReason).toBe('Waiting in your backlog');
   });
 
-  it('excludes games that are red on the chosen device only', () => {
-    const red = rec({ fits: [{ deviceId: 'd1', status: 'hidden' }] });
-    const elsewhere = rec({ fits: [{ deviceId: 'other', status: 'hidden' }] });
-    const out = rankForSession([red, elsewhere], { minutes: 60, device: pc });
-    expect(out.map((r) => r.game.igdbId)).toEqual([elsewhere.game.igdbId]);
+  it('keeps boosts raising and penalties lowering when the score is negative', () => {
+    const base = rec({ score: -1 });
+    const boosted = rec({ score: -1, timeToBeat: ttb(0.4, 0.5) });
+    const lowered = rec({ score: -1, gpuRequirement: 5000 });
+    const out = rankForSession([base, lowered, boosted], {
+      minutes: 40,
+      batteryPct: 30,
+      device: deck,
+    });
+    expect(out.map((r) => r.game.igdbId)).toEqual([
+      boosted.game.igdbId,
+      base.game.igdbId,
+      lowered.game.igdbId,
+    ]);
+  });
+
+  it('prefers normally over hastily hours, and treats zero hours as unknown', () => {
+    const reason = (t: TimeToBeatHours) =>
+      rankForSession([rec({ timeToBeat: t })], { minutes: 30, device: pc })[0]!.sessionReason;
+    // hastily fits 30 min but normally (2 h) does not: normally wins.
+    expect(reason(ttb(0.4, 2))).toBe('A fit for 30 min');
+    expect(reason(ttb(0.4, null))).toBe('Finishable in 30 min');
+    // zero is unknown, not "finishable in any session".
+    expect(reason(ttb(0, 0))).toBe('A fit for 30 min');
+    expect(reason(ttb(0, 0.4))).toBe('Finishable in 30 min');
   });
 
   it('on a handheld below 40% battery, penalises heavy games and says so for light ones', () => {

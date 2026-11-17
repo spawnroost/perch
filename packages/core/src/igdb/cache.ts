@@ -38,10 +38,12 @@ export interface IgdbCache {
   /** Same for time-to-beat. A game with no IGDB record is cached as an empty row (returns null). */
   getTimeToBeat(igdbId: number): Promise<TimeToBeat | null>;
   /**
-   * Fetches time-to-beat for the games with no row or a stale one, without blocking the caller
-   * (the IGDB client rate-limits the calls). Errors are swallowed; `idle` waits for it.
+   * Fetches time-to-beat for the games with no row or a stale one (the IGDB client rate-limits
+   * the calls). Ids already being fetched are not queued again. The promise never rejects and
+   * settles when every id is done: ignore it to fire and forget, or race it with a timeout.
+   * Errors are swallowed; `idle` waits for it too.
    */
-  warmTimeToBeat(igdbIds: readonly number[]): void;
+  warmTimeToBeat(igdbIds: readonly number[]): Promise<void>;
 }
 
 function toGame(row: typeof games.$inferSelect): Game {
@@ -227,27 +229,28 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
     return upsertGames(await client.queryByTags(q));
   }
 
+  /** Fetches and stores one game's time-to-beat; null when the game is unknown or has none. */
+  async function refreshTimeToBeat(igdbId: number): Promise<TimeToBeat | null> {
+    // time_to_beat references games, so make sure the game row exists first.
+    if (!(await getGame(igdbId))) return null;
+    const value = await client.getTimeToBeat(igdbId);
+    const cols = {
+      hastilySeconds: value?.hastilySeconds ?? null,
+      normallySeconds: value?.normallySeconds ?? null,
+      completelySeconds: value?.completelySeconds ?? null,
+      count: value?.count ?? null,
+      checkedAt: now(),
+    };
+    await db
+      .insert(timeToBeat)
+      .values({ igdbId, ...cols })
+      .onConflictDoUpdate({ target: timeToBeat.igdbId, set: cols });
+    return value;
+  }
+
   async function getTimeToBeat(igdbId: number): Promise<TimeToBeat | null> {
     const [row] = await db.select().from(timeToBeat).where(eq(timeToBeat.igdbId, igdbId));
-    let value: TimeToBeat | null;
-    if (row && isFresh(row.checkedAt)) {
-      value = row;
-    } else {
-      // time_to_beat references games, so make sure the game row exists first.
-      if (!(await getGame(igdbId))) return null;
-      value = await client.getTimeToBeat(igdbId);
-      const cols = {
-        hastilySeconds: value?.hastilySeconds ?? null,
-        normallySeconds: value?.normallySeconds ?? null,
-        completelySeconds: value?.completelySeconds ?? null,
-        count: value?.count ?? null,
-        checkedAt: now(),
-      };
-      await db
-        .insert(timeToBeat)
-        .values({ igdbId, ...cols })
-        .onConflictDoUpdate({ target: timeToBeat.igdbId, set: cols });
-    }
+    const value = row && isFresh(row.checkedAt) ? row : await refreshTimeToBeat(igdbId);
     if (!value) return null;
     const { hastilySeconds, normallySeconds, completelySeconds, count } = value;
     if ([hastilySeconds, normallySeconds, completelySeconds, count].every((v) => v === null)) {
@@ -256,21 +259,34 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
     return { hastilySeconds, normallySeconds, completelySeconds, count };
   }
 
-  function warmTimeToBeat(igdbIds: readonly number[]): void {
-    if (igdbIds.length === 0) return;
-    const p: Promise<void> = (async () => {
-      const rows = await db
-        .select({ igdbId: timeToBeat.igdbId, checkedAt: timeToBeat.checkedAt })
-        .from(timeToBeat)
-        .where(inArray(timeToBeat.igdbId, [...igdbIds]));
-      const fresh = new Set(rows.filter((r) => isFresh(r.checkedAt)).map((r) => r.igdbId));
-      for (const id of igdbIds) {
-        if (!fresh.has(id)) await getTimeToBeat(id).catch(() => {});
-      }
-    })()
-      .catch(() => {})
-      .finally(() => pending.delete(p));
-    pending.add(p);
+  /** Ids whose time-to-beat is being warmed, so overlapping requests do not refetch them. */
+  const warming = new Map<number, Promise<void>>();
+
+  function warmTimeToBeat(igdbIds: readonly number[]): Promise<void> {
+    const ids = [...new Set(igdbIds)];
+    const todo = ids.filter((id) => !warming.has(id));
+    const waits = ids.flatMap((id) => warming.get(id) ?? []);
+    if (todo.length > 0) {
+      const p: Promise<void> = (async () => {
+        const rows = await db
+          .select({ igdbId: timeToBeat.igdbId, checkedAt: timeToBeat.checkedAt })
+          .from(timeToBeat)
+          .where(inArray(timeToBeat.igdbId, todo));
+        const fresh = new Set(rows.filter((r) => isFresh(r.checkedAt)).map((r) => r.igdbId));
+        for (const id of todo) {
+          if (!fresh.has(id)) await refreshTimeToBeat(id).catch(() => {});
+        }
+      })()
+        .catch(() => {})
+        .finally(() => {
+          pending.delete(p);
+          for (const id of todo) warming.delete(id);
+        });
+      pending.add(p);
+      for (const id of todo) warming.set(id, p);
+      waits.push(p);
+    }
+    return Promise.all(waits).then(() => {});
   }
 
   async function refreshAll(): Promise<{ refreshed: number; missing: number[] }> {
