@@ -4,6 +4,7 @@ import { accounts, games, libraryEntries, sessions, users, type Db } from '@perc
 import type { IgdbCache } from '../igdb/cache.js';
 import type { IgdbClient } from '../igdb/client.js';
 import type { Game } from '../igdb/schemas.js';
+import { bumpRecsVersion } from '../recommendation-cache/version.js';
 import { formatError } from './errors.js';
 import type { Status } from './fields.js';
 import type { AddArgs } from './args.js';
@@ -168,9 +169,11 @@ export async function upsertLibraryGame(
     const inserted = { inserted: sql<boolean>`(xmax = 0)` };
     if (Object.keys(update).length === 0) {
       const rows = await q.onConflictDoNothing({ target }).returning(inserted);
+      if (rows.length > 0) await bumpRecsVersion(tx, userId);
       return rows.length > 0;
     }
     const rows = await q.onConflictDoUpdate({ target, set: update }).returning(inserted);
+    await bumpRecsVersion(tx, userId);
     return rows[0]?.inserted === true;
   });
   return { igdbId, name: game.name, created };

@@ -1,5 +1,6 @@
 import { and, asc, eq } from 'drizzle-orm';
 import { devices, type Db } from '@perch/db';
+import { bumpRecsVersion } from '../recommendation-cache/version.js';
 import { matchCpu, matchGpu } from '../hardware/tiers.js';
 import type { FilterDevice } from '../engine/filters.js';
 import { DEVICE_PRESETS, getPreset, IGDB_PLATFORM } from './presets.js';
@@ -98,6 +99,7 @@ export async function addDevice(db: Db, userId: string, input: AddDeviceInput): 
       .insert(devices)
       .values({ ...row, isDefault: makeDefault })
       .returning();
+    await bumpRecsVersion(tx, userId);
     return created!;
   });
 }
@@ -191,6 +193,7 @@ export async function updateDevice(
     }
     if (Object.keys(set).length === 0) return current;
     const [row] = await tx.update(devices).set(set).where(own).returning();
+    if (row) await bumpRecsVersion(tx, userId);
     return row ?? null;
   });
 }
@@ -212,6 +215,7 @@ export async function deleteDevice(db: Db, userId: string, id: string): Promise<
         .limit(1);
       if (next) await tx.update(devices).set({ isDefault: true }).where(eq(devices.id, next.id));
     }
+    await bumpRecsVersion(tx, userId);
     return true;
   });
 }

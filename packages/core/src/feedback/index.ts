@@ -5,6 +5,7 @@ import { buildProfile } from '../engine/profile.js';
 import { loadRecommendInput } from '../engine/load.js';
 import { mergeLibrary } from '../engine/recommend.js';
 import type { FeedbackKind, Vocab } from '../engine/types.js';
+import { bumpRecsVersion } from '../recommendation-cache/version.js';
 import type { IgdbCache } from '../igdb/cache.js';
 
 export interface AddFeedbackDeps {
@@ -28,13 +29,16 @@ export async function addFeedback(
 ): Promise<void> {
   if (!(await cache.getGame(igdbId))) throw new GameNotFoundError(igdbId);
   // `slot` (generated) puts up and down in one slot, so a new vote replaces the old one.
-  await db
-    .insert(feedback)
-    .values({ userId, igdbId, kind })
-    .onConflictDoUpdate({
-      target: [feedback.userId, feedback.igdbId, feedback.slot],
-      set: { kind, at: new Date() },
-    });
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(feedback)
+      .values({ userId, igdbId, kind })
+      .onConflictDoUpdate({
+        target: [feedback.userId, feedback.igdbId, feedback.slot],
+        set: { kind, at: new Date() },
+      });
+    await bumpRecsVersion(tx, userId);
+  });
 }
 
 /** Undoes one kind of feedback; a kind that is not set is a no-op (so is a vote of the other way). */
@@ -44,9 +48,13 @@ export async function removeFeedback(
   igdbId: number,
   kind: FeedbackKind,
 ): Promise<void> {
-  await db
-    .delete(feedback)
-    .where(and(eq(feedback.userId, userId), eq(feedback.igdbId, igdbId), eq(feedback.kind, kind)));
+  await db.transaction(async (tx) => {
+    const gone = await tx
+      .delete(feedback)
+      .where(and(eq(feedback.userId, userId), eq(feedback.igdbId, igdbId), eq(feedback.kind, kind)))
+      .returning({ id: feedback.igdbId });
+    if (gone.length > 0) await bumpRecsVersion(tx, userId);
+  });
 }
 
 /** The user's current feedback: per game, the kind sent most recently. */

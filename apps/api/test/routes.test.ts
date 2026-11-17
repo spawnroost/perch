@@ -1,8 +1,16 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { and, eq, inArray } from 'drizzle-orm';
 import { hashPassword } from 'better-auth/crypto';
-import { createVerifiedUser, type DeckCategory, type Game, type IgdbClient } from '@perch/core';
+import {
+  createVerifiedUser,
+  deleteLibraryEntry,
+  type DeckCategory,
+  type Game,
+  type IgdbClient,
+  type RecommendationsResponse,
+} from '@perch/core';
 import { schema } from '@perch/db';
+import { cachedRecommendations } from '../src/recommendation-cache.js';
 import { cookieFrom, json, setupApi, testUrl } from './harness.js';
 
 const PASSWORD = 'correct-horse-battery';
@@ -857,10 +865,10 @@ describe.skipIf(!testUrl)('api routes', () => {
       expect(await cacheRows(u.id)).toHaveLength(3);
     });
 
-    it('treats a missing device and device=all as one entry', async () => {
+    it('treats a missing device and device=all as one entry, but ids stay case-sensitive', async () => {
       const u = await seeded();
       await get('/api/recommendations?limit=5', u.cookie);
-      await get('/api/recommendations?device=ALL&limit=5', u.cookie);
+      await get('/api/recommendations?device=all&limit=5', u.cookie);
       expect(await cacheRows(u.id)).toHaveLength(1);
     });
 
@@ -945,26 +953,84 @@ describe.skipIf(!testUrl)('api routes', () => {
           return call('DELETE', `/api/devices/${id}`, u.cookie);
         },
       ],
-      ['profile rebuild', (u) => call('POST', '/api/profile/rebuild', u.cookie)],
     ];
-    it.each(writes)('is cleared by %s', async (_name, write) => {
+    const version = async (u: U) =>
+      (await ctx.db.select().from(schema.users).where(eq(schema.users.id, u.id)))[0]!.recsVersion;
+
+    it.each(writes)(
+      '%s bumps the version, so the next request recomputes',
+      async (_name, write) => {
+        const u = await seeded();
+        await get('/api/recommendations?device=none', u.cookie);
+        await get('/api/recommendations?limit=3', u.cookie);
+        const before = await version(u);
+        expect((await cacheRows(u.id)).every((r) => r.version === before)).toBe(true);
+        const res = await write(u);
+        expect(res.status).toBeLessThan(300);
+        const after = await version(u);
+        expect(after).toBeGreaterThan(before);
+        await get('/api/recommendations?device=none', u.cookie);
+        const rows = await cacheRows(u.id);
+        expect(rows.find((r) => r.key.includes('device=none'))?.version).toBe(after);
+      },
+    );
+
+    it('recomputes after a CLI-style write through core, with no HTTP involved', async () => {
       const u = await seeded();
-      await get('/api/recommendations?device=none', u.cookie);
-      await get('/api/recommendations?limit=3', u.cookie);
-      expect((await cacheRows(u.id)).length).toBeGreaterThan(0);
-      const res = await write(u);
-      expect(res.status).toBeLessThan(300);
-      expect(await cacheRows(u.id)).toHaveLength(0);
+      const first = await ids(await get('/api/recommendations?device=none&limit=5', u.cookie));
+      expect(first).toContain(B);
+      expect(await deleteLibraryEntry(ctx.db, u.id, (await firstEntry(u)).id)).toBe(true);
+      expect(await ids(await get('/api/recommendations?device=none&limit=5', u.cookie))).toEqual(
+        [],
+      );
     });
 
-    it("never clears another user's entries", async () => {
+    it('does not bump the version for failed writes, the import preview or a profile rebuild', async () => {
+      const u = await seeded();
+      const before = await version(u);
+      const entry = await firstEntry(u);
+      const results = await Promise.all([
+        call('POST', '/api/library', u.cookie, { igdbId: BASE + 9 }), // unknown game: 404
+        call('POST', '/api/library', u.cookie, { igdbId: 'x' }), // bad body: 400
+        call('PATCH', `/api/library/${crypto.randomUUID()}`, u.cookie, { hoursPlayed: 1 }),
+        call('DELETE', `/api/library/${crypto.randomUUID()}`, u.cookie),
+        call('PATCH', `/api/devices/${crypto.randomUUID()}`, u.cookie, { name: 'x' }),
+        call('DELETE', `/api/feedback/${B}/up`, u.cookie), // nothing to remove
+        call('POST', '/api/library/import', u.cookie, { text: 'Routetest Alpha' }),
+        call('POST', '/api/profile/rebuild', u.cookie),
+        call('PATCH', `/api/library/${entry.id}`, u.cookie, {}), // empty patch: 400
+      ]);
+      expect(results.map((r) => r.status)).toEqual([404, 400, 404, 404, 404, 200, 200, 200, 400]);
+      expect(await version(u)).toBe(before);
+    });
+
+    it("never touches another user's version", async () => {
       const mine = await seeded();
       const theirs = await seeded();
-      await get('/api/recommendations?device=none', mine.cookie);
-      await get('/api/recommendations?device=none', theirs.cookie);
+      const before = await version(theirs);
       await call('POST', '/api/devices', mine.cookie, { preset: 'ps5' });
-      expect(await cacheRows(mine.id)).toHaveLength(0);
-      expect(await cacheRows(theirs.id)).toHaveLength(1);
+      expect(await version(theirs)).toBe(before);
+    });
+
+    it('does not let a slow compute overwrite a row from a newer version', async () => {
+      const u = await seeded();
+      const key = 'device=none;limit=11';
+      const payload = (name: string) =>
+        ({ recommendations: [], marker: name }) as unknown as RecommendationsResponse;
+      let release!: () => void;
+      const slow = cachedRecommendations(ctx.db, u.id, key, async () => {
+        await new Promise<void>((r) => (release = r));
+        return payload('old');
+      });
+      await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+      await call('POST', '/api/devices', u.cookie, { preset: 'ps5' }); // newer version
+      const fresh = await cachedRecommendations(ctx.db, u.id, key, async () => payload('new'));
+      expect(fresh).toEqual(payload('new'));
+      release();
+      await slow;
+      const [row] = (await cacheRows(u.id)).filter((r) => r.key === key);
+      expect(row?.payload).toEqual(payload('new'));
+      expect(row?.version).toBe(await version(u));
     });
   });
 

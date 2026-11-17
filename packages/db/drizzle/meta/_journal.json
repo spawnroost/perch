@@ -78,6 +78,13 @@
       "when": 1794927137588,
       "tag": "0010_recommendation_cache",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794927668404,
+      "tag": "0011_recs_version",
+      "breakpoints": true
     }
   ]
 }

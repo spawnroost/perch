@@ -1,40 +1,24 @@
-import type { MiddlewareHandler } from 'hono';
-import { and, eq } from 'drizzle-orm';
-import { computedAtFor, isFresh, isSettled, type RecommendationsResponse } from '@perch/core';
+import { and, eq, lte } from 'drizzle-orm';
+import {
+  computedAtFor,
+  getRecsVersion,
+  isFresh,
+  isSettled,
+  type RecommendationsResponse,
+} from '@perch/core';
 import { schema, type Db } from '@perch/db';
-import type { AppVars } from './app.js';
 
 const { recommendationCache } = schema;
 
-/** Recomputes in flight, one per user + key; concurrent requests share it. */
+/** Recomputes in flight per user + key + version; concurrent requests share one. */
 const inflight = new Map<string, Promise<RecommendationsResponse>>();
-/** Bumped on every invalidation: a compute that started before one must not be stored. */
-const generations = new Map<string, number>();
-
-const flightKey = (userId: string, key: string) => `${userId}\u0000${key}`;
-
-/** Drops every cached recommendation for the user. Call after any write that feeds the engine. */
-export async function invalidateRecommendations(db: Db, userId: string): Promise<void> {
-  generations.set(userId, (generations.get(userId) ?? 0) + 1);
-  for (const k of inflight.keys()) if (k.startsWith(`${userId}\u0000`)) inflight.delete(k);
-  await db.delete(recommendationCache).where(eq(recommendationCache.userId, userId));
-}
-
-/** Middleware: any non-GET request under the mounted path invalidates the caller's cache after it. */
-export function invalidatesRecommendations(db: Db): MiddlewareHandler<AppVars> {
-  return async (c, next) => {
-    try {
-      await next();
-    } finally {
-      const user = c.get('sessionUser');
-      if (user && c.req.method !== 'GET') await invalidateRecommendations(db, user.id);
-    }
-  };
-}
 
 /**
- * Read-through cache. Fresh row: returned as is. Stale row: returned, and recomputed in the
- * background. No row: computed, stored, returned.
+ * Read-through cache of one user's recommendations. A row is only ever served while its version
+ * equals the user's `recs_version` (bumped by every write that feeds the engine, in core):
+ * - same version, fresh: returned as is.
+ * - same version, older than the max age: returned, and recomputed in the background.
+ * - different version or no row: computed, stored, returned.
  */
 export async function cachedRecommendations(
   db: Db,
@@ -43,45 +27,49 @@ export async function cachedRecommendations(
   compute: () => Promise<RecommendationsResponse>,
   now: Date = new Date(),
 ): Promise<RecommendationsResponse> {
+  // Read before computing: a write during the compute leaves the stored row behind the user.
+  const version = await getRecsVersion(db, userId);
   const [row] = await db
     .select()
     .from(recommendationCache)
     .where(and(eq(recommendationCache.userId, userId), eq(recommendationCache.key, key)));
-  if (row && isFresh(row.computedAt, now)) return row.payload as RecommendationsResponse;
-  if (row) {
-    refresh(db, userId, key, compute, true).catch((err) => console.error(err));
+  if (row?.version === version) {
+    if (!isFresh(row.computedAt, now)) {
+      recompute(db, userId, key, version, compute, true).catch((err) => console.error(err));
+    }
     return row.payload as RecommendationsResponse;
   }
-  return refresh(db, userId, key, compute, false);
+  return recompute(db, userId, key, version, compute, false);
 }
 
-function refresh(
+function recompute(
   db: Db,
   userId: string,
   key: string,
+  version: number,
   compute: () => Promise<RecommendationsResponse>,
   hadRow: boolean,
 ): Promise<RecommendationsResponse> {
-  const fk = flightKey(userId, key);
-  const running = inflight.get(fk);
+  const flight = `${userId}\u0000${key}\u0000${version}`;
+  const running = inflight.get(flight);
   if (running) return running;
-  const generation = generations.get(userId) ?? 0;
   const p = (async () => {
     const payload = await compute();
-    if ((generations.get(userId) ?? 0) !== generation) return payload;
     const settled = isSettled(payload.recommendations, { requireTimeToBeat: !hadRow });
     const computedAt = computedAtFor(new Date(), settled);
     await db
       .insert(recommendationCache)
-      .values({ userId, key, payload, computedAt })
+      .values({ userId, key, payload, version, computedAt })
       .onConflictDoUpdate({
         target: [recommendationCache.userId, recommendationCache.key],
-        set: { payload, computedAt },
+        set: { payload, version, computedAt },
+        // A slow compute must not replace a row computed from newer data.
+        setWhere: lte(recommendationCache.version, version),
       });
     return payload;
   })().finally(() => {
-    if (inflight.get(fk) === p) inflight.delete(fk);
+    if (inflight.get(flight) === p) inflight.delete(flight);
   });
-  inflight.set(fk, p);
+  inflight.set(flight, p);
   return p;
 }

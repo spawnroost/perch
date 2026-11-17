@@ -1,10 +1,12 @@
 /** How long a cached recommendation set is served without recomputing. */
 export const RECOMMENDATION_CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 
-/** Normalised cache key for a recommendations request: same picks, same key. */
+/**
+ * Cache key for a recommendations request. Only a missing device is folded into 'all' (that is
+ * what `selectDevices` does); ids and kinds stay case-sensitive, as there.
+ */
 export function recommendationCacheKey(params: { device?: string; limit: number }): string {
-  const device = params.device?.trim().toLowerCase() || 'all';
-  return `device=${device};limit=${params.limit}`;
+  return `device=${params.device ?? 'all'};limit=${params.limit}`;
 }
 
 export function isFresh(
@@ -42,3 +44,4 @@ export function computedAtFor(now: Date, settled: boolean): Date {
     ? now
     : new Date(now.getTime() - (RECOMMENDATION_CACHE_MAX_AGE_MS - PROVISIONAL_MAX_AGE_MS));
 }
+export * from './version.js';

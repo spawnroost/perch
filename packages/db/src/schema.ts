@@ -33,6 +33,8 @@ export const users = pgTable('users', {
   steamId: text('steam_id').unique(),
   /** Feature gate: 'free' | 'pro'. Pro is a flag flip once billing ships. */
   plan: text('plan').default('free').notNull(),
+  /** Bumped by every write that feeds the recommendations; the cache only serves its own version. */
+  recsVersion: integer('recs_version').default(0).notNull(),
   createdAt: ts('created_at').defaultNow().notNull(),
   updatedAt: ts('updated_at')
     .defaultNow()
@@ -295,7 +297,7 @@ export const tasteProfiles = pgTable('taste_profiles', {
 
 /**
  * Per-user cached API responses for For you, one row per normalised request (device + limit).
- * Dropped whenever the user's library, feedback or devices change.
+ * Only served while `version` equals the user's `recs_version`.
  */
 export const recommendationCache = pgTable(
   'recommendation_cache',
@@ -306,6 +308,8 @@ export const recommendationCache = pgTable(
     key: text('key').notNull(),
     /** The JSON response body (dates are already ISO strings). */
     payload: jsonb('payload').notNull(),
+    /** users.recs_version the payload was computed from (read before computing). */
+    version: integer('version').default(0).notNull(),
     computedAt: ts('computed_at').defaultNow().notNull(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.key] })],

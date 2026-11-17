@@ -15,9 +15,12 @@ describe('recommendationCacheKey', () => {
     );
   });
 
-  it('is stable across whitespace and case of the device', () => {
-    expect(recommendationCacheKey({ device: ' PS5 ', limit: 5 })).toBe(
-      recommendationCacheKey({ device: 'ps5', limit: 5 }),
+  it('keeps device ids and kinds case-sensitive, as selectDevices is', () => {
+    expect(recommendationCacheKey({ device: 'ps5', limit: 5 })).not.toBe(
+      recommendationCacheKey({ device: 'PS5', limit: 5 }),
+    );
+    expect(recommendationCacheKey({ device: 'ALL', limit: 5 })).not.toBe(
+      recommendationCacheKey({ limit: 5 }),
     );
   });
 

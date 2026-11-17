@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import { games, libraryEntries, type Db } from '@perch/db';
+import { bumpRecsVersion } from '../recommendation-cache/version.js';
 import type { Status } from './fields.js';
 
 export type LibraryRow = typeof libraryEntries.$inferSelect & {
@@ -93,21 +94,28 @@ export async function updateLibraryEntry(
   if (patch.status !== undefined) set.status = patch.status;
   if (patch.owned !== undefined) set.owned = patch.owned;
   if (Object.keys(set).length > 0) {
-    const rows = await db
-      .update(libraryEntries)
-      .set(set)
-      .where(and(eq(libraryEntries.userId, userId), eq(libraryEntries.id, id)))
-      .returning({ id: libraryEntries.id });
-    if (rows.length === 0) return null;
+    const updated = await db.transaction(async (tx) => {
+      const rows = await tx
+        .update(libraryEntries)
+        .set(set)
+        .where(and(eq(libraryEntries.userId, userId), eq(libraryEntries.id, id)))
+        .returning({ id: libraryEntries.id });
+      if (rows.length > 0) await bumpRecsVersion(tx, userId);
+      return rows.length > 0;
+    });
+    if (!updated) return null;
   }
   return getLibraryEntry(db, userId, id);
 }
 
 /** Deletes the user's entry; false when it is not theirs. */
 export async function deleteLibraryEntry(db: Db, userId: string, id: string): Promise<boolean> {
-  const rows = await db
-    .delete(libraryEntries)
-    .where(and(eq(libraryEntries.userId, userId), eq(libraryEntries.id, id)))
-    .returning({ id: libraryEntries.id });
-  return rows.length > 0;
+  return db.transaction(async (tx) => {
+    const rows = await tx
+      .delete(libraryEntries)
+      .where(and(eq(libraryEntries.userId, userId), eq(libraryEntries.id, id)))
+      .returning({ id: libraryEntries.id });
+    if (rows.length > 0) await bumpRecsVersion(tx, userId);
+    return rows.length > 0;
+  });
 }
