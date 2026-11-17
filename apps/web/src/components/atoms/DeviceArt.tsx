@@ -239,7 +239,7 @@ function Hybrid({ ids }: { ids: Ids }) {
     <g strokeWidth={1.5} strokeLinejoin="round" transform="translate(0 6)">
       <rect x={60} y={20} width={120} height={72} rx={6} className={BODY} />
       <Screen ids={ids} name="s" x={65} y={25} w={110} h={62} r={3} />
-      <rect x={22} y={16} width={34} height={82} rx={15} className="fill-surface-2 stroke-accent" />
+      <rect x={22} y={16} width={34} height={82} rx={15} className={FACE} />
       <rect x={184} y={16} width={34} height={82} rx={15} className={FACE} />
       <circle cx={39} cy={38} r={7} className={DARK} />
       <circle cx={39} cy={38} r={3} className="fill-fg/35" stroke="none" />
