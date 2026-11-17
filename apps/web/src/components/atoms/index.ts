@@ -18,5 +18,6 @@ export { Tabs, TabsContent, TabsList, TabsTrigger } from './Tabs';
 export { Label } from './Label';
 export { Notice, noticeVariants } from './Notice';
 export type { NoticeProps } from './Notice';
+export { SectionHeading } from './SectionHeading';
 export { Select } from './Select';
 export { Textarea } from './Textarea';

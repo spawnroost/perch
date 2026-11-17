@@ -80,7 +80,7 @@ export function DevicesView() {
   }
 
   return (
-    <section className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-6">
+    <section className="flex w-full flex-col gap-6 px-gutter py-6">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="font-title text-3xl text-fg">Devices</h1>

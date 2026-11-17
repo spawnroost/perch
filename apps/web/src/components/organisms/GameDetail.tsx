@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router';
 import { motion } from 'motion/react';
 import { Check, ChevronLeft, Plus } from 'lucide-react';
-import { Badge, Button, Cover, DeckBadge, Notice, Skeleton } from '../atoms';
+import { Badge, Button, Cover, DeckBadge, Notice, SectionHeading, Skeleton } from '../atoms';
 import { FeedbackActions, FitChips, FitDetailRow, Hero, LoadError } from '../molecules';
 import { useAddToLibrary, useFeedback, useGameDetail, useLibrary } from '@/hooks/queries';
 import { useReduced } from '@/hooks/useMotionPrefs';
@@ -9,13 +9,14 @@ import { ApiError } from '@/lib/api';
 import { coverImage } from '@/lib/coverSrcSet';
 import { coverLayoutId } from '@/lib/motion';
 import { releaseYear } from '@/lib/onboarding';
+import { platformChips } from '@/lib/forYou';
 import { platformNames } from '@/lib/platforms';
 import { timeToBeatLabel } from '@/lib/timeToBeat';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="text-sm font-medium text-fg-muted">{title}</h2>
+      <SectionHeading>{title}</SectionHeading>
       {children}
     </section>
   );
@@ -84,7 +85,7 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
   const { game, fit, deck, why, timeToBeat } = detail.data;
   const toBeat = timeToBeatLabel(timeToBeat);
   const year = releaseYear(game.firstRelease);
-  const platforms = platformNames(game.platforms);
+  const platforms = platformChips(platformNames(game.platforms));
   const inLibrary = library.data?.some((e) => e.igdbId === game.igdbId) ?? false;
 
   const image = coverImage(game.coverUrl, game.coverUrlSmall);
@@ -97,13 +98,13 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
         heroUrl={game.heroUrl}
         accent={game.accent}
         cover={
-          <motion.div layoutId={layoutId} className="w-32 shrink-0 sm:w-40">
+          <motion.div layoutId={layoutId} className="w-32 shrink-0 sm:w-40 md:w-55">
             <Cover
               src={image?.src ?? null}
               srcSet={image?.srcSet}
-              sizes="10rem"
+              sizes="(min-width: 768px) 14rem, 10rem"
               alt={`${game.name} cover`}
-              className="w-full rounded-lg"
+              className="w-full rounded-lg shadow-cover-glow"
             />
           </motion.div>
         }
@@ -116,7 +117,10 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
             </p>
             {deck && <DeckBadge category={deck} />}
             {platforms.map((p) => (
-              <Badge key={p}>{p}</Badge>
+              <Badge key={p.label} title={p.srLabel ?? p.label}>
+                <span aria-hidden={p.srLabel ? true : undefined}>{p.label}</span>
+                {p.srLabel ? <span className="sr-only">{p.srLabel}</span> : null}
+              </Badge>
             ))}
             <FitChips fits={fit} className="w-full" />
           </>
@@ -147,52 +151,56 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
           </>
         }
       />
-      <div className="flex max-w-3xl flex-col gap-6 px-gutter">
-        {add.isError && <Notice tone="error">{add.error.message}</Notice>}
-        {feedbackError && <Notice tone="error">{feedbackError.message}</Notice>}
-        {game.summary && (
-          <Section title="About">
-            <p className="text-base text-fg">{game.summary}</p>
+      <div className="grid gap-x-12 gap-y-8 px-gutter lg:grid-cols-[minmax(0,1fr)_var(--container-rail)]">
+        <div className="flex max-w-3xl flex-col gap-8">
+          {add.isError && <Notice tone="error">{add.error.message}</Notice>}
+          {feedbackError && <Notice tone="error">{feedbackError.message}</Notice>}
+          {game.summary && (
+            <Section title="About">
+              <p className="text-base text-fg">{game.summary}</p>
+            </Section>
+          )}
+
+          <Section title="Why it's recommended">
+            {why.length > 0 ? (
+              <ul className="flex flex-col gap-1">
+                {why.map((line) => (
+                  <li key={line} className="text-base text-fg">
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-base text-fg-muted">
+                Nothing in your library points to this game yet. Add more games with hours played.
+              </p>
+            )}
           </Section>
-        )}
+        </div>
 
-        <Section title="Why it's recommended">
-          {why.length > 0 ? (
-            <ul className="flex flex-col gap-1">
-              {why.map((line) => (
-                <li key={line} className="text-base text-fg">
-                  {line}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-base text-fg-muted">
-              Nothing in your library points to this game yet. Add more games with hours played.
-            </p>
-          )}
-        </Section>
-
-        <Section title="Will it run">
-          {fit.length > 0 ? (
-            <ul className="overflow-hidden rounded-lg border border-line bg-surface-1">
-              {fit.map((f) => (
-                <FitDetailRow
-                  key={f.deviceId}
-                  deviceName={f.deviceName}
-                  status={f.status}
-                  reason={f.reason}
-                />
-              ))}
-            </ul>
-          ) : (
-            <Notice>
-              <Link to="/devices" className="text-fg underline underline-offset-4">
-                Add a device
-              </Link>{' '}
-              to see whether it runs.
-            </Notice>
-          )}
-        </Section>
+        <aside className="lg:sticky lg:top-16 lg:self-start">
+          <Section title="Will it run">
+            {fit.length > 0 ? (
+              <ul className="overflow-hidden rounded-lg border border-line bg-surface-1">
+                {fit.map((f) => (
+                  <FitDetailRow
+                    key={f.deviceId}
+                    deviceName={f.deviceName}
+                    status={f.status}
+                    reason={f.reason}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <Notice>
+                <Link to="/devices" className="text-fg underline underline-offset-4">
+                  Add a device
+                </Link>{' '}
+                to see whether it runs.
+              </Notice>
+            )}
+          </Section>
+        </aside>
       </div>
     </div>
   );

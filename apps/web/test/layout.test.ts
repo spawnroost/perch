@@ -2,12 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { layoutKind } from '../src/lib/layout.js';
 
 describe('layoutKind', () => {
-  it('is edge for For you and game detail: art and shelves run to the gutter', () => {
-    for (const p of ['/', '/games/12', '/games/12/']) expect(layoutKind(p)).toBe('edge');
-  });
-
-  it('is wide for library and devices: a centred wide column', () => {
-    for (const p of ['/library', '/library/', '/devices']) expect(layoutKind(p)).toBe('wide');
+  it('is edge for For you, detail, library and devices: content runs to the gutter', () => {
+    for (const p of ['/', '/games/12', '/games/12/', '/library', '/library/', '/devices']) {
+      expect(layoutKind(p)).toBe('edge');
+    }
   });
 
   it('is narrow for everything else', () => {

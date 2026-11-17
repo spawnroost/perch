@@ -1,6 +1,7 @@
-import { useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/atoms/Button';
+import { SectionHeading } from '@/components/atoms/SectionHeading';
 import { useReduced } from '@/hooks/useMotionPrefs';
 import { useScrollEdges } from '@/hooks/useScrollEdges';
 import { cn } from '@/lib/cn';
@@ -47,7 +48,7 @@ export function Shelf({ title, children, controls, className }: ShelfProps) {
   return (
     <section aria-label={title} className={cn('flex flex-col gap-3', className)}>
       <header className="relative z-10 flex items-center justify-between gap-3">
-        <h2 className="font-hud text-sm text-fg-muted">{title}</h2>
+        <SectionHeading>{title}</SectionHeading>
         {controls ? (
           <div className="flex gap-1">
             <Button
@@ -73,30 +74,24 @@ export function Shelf({ title, children, controls, className }: ShelfProps) {
       </header>
       <div className="relative">
         {/* Vertical padding (offset by negative margin) leaves room for lift, tilt and glow; the header
-            sits above it. scroll-px-12 keeps snapped cards clear of the edge fade (w-12). */}
+            sits above it. The edge fade is a mask on the scroller (an overlay would paint under the
+            3D-transformed cards); scroll-px-12 keeps snapped cards clear of it (shelf-fade is 3rem). */}
         <div
           ref={scroller}
           onKeyDown={onKeyDown}
-          className="-mx-2 -my-8 flex snap-x snap-proximity scroll-px-12 gap-4 overflow-x-auto px-2 py-8 [&>*]:shrink-0 [&>*]:snap-start"
+          style={fadeStyle(edges)}
+          className="shelf-fade -mx-2 -my-8 flex snap-x snap-proximity scroll-px-12 gap-4 overflow-x-auto px-2 py-8 [&>*]:shrink-0 [&>*]:snap-start"
         >
           {children}
         </div>
-        <Fade side="start" visible={edges.start} />
-        <Fade side="end" visible={edges.end} />
       </div>
     </section>
   );
 }
 
-function Fade({ side, visible }: { side: 'start' | 'end'; visible: boolean }) {
-  return (
-    <div
-      aria-hidden
-      className={cn(
-        'pointer-events-none absolute inset-y-0 w-12 from-ground to-transparent transition-opacity duration-base ease-out',
-        side === 'start' ? 'left-0 bg-linear-to-r' : 'right-0 bg-linear-to-l',
-        visible ? 'opacity-100' : 'opacity-0',
-      )}
-    />
-  );
+function fadeStyle(edges: { start: boolean; end: boolean }): CSSProperties {
+  return {
+    '--fade-start': edges.start ? 'var(--fade-size)' : '0px',
+    '--fade-end': edges.end ? 'var(--fade-size)' : '0px',
+  } as CSSProperties;
 }

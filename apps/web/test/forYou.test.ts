@@ -8,6 +8,7 @@ import {
   cardKey,
   layoutOwners,
   parseGameId,
+  platformChips,
   pickChips,
   type Recommendation,
 } from '../src/lib/forYou.js';
@@ -151,6 +152,19 @@ describe('capChips', () => {
   it('describes a single hidden chip for screen readers', () => {
     const three = [chips[0]!, chips[1]!, { label: 'Deck: Verified', tone: 'yes' as const }];
     expect(capChips(three, 2).at(-1)?.srLabel).toBe('and 1 more: Deck: Verified');
+  });
+});
+
+describe('platformChips', () => {
+  it('lists up to four platforms as plain chips', () => {
+    expect(platformChips(['A', 'B']).map((c) => c.label)).toEqual(['A', 'B']);
+  });
+
+  it('collapses the rest into +N with the hidden names spoken', () => {
+    const names = ['A', 'B', 'C', 'D', 'E', 'F'];
+    const chips = platformChips(names);
+    expect(chips.map((c) => c.label)).toEqual(['A', 'B', 'C', 'D', '+2']);
+    expect(chips.at(-1)?.srLabel).toBe('and 2 more: E, F');
   });
 });
 

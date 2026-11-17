@@ -10,13 +10,15 @@ import { useReduced } from '@/hooks/useMotionPrefs';
 import {
   browseLibrary,
   entryChips,
+  entryMeta,
   games,
   type LibraryFilter,
   type LibrarySort,
 } from '@/lib/library';
 import { coverLayoutId, firstOfEach } from '@/lib/motion';
 
-const GRID = 'grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5';
+const GRID =
+  'grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6';
 const GRID_SIZES =
   '(min-width: 1280px) 15rem, (min-width: 1024px) 18rem, (min-width: 640px) 14rem, 10rem';
 
@@ -39,7 +41,7 @@ export function LibraryView() {
   const coverOwners = useMemo(() => firstOfEach(shown, (e) => e.igdbId), [shown]);
 
   return (
-    <section className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-6">
+    <section className="flex w-full flex-col gap-6 px-gutter py-6">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="font-title text-3xl text-fg">Library</h1>
@@ -93,6 +95,8 @@ export function LibraryView() {
                     coverUrlSmall={e.coverUrlSmall}
                     accent={e.accent}
                     chips={entryChips(e)}
+                    meta={entryMeta(e)}
+                    glow={e.status === 'playing'}
                     sizes={GRID_SIZES}
                     layoutId={coverOwners.has(e) ? coverLayoutId(e.igdbId, reduced) : undefined}
                     className="w-full"

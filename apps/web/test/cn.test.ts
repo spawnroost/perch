@@ -5,6 +5,7 @@ describe('cn', () => {
   it('resolves conflicting custom shadow tokens', () => {
     expect(cn('shadow-raised', 'shadow-none')).toBe('shadow-none');
     expect(cn('shadow-raised', 'shadow-overlay')).toBe('shadow-overlay');
+    expect(cn('shadow-raised', 'shadow-cover-glow')).toBe('shadow-cover-glow');
   });
 
   it('resolves conflicting custom duration tokens', () => {

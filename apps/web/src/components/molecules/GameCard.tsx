@@ -25,6 +25,10 @@ export type GameCardProps = {
   /** Per-game hex accent; unset falls back to the default accent. */
   accent?: string | null;
   chips?: Pick<HudChipProps, 'label' | 'tone' | 'plain' | 'srLabel'>[];
+  /** Plain-text line under the title (normal case), e.g. "41 h · 10 Nov". */
+  meta?: string;
+  /** Keeps the accent glow on the cover while idle (e.g. a game being played). */
+  glow?: boolean;
   /** Controls (e.g. feedback) over the cover corner: shown on hover and focus, always on touch. */
   actions?: ReactNode;
   /** Shared-element id on the cover, matched by the detail view's cover for the expand. */
@@ -63,6 +67,8 @@ export function GameCard({
   coverUrlSmall,
   accent,
   chips,
+  meta,
+  glow,
   actions,
   layoutId,
   to,
@@ -149,12 +155,15 @@ export function GameCard({
             alt=""
             className={cn(
               'w-full rounded-lg transition-shadow duration-base ease-out',
-              lit && 'shadow-glow',
+              (lit || glow) && 'shadow-glow',
             )}
           />
         </motion.div>
       </motion.div>
       <span className="font-title text-lg leading-tight text-fg">{title}</span>
+      {meta ? (
+        <span className="-mt-1 truncate text-sm text-fg-muted tabular-nums">{meta}</span>
+      ) : null}
       {chips && chips.length > 0 ? (
         <span className="flex flex-nowrap gap-1 overflow-hidden">
           {chips.map((chip) => (

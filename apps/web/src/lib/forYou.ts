@@ -118,6 +118,17 @@ export function capChips(chips: readonly PickChip[], max: number = CARD_CHIP_LIM
   ];
 }
 
+/** Platforms shown on the game detail before the rest collapse into "+N". */
+export const DETAIL_PLATFORM_LIMIT = 4;
+
+/** Plain chips for a game's platform names, capped like card chips. */
+export function platformChips(names: readonly string[]): PickChip[] {
+  return capChips(
+    names.map((label) => ({ label, tone: 'unknown' as const, plain: true as const })),
+    DETAIL_PLATFORM_LIMIT,
+  );
+}
+
 /** Shelf-scoped key for a card: the same game can sit on several shelves. */
 export const cardKey = (shelfId: string, igdbId: number) => `${shelfId}:${igdbId}`;
 

@@ -71,19 +71,30 @@ const STATUS_TONE: Record<Status, Tone> = {
   dropped: 'no',
 };
 
-/** Plain HUD chips for a library card: status, hours and last played when known. */
+/** The one status chip on a library card; hours and dates go in the plain meta line. */
 export function entryChips(entry: LibraryEntry): Pick<HudChipProps, 'label' | 'tone' | 'plain'>[] {
-  const chips: Pick<HudChipProps, 'label' | 'tone' | 'plain'>[] = [
-    { label: STATUS_LABEL[entry.status], tone: STATUS_TONE[entry.status], plain: true },
-  ];
-  if (entry.hoursPlayed !== null) {
-    chips.push({ label: formatHours(entry.hoursPlayed), tone: 'unknown', plain: true });
+  return [{ label: STATUS_LABEL[entry.status], tone: STATUS_TONE[entry.status], plain: true }];
+}
+
+const SHORT_DATE = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  timeZone: 'UTC',
+});
+
+/** "41 h · 10 Nov": hours and last played, normal case; the year only when it is not this year. */
+export function entryMeta(entry: LibraryEntry, now: Date = new Date()): string {
+  const parts: string[] = [];
+  if (entry.hoursPlayed !== null) parts.push(formatHours(entry.hoursPlayed));
+  if (entry.lastPlayed) {
+    const played = new Date(entry.lastPlayed);
+    parts.push(
+      played.getUTCFullYear() === now.getUTCFullYear()
+        ? SHORT_DATE.format(played)
+        : formatLastPlayed(entry.lastPlayed),
+    );
   }
-  if (entry.lastPlayed || entry.hoursPlayed) {
-    const label = formatLastPlayed(entry.lastPlayed, entry.hoursPlayed);
-    chips.push({ label, tone: 'unknown', plain: true });
-  }
-  return chips;
+  return parts.join(' · ');
 }
 
 const byTitle = (a: LibraryEntry, b: LibraryEntry) =>

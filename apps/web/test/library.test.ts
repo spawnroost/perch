@@ -10,6 +10,7 @@ import {
   browseLibrary,
   STATUSES,
   entryChips,
+  entryMeta,
   STATUS_FILTERS,
   toForm,
 } from '../src/lib/library.js';
@@ -203,23 +204,30 @@ describe('STATUSES', () => {
 });
 
 describe('entryChips', () => {
-  it('shows status, hours and last played as plain chips', () => {
+  it('is a single plain status chip', () => {
     const chips = entryChips(
       entry({ status: 'playing', hoursPlayed: 12, lastPlayed: '2026-03-01T00:00:00.000Z' }),
     );
-    expect(chips.map((c) => c.label)).toEqual(['Playing', '12 h', '1 Mar 2026']);
-    expect(chips.every((c) => c.plain)).toBe(true);
+    expect(chips).toEqual([{ label: 'Playing', tone: 'yes', plain: true }]);
+  });
+});
+
+describe('entryMeta', () => {
+  const now = new Date('2026-11-17T00:00:00.000Z');
+
+  it('joins hours and last played day and month', () => {
+    const e = entry({ hoursPlayed: 41, lastPlayed: '2026-11-10T00:00:00.000Z' });
+    expect(entryMeta(e, now)).toBe('41 h · 10 Nov');
   });
 
-  it('says last played is unknown when there are hours but no date', () => {
-    expect(entryChips(entry({ hoursPlayed: 3 })).map((c) => c.label)).toEqual([
-      'Backlog',
-      '3 h',
-      'Last played unknown',
-    ]);
+  it('adds the year when last played is not this year', () => {
+    const e = entry({ hoursPlayed: 3, lastPlayed: '2025-03-01T00:00:00.000Z' });
+    expect(entryMeta(e, now)).toBe('3 h · 1 Mar 2025');
   });
 
-  it('shows only the status for a game never played', () => {
-    expect(entryChips(entry({ status: 'dropped' })).map((c) => c.label)).toEqual(['Dropped']);
+  it('leaves out what is unknown', () => {
+    expect(entryMeta(entry({ hoursPlayed: 3 }), now)).toBe('3 h');
+    expect(entryMeta(entry({ lastPlayed: '2026-11-10T00:00:00.000Z' }), now)).toBe('10 Nov');
+    expect(entryMeta(entry({}), now)).toBe('');
   });
 });
