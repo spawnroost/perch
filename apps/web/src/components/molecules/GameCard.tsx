@@ -156,7 +156,7 @@ export function GameCard({
       </motion.div>
       <span className="font-title text-lg leading-tight text-fg">{title}</span>
       {chips && chips.length > 0 ? (
-        <span className="flex flex-wrap gap-1">
+        <span className="flex flex-nowrap gap-1 overflow-hidden">
           {chips.map((chip) => (
             <HudChip key={chip.label} {...chip} />
           ))}

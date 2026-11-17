@@ -15,6 +15,8 @@ export type HeroProps = {
   meta?: ReactNode;
   /** Box art beside the title (e.g. a shared-element cover on the detail view). */
   cover?: ReactNode;
+  /** Pinned to the top-left of the art (e.g. a back link). */
+  overlay?: ReactNode;
   /** Buttons row. */
   actions?: ReactNode;
   className?: string;
@@ -29,6 +31,7 @@ export function Hero({
   meta,
   cover,
   actions,
+  overlay,
   className,
 }: HeroProps) {
   const transition = useLauncherSpring('hero');
@@ -42,22 +45,33 @@ export function Hero({
     >
       <div aria-hidden className="absolute inset-0 -z-10 bg-surface-1">
         {heroUrl ? (
-          <motion.img
-            key={heroUrl}
-            src={heroUrl}
-            alt=""
-            decoding="async"
-            initial={{ opacity: 0, scale: 1.12 }}
-            animate={{ opacity: 1, scale: 1.08 }}
-            transition={transition}
-            className="size-full object-cover blur-hero"
-          />
+          <div className="absolute inset-0 motion-safe:animate-hero-drift">
+            <motion.img
+              key={heroUrl}
+              src={heroUrl}
+              alt=""
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
+              initial={{ opacity: 0, scale: 1.12 }}
+              animate={{ opacity: 1, scale: 1.08 }}
+              transition={transition}
+              className="size-full object-cover blur-hero"
+            />
+          </div>
         ) : null}
-        <div className={cn('absolute inset-0 bg-accent-wash', heroUrl && 'mix-blend-color')} />
-        <div className="absolute inset-0 bg-linear-to-t from-ground via-ground/70 to-transparent" />
-        <div className="absolute inset-0 bg-linear-to-r from-ground/80 to-transparent" />
+        {/* The accent lights the art from the lower left instead of recolouring it. */}
+        <div
+          className={cn(
+            'absolute inset-0',
+            heroUrl ? 'bg-radial-[at_0%_100%] from-accent-wash to-transparent' : 'bg-accent-wash',
+          )}
+        />
+        <div className="absolute inset-0 bg-linear-to-t from-ground via-ground/50 via-30% to-transparent to-65%" />
+        <div className="absolute inset-0 bg-linear-to-r from-ground/60 to-transparent to-45%" />
       </div>
-      <div className="flex items-end gap-6 px-8 pt-24 pb-8">
+      {overlay ? <div className="absolute top-4 left-gutter z-10">{overlay}</div> : null}
+      <div className="flex items-end gap-6 px-gutter pt-24 pb-8">
         {cover}
         <div className="flex min-w-0 flex-col gap-4">
           <Title className="font-title text-display-lg text-fg">{title}</Title>

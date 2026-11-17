@@ -16,14 +16,16 @@ import {
   FOR_YOU_LIMIT,
   layoutOwners,
   pickChips,
+  capChips,
 } from '@/lib/forYou';
+import { hasDeckDevice } from '@/lib/devices';
 import { coverLayoutId } from '@/lib/motion';
 
 function LauncherSkeleton() {
   return (
     <div className="flex flex-col gap-8 pb-12" aria-busy>
       <Skeleton className="h-80 rounded-none" />
-      <div className="flex gap-4 px-6">
+      <div className="flex gap-4 px-gutter">
         {[0, 1, 2, 3].map((i) => (
           <GameCard key={i} skeleton title="" />
         ))}
@@ -37,6 +39,7 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
   const { feedback, send, error } = useFeedback();
   const navigate = useNavigate();
   const reduced = useReduced();
+  const deckDevice = hasDeckDevice(devices);
   const deviceFeeds = useDeviceRecommendations(
     devices.map((d) => d.id),
     FOR_YOU_LIMIT,
@@ -45,7 +48,7 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
   if (feed.isPending) return <LauncherSkeleton />;
   if (feed.isError) {
     return (
-      <div className="px-6">
+      <div className="px-gutter">
         <LoadError message={feed.error.message} onRetry={() => void feed.refetch()} />
       </div>
     );
@@ -54,7 +57,7 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
   const top = feed.data[0];
   if (!top) {
     return (
-      <div className="px-6">
+      <div className="px-gutter">
         <Notice>
           {devices.length > 0 ? (
             'No picks yet. Add more games with hours played to sharpen them.'
@@ -107,11 +110,11 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
         }
       />
       {error && (
-        <div className="px-6">
+        <div className="px-gutter">
           <Notice tone="error">{error.message}</Notice>
         </div>
       )}
-      <div className="flex flex-col gap-10 px-6">
+      <div className="flex flex-col gap-10 px-gutter">
         {shelves.map((shelf) => (
           <Shelf key={shelf.id} title={shelf.title} controls>
             {shelf.picks.map((r) => {
@@ -123,7 +126,7 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
                   coverUrl={r.game.coverUrl}
                   coverUrlSmall={r.game.coverUrlSmall}
                   accent={r.game.accent}
-                  chips={pickChips(r)}
+                  chips={capChips(pickChips(r, { hasDeckDevice: deckDevice }))}
                   actions={
                     <FeedbackActions value={feedback[id]} onSend={(kind) => send(id, kind)} />
                   }
@@ -149,7 +152,7 @@ export function ForYou() {
       {devices.isPending ? (
         <LauncherSkeleton />
       ) : devices.isError ? (
-        <div className="px-6">
+        <div className="px-gutter">
           <LoadError message={devices.error.message} onRetry={() => void devices.refetch()} />
         </div>
       ) : (

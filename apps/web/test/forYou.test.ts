@@ -3,6 +3,7 @@ import {
   ALL_TAB,
   SHORT_SESSION_MAX_HOURS,
   buildShelves,
+  capChips,
   fitChips,
   cardKey,
   layoutOwners,
@@ -121,6 +122,29 @@ describe('pickChips', () => {
       { label: 'Laptop', tone: 'yes' },
       { label: 'Backlog', tone: 'unknown', plain: true },
       { label: 'Deck: Playable', tone: 'low' },
+    ]);
+  });
+
+  it('drops the Deck chip when the user has a Steam Deck device (its fit chip covers it)', () => {
+    expect(pickChips(rec({ backlog: true, deck: 'playable' }), { hasDeckDevice: true })).toEqual([
+      { label: 'Laptop', tone: 'yes' },
+      { label: 'Backlog', tone: 'unknown', plain: true },
+    ]);
+  });
+});
+
+describe('capChips', () => {
+  const chips = ['A', 'B', 'C', 'D'].map((label) => ({ label, tone: 'yes' as const }));
+
+  it('returns the chips untouched when they fit', () => {
+    expect(capChips(chips.slice(0, 2), 2)).toEqual(chips.slice(0, 2));
+  });
+
+  it('keeps the first max chips and adds a plain +N chip for the rest', () => {
+    expect(capChips(chips, 2)).toEqual([
+      chips[0],
+      chips[1],
+      { label: '+2', tone: 'unknown', plain: true },
     ]);
   });
 });

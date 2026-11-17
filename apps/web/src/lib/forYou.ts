@@ -81,15 +81,33 @@ export interface PickChip extends FitChip {
   plain?: true;
 }
 
-/** Card chips for a pick: per-device fit, then Backlog and Steam Deck compatibility when set. */
-export function pickChips(rec: Pick<Recommendation, 'fits' | 'backlog' | 'deck'>): PickChip[] {
+/** Chips a launcher card shows before the rest collapse into a "+N" chip. */
+export const CARD_CHIP_LIMIT = 2;
+
+/**
+ * Card chips for a pick: per-device fit, then Backlog and Steam Deck compatibility when set. With a
+ * Steam Deck device the fit chip already covers deck status, so the separate Deck chip is dropped.
+ */
+export function pickChips(
+  rec: Pick<Recommendation, 'fits' | 'backlog' | 'deck'>,
+  { hasDeckDevice = false }: { hasDeckDevice?: boolean } = {},
+): PickChip[] {
   const chips: PickChip[] = fitChips(rec.fits);
   if (rec.backlog) chips.push({ label: 'Backlog', tone: 'unknown', plain: true });
-  if (rec.deck) {
+  if (rec.deck && !hasDeckDevice) {
     const { label, tone } = deckDisplay(rec.deck);
     chips.push({ label: `Deck: ${label}`, tone });
   }
   return chips;
+}
+
+/** The first `max` chips, plus a plain "+N" chip standing in for the rest. */
+export function capChips(chips: readonly PickChip[], max: number = CARD_CHIP_LIMIT): PickChip[] {
+  if (chips.length <= max) return [...chips];
+  return [
+    ...chips.slice(0, max),
+    { label: `+${chips.length - max}`, tone: 'unknown', plain: true },
+  ];
 }
 
 /** Shelf-scoped key for a card: the same game can sit on several shelves. */

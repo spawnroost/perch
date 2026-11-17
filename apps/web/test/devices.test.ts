@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { DeviceView } from '@perch/core';
-import { addedKinds, canEditHardware, deviceSummary, deviceType } from '../src/lib/devices.js';
+import {
+  addedKinds,
+  canEditHardware,
+  hasDeckDevice,
+  deviceSummary,
+  deviceType,
+} from '../src/lib/devices.js';
 
 function device(over: Partial<DeviceView>): DeviceView {
   return {
@@ -50,5 +56,13 @@ describe('addedKinds', () => {
     expect(addedKinds([device({ kind: 'pc' }), device({ kind: 'mac' })])).toEqual(
       new Set(['pc', 'mac']),
     );
+  });
+});
+
+describe('hasDeckDevice', () => {
+  it('is true only when a Steam Deck is among the devices', () => {
+    expect(hasDeckDevice([device({ kind: 'pc' }), device({ kind: 'steam-deck' })])).toBe(true);
+    expect(hasDeckDevice([device({ kind: 'pc' }), device({ kind: 'rog-ally' })])).toBe(false);
+    expect(hasDeckDevice([])).toBe(false);
   });
 });

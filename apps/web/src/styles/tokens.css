@@ -129,7 +129,9 @@
   --shadow-overlay: inset 0 1px 0 0 var(--color-edge), 0 16px 40px -8px oklch(0 0 0 / 0.6);
 
   /* Hero and shelf geometry. */
-  --blur-hero: 3rem;
+  --blur-hero: 0.75rem;
+  /* Horizontal page gutter shared by the nav, hero and shelves on edge-to-edge routes. */
+  --spacing-gutter: 2rem;
   --perspective-shelf: 900px;
 
   /* Motion: exponential ease-out from a visible default. Durations for CSS transitions;
@@ -188,6 +190,15 @@
     }
     to {
       transform: translateY(1.5rem);
+    }
+  }
+  --animate-hero-drift: hero-drift 36s var(--ease-in-out) infinite alternate;
+  @keyframes hero-drift {
+    from {
+      transform: scale(1) translateX(0);
+    }
+    to {
+      transform: scale(1.06) translateX(-1.5%);
     }
   }
   --animate-shimmer: shimmer 1.6s linear infinite;

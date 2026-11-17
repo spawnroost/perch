@@ -34,7 +34,7 @@ function BackLink() {
         e.preventDefault();
         void navigate(-1);
       }}
-      className="inline-flex w-fit items-center gap-1 rounded-sm text-sm text-fg-muted hover:text-fg"
+      className="inline-flex w-fit items-center gap-1 rounded-full bg-ground/60 py-1 pr-3 pl-2 text-sm text-fg-muted backdrop-blur-sm hover:text-fg"
     >
       <ChevronLeft size={14} strokeWidth={1.75} aria-hidden />
       {hasHistory ? 'Back' : 'For you'}
@@ -49,18 +49,16 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
   const { feedback, send, error: feedbackError } = useFeedback();
   const reduced = useReduced();
   const layoutId = igdbId === null ? undefined : coverLayoutId(igdbId, reduced);
-  const back = (
-    <div className="px-6 pt-1">
-      <BackLink />
-    </div>
-  );
+  const back = <BackLink />;
+  // Before the hero exists (loading, error, not found) the link sits on the page itself.
+  const standaloneBack = <div className="px-gutter pt-4">{back}</div>;
 
-  if (igdbId === null) return <NotFound back={back} />;
+  if (igdbId === null) return <NotFound back={standaloneBack} />;
   if (detail.isPending) {
     return (
       <>
-        {back}
-        <div className="flex gap-4 px-8" aria-busy>
+        {standaloneBack}
+        <div className="flex gap-4 px-gutter" aria-busy>
           <motion.div layoutId={layoutId} className="w-40 shrink-0">
             <Skeleton className="aspect-3/4 w-full" />
           </motion.div>
@@ -71,12 +69,12 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
   }
   if (detail.isError) {
     if (detail.error instanceof ApiError && detail.error.status === 404) {
-      return <NotFound back={back} />;
+      return <NotFound back={standaloneBack} />;
     }
     return (
       <>
-        {back}
-        <div className="px-6">
+        {standaloneBack}
+        <div className="px-gutter">
           <LoadError message={detail.error.message} onRetry={() => void detail.refetch()} />
         </div>
       </>
@@ -93,8 +91,8 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
 
   return (
     <div className="flex flex-col gap-6 pb-12">
-      {back}
       <Hero
+        overlay={back}
         title={game.name}
         heroUrl={game.heroUrl}
         accent={game.accent}
@@ -149,7 +147,7 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
           </>
         }
       />
-      <div className="flex max-w-3xl flex-col gap-6 px-8">
+      <div className="flex max-w-3xl flex-col gap-6 px-gutter">
         {add.isError && <Notice tone="error">{add.error.message}</Notice>}
         {feedbackError && <Notice tone="error">{feedbackError.message}</Notice>}
         {game.summary && (
@@ -204,7 +202,7 @@ function NotFound({ back }: { back: React.ReactNode }) {
   return (
     <>
       {back}
-      <div className="px-6">
+      <div className="px-gutter">
         <Notice>We could not find that game.</Notice>
       </div>
     </>

@@ -77,7 +77,7 @@ export function Shelf({ title, children, controls, className }: ShelfProps) {
         <div
           ref={scroller}
           onKeyDown={onKeyDown}
-          className="-my-8 flex snap-x snap-proximity scroll-px-12 gap-4 overflow-x-auto px-2 py-8 [&>*]:shrink-0 [&>*]:snap-start"
+          className="-mx-2 -my-8 flex snap-x snap-proximity scroll-px-12 gap-4 overflow-x-auto px-2 py-8 [&>*]:shrink-0 [&>*]:snap-start"
         >
           {children}
         </div>

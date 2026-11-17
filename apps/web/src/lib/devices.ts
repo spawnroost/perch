@@ -24,3 +24,7 @@ export function deviceSummary(d: DeviceView): string {
 }
 
 export const addedKinds = (devices: DeviceView[]) => new Set(devices.map((d) => d.kind));
+
+/** A Steam Deck device's fit chip already says whether the Deck runs a game. */
+export const hasDeckDevice = (devices: DeviceView[]) =>
+  devices.some((d) => d.kind === 'steam-deck');

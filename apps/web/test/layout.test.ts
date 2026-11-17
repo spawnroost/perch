@@ -1,15 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { isFullBleedPath } from '../src/lib/layout.js';
+import { layoutKind } from '../src/lib/layout.js';
 
-describe('isFullBleedPath', () => {
-  it('is true for For you, game detail, library and devices only', () => {
-    expect(isFullBleedPath('/')).toBe(true);
-    expect(isFullBleedPath('/games/12')).toBe(true);
-    expect(isFullBleedPath('/games/12/')).toBe(true);
-    expect(isFullBleedPath('/library')).toBe(true);
-    expect(isFullBleedPath('/devices')).toBe(true);
+describe('layoutKind', () => {
+  it('is edge for For you and game detail: art and shelves run to the gutter', () => {
+    for (const p of ['/', '/games/12', '/games/12/']) expect(layoutKind(p)).toBe('edge');
+  });
+
+  it('is wide for library and devices: a centred wide column', () => {
+    for (const p of ['/library', '/library/', '/devices']) expect(layoutKind(p)).toBe('wide');
+  });
+
+  it('is narrow for everything else', () => {
     for (const p of ['/account', '/library/x', '/games', '/games/12/x']) {
-      expect(isFullBleedPath(p)).toBe(false);
+      expect(layoutKind(p)).toBe('narrow');
     }
   });
 });
