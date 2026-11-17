@@ -6,7 +6,7 @@ import { GameSearchAdd } from './GameSearchAdd';
 import { ImportList } from './ImportList';
 import { LibraryEntryEditor } from './LibraryEntryEditor';
 import { useLibrary } from '@/hooks/queries';
-import { useReduced } from '@/hooks/useMotionPrefs';
+import { useCardReturn } from '@/hooks/useCardReturn';
 import {
   browseLibrary,
   entryChips,
@@ -15,7 +15,7 @@ import {
   type LibraryFilter,
   type LibrarySort,
 } from '@/lib/library';
-import { coverLayoutId, firstOfEach } from '@/lib/motion';
+import { firstOfEach } from '@/lib/motion';
 
 const GRID =
   'grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6';
@@ -26,7 +26,7 @@ type Panel = { kind: 'add' } | { kind: 'import' } | { kind: 'edit'; id: string }
 
 export function LibraryView() {
   const library = useLibrary();
-  const reduced = useReduced();
+  const cardReturn = useCardReturn();
   const [filter, setFilter] = useState<LibraryFilter>({ query: '', status: 'all' });
   const [sort, setSort] = useState<LibrarySort>('recent');
   const [panel, setPanel] = useState<Panel | null>(null);
@@ -98,7 +98,8 @@ export function LibraryView() {
                     meta={entryMeta(e)}
                     glow={e.status === 'playing'}
                     sizes={GRID_SIZES}
-                    layoutId={coverOwners.has(e) ? coverLayoutId(e.igdbId, reduced) : undefined}
+                    layoutId={coverOwners.has(e) ? cardReturn.coverId(e.igdbId) : undefined}
+                    fadeIn={cardReturn.fadeIn}
                     className="w-full"
                     to={`/games/${e.igdbId}`}
                     actions={
