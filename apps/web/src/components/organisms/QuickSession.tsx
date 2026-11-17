@@ -6,7 +6,6 @@ import { Button, Label, Notice, Sheet, SheetContent, SheetTrigger } from '../ato
 import { DeviceSwitcher, GameCard, LoadError, Shelf } from '../molecules';
 import { useSession } from '@/hooks/queries';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { capChips, pickChips } from '@/lib/forYou';
 import {
   DEFAULT_SESSION_MINUTES,
   readBatteryPercent,
@@ -80,7 +79,7 @@ function SessionBody({ device, usingDefault }: { device: DeviceView; usingDefaul
             value={battery ?? 50}
             onChange={(e) => setUserBattery(Number(e.currentTarget.value))}
             aria-valuetext={battery === undefined ? 'unknown' : `${battery} percent`}
-            className="w-full cursor-pointer accent-accent"
+            className="w-full max-w-sm cursor-pointer accent-accent"
           />
         </div>
       ) : null}
@@ -106,15 +105,11 @@ function SessionBody({ device, usingDefault }: { device: DeviceView; usingDefaul
                   coverUrl={r.game.coverUrl}
                   coverUrlSmall={r.game.coverUrlSmall}
                   accent={r.game.accent}
-                  chips={capChips([
-                    ...(r.sessionReason
+                  chips={
+                    r.sessionReason
                       ? [{ label: r.sessionReason, tone: 'yes' as const, plain: true as const }]
-                      : []),
-                    ...pickChips(r, {
-                      omitDeviceId: device.id,
-                      hasDeckDevice: device.kind === 'steam-deck',
-                    }),
-                  ])}
+                      : undefined
+                  }
                   onClick={() => void navigate(`/games/${id}`)}
                 />
               );

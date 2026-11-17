@@ -21,7 +21,7 @@ export type SessionQuery = z.infer<typeof sessionQuerySchema>;
 export const sessionResponseSchema = z.object({
   recommendations: z.array(
     recommendationSchema.extend({
-      /** Why this pick suits the session, e.g. "Runs fit in 40 min". */
+      /** Why this pick suits the session, e.g. "Short runs" (the shelf title carries the minutes). */
       sessionReason: z.string(),
     }),
   ),

@@ -52,7 +52,7 @@ function lengthFit(ttb: TimeToBeatHours | null, minutes: number): Fit {
   const hours = [ttb?.normallyHours, ttb?.hastilyHours].find((h) => h != null && h > 0) ?? null;
   if (hours === null) return { factor: 1, reason: null };
   const needed = hours * 60;
-  if (needed <= minutes) return { factor: 1.3, reason: `Finishable in ${minutes} min` };
+  if (needed <= minutes) return { factor: 1.3, reason: 'Beatable now' };
   if (needed <= minutes * 6) return { factor: 1.1, reason: null };
   return { factor: minutes <= SHORT_SESSION_MIN ? 0.85 : 1, reason: null };
 }
@@ -61,7 +61,7 @@ function runFit(rec: SessionRec, minutes: number): Fit {
   if (minutes > SHORT_SESSION_MIN) return { factor: 1, reason: null };
   const strength = Math.max(0, ...PICK_UP_AND_PLAY.map((t) => rec.game.vocab[t] ?? 0));
   return strength > 0
-    ? { factor: 1 + 0.25 * strength, reason: `Runs fit in ${minutes} min` }
+    ? { factor: 1 + 0.25 * strength, reason: 'Short runs' }
     : { factor: 1, reason: null };
 }
 
@@ -102,7 +102,7 @@ export function rankForSession<T extends SessionRec>(
       const light = lightOnBattery(rec, opts);
       const factor = run.factor * length.factor * (light === false ? 0.7 : 1);
       const sessionReason =
-        (light === true ? 'Light on battery' : null) ??
+        (light === true ? 'Battery-light' : null) ??
         run.reason ??
         length.reason ??
         (rec.backlog ? 'Waiting in your backlog' : null) ??

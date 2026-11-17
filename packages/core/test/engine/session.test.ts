@@ -39,7 +39,7 @@ describe('rankForSession', () => {
     const long = rec({ timeToBeat: ttb(40, 60) });
     const out = rankForSession([long, short], { minutes: 40, device: pc });
     expect(out.map((r) => r.game.igdbId)).toEqual([short.game.igdbId, long.game.igdbId]);
-    expect(out[0]!.sessionReason).toBe('Finishable in 40 min');
+    expect(out[0]!.sessionReason).toBe('Beatable now');
     expect(out.map((r) => r.rank)).toEqual([1, 2]);
   });
 
@@ -57,7 +57,7 @@ describe('rankForSession', () => {
     const run = rec({ vocab: { roguelike: 1 } });
     const short = rankForSession([plain, run], { minutes: 30, device: pc });
     expect(short[0]!.game.igdbId).toBe(run.game.igdbId);
-    expect(short[0]!.sessionReason).toBe('Runs fit in 30 min');
+    expect(short[0]!.sessionReason).toBe('Short runs');
     const long = rankForSession([plain, run], { minutes: 180, device: pc });
     expect(long.map((r) => r.game.igdbId)).toEqual([plain.game.igdbId, run.game.igdbId]);
   });
@@ -92,10 +92,10 @@ describe('rankForSession', () => {
       rankForSession([rec({ timeToBeat: t })], { minutes: 30, device: pc })[0]!.sessionReason;
     // hastily fits 30 min but normally (2 h) does not: normally wins.
     expect(reason(ttb(0.4, 2))).toBe('A fit for 30 min');
-    expect(reason(ttb(0.4, null))).toBe('Finishable in 30 min');
+    expect(reason(ttb(0.4, null))).toBe('Beatable now');
     // zero is unknown, not "finishable in any session".
     expect(reason(ttb(0, 0))).toBe('A fit for 30 min');
-    expect(reason(ttb(0, 0.4))).toBe('Finishable in 30 min');
+    expect(reason(ttb(0, 0.4))).toBe('Beatable now');
   });
 
   it('on a handheld below 40% battery, penalises heavy games and says so for light ones', () => {
@@ -103,8 +103,8 @@ describe('rankForSession', () => {
     const light = rec({ gpuRequirement: 1500 });
     const out = rankForSession([heavy, light], { minutes: 60, batteryPct: 30, device: deck });
     expect(out[0]!.game.igdbId).toBe(light.game.igdbId);
-    expect(out[0]!.sessionReason).toBe('Light on battery');
-    expect(out[1]!.sessionReason).not.toBe('Light on battery');
+    expect(out[0]!.sessionReason).toBe('Battery-light');
+    expect(out[1]!.sessionReason).not.toBe('Battery-light');
   });
 
   it('ignores battery on desktops, at 40% or more, or when unknown', () => {
