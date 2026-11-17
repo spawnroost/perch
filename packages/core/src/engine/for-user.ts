@@ -173,7 +173,8 @@ async function waitAtMost(p: Promise<unknown>, ms: number): Promise<void> {
 /**
  * "More like this" for a user: games close to `game` (see `similarTo`), filtered by `device` as in
  * `recommendForUser`, each with the same cover/fit/time-to-beat fields. Null when the game is
- * unknown. Writes nothing.
+ * unknown. Reads the game through `cache.getGame` and may warm time-to-beat caches; it writes
+ * nothing else.
  */
 export async function similarForUser(
   deps: UserEngineDeps & { cache: Pick<IgdbCache, 'getGame'> },
@@ -182,10 +183,12 @@ export async function similarForUser(
   opts: { device?: string; limit?: number; warmTimeToBeat?: boolean } = {},
 ): Promise<{ game: { igdbId: number; name: string }; picks: UserRecommendation[] } | null> {
   const { db, cache, mapVocab, labels, steam } = deps;
-  const seed = await cache.getGame(igdbId);
+  const [seed, { library, feedback }, allDevices] = await Promise.all([
+    cache.getGame(igdbId),
+    loadRecommendInput(db, userId, mapVocab),
+    loadDevices(db, userId),
+  ]);
   if (!seed) return null;
-  const { library, feedback } = await loadRecommendInput(db, userId, mapVocab);
-  const allDevices = await loadDevices(db, userId);
   const fetchers = createFitFetchers(db, steam);
   const recs = await similarTo(
     {

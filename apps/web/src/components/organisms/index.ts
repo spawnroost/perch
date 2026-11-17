@@ -10,6 +10,7 @@ export { GamesStep } from './GamesStep';
 export { LoginForm } from './LoginForm';
 export { OnboardingLayout } from './OnboardingLayout';
 export { PcDeviceForm } from './PcDeviceForm';
+export { PickGridPage } from './PickGridPage';
 export { PicksStep } from './PicksStep';
 export { ResetPasswordForm } from './ResetPasswordForm';
 export { SignupForm } from './SignupForm';

@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { IGDB_PLATFORM as P } from '../../src/devices/presets.js';
 import { createNoneProvider, likeReason } from '../../src/engine/explain.js';
 import type { FilterDevice } from '../../src/engine/filters.js';
+import { MAX_PER_SERIES } from '../../src/engine/rank.js';
 import { SIMILAR_LIMIT, similarTo } from '../../src/engine/similar.js';
 import type { EngineGame, RawGame } from '../../src/engine/types.js';
 import { NOW, game, item } from './fixtures.js';
@@ -91,6 +92,60 @@ describe('similarTo', () => {
     const recs = await similarTo(mkDeps([seed, ...many]), base);
     expect(recs).toHaveLength(SIMILAR_LIMIT);
     expect(SIMILAR_LIMIT).toBe(24);
+  });
+
+  it('caps one franchise in the results', async () => {
+    const sameSeries = Array.from({ length: 30 }, (_, i) =>
+      game(200 + i, `S${i}`, { roguelike: 1, mythology: 0.9, action: 0.8 }, { series: [5] }),
+    );
+    const others = Array.from({ length: 12 }, (_, i) =>
+      game(300 + i, `O${i}`, { roguelike: 1, [`t${i}`]: 0.5 }, { genres: [i] }),
+    );
+    const recs = await similarTo(mkDeps([seed, ...sameSeries, ...others]), { ...base, limit: 10 });
+    expect(recs).toHaveLength(10);
+    expect(recs.filter((r) => r.game.series.includes(5)).length).toBeLessThanOrEqual(
+      MAX_PER_SERIES,
+    );
+  });
+
+  it('keeps the curated similar_games even with no tag overlap, ranked last', async () => {
+    const curated = { ...seed, similarIds: [10, 11, 12] };
+    const recs = await similarTo(mkDeps([curated, close, mid, far]), {
+      ...base,
+      game: curated,
+      limit: 10,
+    });
+    const ids = recs.map((r) => r.game.igdbId);
+    expect(ids).toContain(12);
+    expect(ids.indexOf(12)).toBeGreaterThan(ids.indexOf(10));
+  });
+
+  it('bounds the device walk to 3 x limit candidates', async () => {
+    const many = Array.from({ length: 40 }, (_, i) =>
+      game(
+        400 + i,
+        `D${i}`,
+        { roguelike: 1, [`t${i}`]: 0.5 },
+        { genres: [i % 20], platforms: [P.windows], steamAppId: 400 + i },
+      ),
+    );
+    const fetchDeck = vi.fn(async () => 'unsupported' as const);
+    const deck: FilterDevice = {
+      id: 'deck',
+      kind: 'steam-deck',
+      platformIds: [P.windows],
+      gpuScore: null,
+      cpuScore: null,
+      ramGb: null,
+    };
+    const recs = await similarTo(mkDeps([seed, ...many], { fetchDeck }), {
+      ...base,
+      devices: [deck],
+      limit: 4,
+    });
+    expect(recs).toEqual([]);
+    expect(fetchDeck.mock.calls.length).toBeLessThanOrEqual(12);
+    expect(fetchDeck.mock.calls.length).toBeGreaterThan(0);
   });
 
   it('filters by device and sets fit like recommend()', async () => {

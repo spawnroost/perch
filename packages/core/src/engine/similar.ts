@@ -1,7 +1,7 @@
 import { buildCandidates } from './candidates.js';
 import { likeReason } from './explain.js';
 import type { FilterDevice, FitOptions } from './filters.js';
-import { computeIdf, rankCandidates } from './rank.js';
+import { capSeries, computeIdf, cosine, rankCandidates } from './rank.js';
 import { filterByDevices, type Fit, type RecommendDeps } from './recommend.js';
 import type {
   EngineGame,
@@ -10,9 +10,10 @@ import type {
   Recommendation,
   TasteProfile,
 } from './types.js';
-import { hiddenIds } from './visibility.js';
 
 export const SIMILAR_LIMIT = 24;
+/** The device filter looks at no more than this many x limit ranked games (Steam is rate limited). */
+export const SIMILAR_WALK_FACTOR = 3;
 
 export interface SimilarInput {
   /** The game to find more of (its vocab already computed). */
@@ -51,9 +52,13 @@ export async function similarTo(
   const { game: seed, labels } = input;
   const limit = input.limit ?? SIMILAR_LIMIT;
   const now = (deps.now ?? (() => new Date()))();
-  const hidden = hiddenIds(input.library, input.feedback);
-  for (const l of input.library) hidden.add(l.game.igdbId);
-  hidden.add(seed.igdbId);
+  // Never shown: anything the user gave feedback other than "up" on, the whole library
+  // (backlog too) and the seed itself.
+  const hidden = new Set<number>([
+    ...input.feedback.filter((f) => f.kind !== 'up').map((f) => f.igdbId),
+    ...input.library.map((l) => l.game.igdbId),
+    seed.igdbId,
+  ]);
   const profile = seedProfile(seed);
   // The seed stands alone as the "library": similar_games votes come from it, and it is never
   // a backlog candidate. The real library is excluded through `hidden`.
@@ -67,8 +72,16 @@ export async function similarTo(
   const idf = computeIdf([seed, ...candidates.map((c) => c.game)]);
   // Cosine to the seed is the taste match (centroid = seed = the only source); no slots.
   const rankOpts = { idf, sources: [seed], slots: 0 };
-  const ranked = rankCandidates(profile, candidates, now, undefined, rankOpts).filter(
-    (r) => (r.sim ?? 0) > 0,
+  // IGDB's curated similar_games stay whatever their tag overlap; the rest need some in common.
+  const curated = new Set(seed.similarIds);
+  const related = candidates.filter(
+    (c) => curated.has(c.game.igdbId) || cosine(seed.vocab, c.game.vocab, idf) > 0,
+  );
+  // Without a limit rankCandidates skips the series cap, so apply it here over the whole list:
+  // a big franchise must not fill the grid. The device walk is bounded to the head.
+  const ranked = capSeries(rankCandidates(profile, related, now, undefined, rankOpts), limit).slice(
+    0,
+    limit * SIMILAR_WALK_FACTOR,
   );
   const devices = input.devices?.length ? input.devices : null;
   const fits = new Map<number, Fit>();

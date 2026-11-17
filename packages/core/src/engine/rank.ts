@@ -142,7 +142,7 @@ export function diversify<T extends { game: Pick<EngineGame, 'genres'> }>(
  * with no series are never capped. `pinned` games (slot picks) count toward the cap but are never
  * moved. If too few eligible games remain, the best deferred ones fill the head.
  */
-function capSeries<T extends { game: Pick<EngineGame, 'series'> }>(
+export function capSeries<T extends { game: Pick<EngineGame, 'series'> }>(
   list: readonly T[],
   limit: number,
   pinned: ReadonlySet<T> = new Set(),
