@@ -22,6 +22,7 @@ import type {
   LibraryEntry,
   LibraryPatchInput,
   RecommendationsResponse,
+  SimilarResponse,
   SessionQuery,
   SessionResponse,
 } from '@perch/core';
@@ -116,6 +117,16 @@ export function useRecommendations(
 
 /** The For you feed for a device; switching devices keeps the old picks until the new ones land. */
 export const useForYouFeed = (device: string) => useRecommendations(device, FOR_YOU_LIMIT, true);
+
+/** Games like one game, filtered by device; the title comes with the answer. */
+export function useSimilar(igdbId: number | null, device: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.similar(igdbId ?? 0, device),
+    queryFn: ({ signal }) =>
+      api.get<SimilarResponse>(`/api/games/${igdbId}/similar`, { query: { device }, signal }),
+    enabled: enabled && igdbId !== null,
+  });
+}
 
 /** Ranked picks for a play session; idle until `params` is set (no device picked yet). */
 export function useSession(params: SessionQuery | null) {

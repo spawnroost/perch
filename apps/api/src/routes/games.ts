@@ -4,14 +4,17 @@ import {
   gameFitForUser,
   gameSearchQuerySchema,
   igdbIdParamSchema,
+  similarForUser,
+  similarQuerySchema,
   toTimeToBeatHours,
   type GameDetailResponse,
   type GameSearchResponse,
+  type SimilarResponse,
 } from '@perch/core';
 import type { AppVars, RouteDeps } from '../app.js';
 import { parseParams, parseQuery } from '../http.js';
 import { requireAuth, requireIgdb } from '../middleware.js';
-import { iso } from '../serialize.js';
+import { iso, recommendationDto } from '../serialize.js';
 
 export function gamesRoutes(deps: RouteDeps) {
   const r = new Hono<AppVars>();
@@ -32,6 +35,21 @@ export function gamesRoutes(deps: RouteDeps) {
         coverUrlSmall: g.coverUrlSmall,
       })),
     } satisfies GameSearchResponse);
+  });
+
+  r.get('/:igdbId/similar', async (c) => {
+    const { igdbId } = parseParams(c, igdbIdParamSchema);
+    const { device } = parseQuery(c, similarQuerySchema);
+    const { cache } = requireIgdb(deps);
+    const found = await similarForUser({ ...deps, cache }, c.get('user').id, igdbId, {
+      device,
+      warmTimeToBeat: true,
+    });
+    if (!found) return c.json({ error: 'game not found' }, 404);
+    return c.json({
+      game: found.game,
+      recommendations: found.picks.map(recommendationDto),
+    } satisfies SimilarResponse);
   });
 
   r.get('/:igdbId', async (c) => {

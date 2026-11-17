@@ -12,6 +12,7 @@ describe('layoutKind', () => {
       '/devices',
       '/for-you/source-10',
       '/for-you/more/',
+      '/for-you/like/42',
     ]) {
       expect(layoutKind(p)).toBe('edge');
     }
@@ -23,6 +24,7 @@ describe('layoutKind', () => {
       '/library/x',
       '/for-you',
       '/for-you/a/b',
+      '/for-you/like/x',
       '/games',
       '/games/12/x',
     ]) {

@@ -54,6 +54,21 @@ describe('dropRecommendation', () => {
   });
 });
 
+describe('similar lists', () => {
+  it('sit under the recommendations key, so a feedback drop reaches them', async () => {
+    expect(queryKeys.similar(42, 'all').slice(0, 1)).toEqual(queryKeys.recommendationsAll);
+    expect(queryKeys.similar(42, 'all')).toEqual(['recommendations', 'similar', 42, 'all']);
+    const qc = new QueryClient();
+    qc.setQueryData(queryKeys.similar(42, 'all'), {
+      game: { igdbId: 42, name: 'X' },
+      ...list(1, 2),
+    });
+    await applyFeedback(qc, { igdbId: 2, kind: 'not_interested', undo: false });
+    const data = qc.getQueryData<RecommendationsResponse>(queryKeys.similar(42, 'all'));
+    expect(data?.recommendations.map((r) => r.game.igdbId)).toEqual([1]);
+  });
+});
+
 describe('withFeedback / feedbackChange', () => {
   it('sets or clears one game without touching the others', () => {
     expect(withFeedback({ 1: 'up' }, 2, 'played')).toEqual({ 1: 'up', 2: 'played' });

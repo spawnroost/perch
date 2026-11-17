@@ -24,6 +24,7 @@ import {
   layoutOwners,
   parseDevice,
   shelfPath,
+  similarPath,
 } from '@/lib/forYou';
 
 function LauncherSkeleton() {
@@ -110,6 +111,7 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
               labels
               value={feedback[top.game.igdbId]}
               onSend={(kind) => send(top.game.igdbId, kind)}
+              moreLikeTo={similarPath(top.game.igdbId, selected)}
             />
           </>
         }
@@ -160,7 +162,11 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
                   accent={r.game.accent}
                   chips={cardChips(r, devices, selected)}
                   actions={
-                    <FeedbackActions value={feedback[id]} onSend={(kind) => send(id, kind)} />
+                    <FeedbackActions
+                      value={feedback[id]}
+                      onSend={(kind) => send(id, kind)}
+                      moreLikeTo={similarPath(id, selected)}
+                    />
                   }
                   layoutId={owners.has(cardKey(shelf.id, id)) ? cardReturn.coverId(id) : undefined}
                   fadeIn={cardReturn.fadeIn}

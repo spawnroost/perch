@@ -39,13 +39,13 @@ export interface RecommendInput {
   fitOptions?: FitOptions;
 }
 
-type Fit = NonNullable<Recommendation['fit']>;
+export type Fit = NonNullable<Recommendation['fit']>;
 
 /**
  * Walks `ranked` in order, fetching Steam info only for games that still need it, until `limit`
  * games are kept. A fetch error counts as unknown. Steam is rate limited, so never fetch ahead.
  */
-async function filterByDevices<T extends { game: EngineGame }>(
+export async function filterByDevices<T extends { game: EngineGame }>(
   deps: RecommendDeps,
   ranked: readonly T[],
   devices: readonly FilterDevice[],

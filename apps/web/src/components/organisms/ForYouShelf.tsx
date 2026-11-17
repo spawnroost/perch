@@ -1,11 +1,11 @@
 import { Link } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
 import { Notice, Skeleton } from '../atoms';
-import { FeedbackActions, GameCard, LoadError } from '../molecules';
+import { GameCard, LoadError } from '../molecules';
+import { PickGrid } from './PickGrid';
 import { useDevices, useFeedback, useRecommendations } from '@/hooks/queries';
-import { useCardReturn } from '@/hooks/useCardReturn';
-import { CARD_GRID, CARD_GRID_SIZES } from '@/lib/cardWidth';
-import { ALL_TAB, cardChips, deviceSearch, FOR_YOU_LIMIT, shelfPicks } from '@/lib/forYou';
+import { CARD_GRID } from '@/lib/cardWidth';
+import { ALL_TAB, deviceSearch, FOR_YOU_LIMIT, shelfPicks } from '@/lib/forYou';
 
 export type ForYouShelfProps = {
   /** A key from parseShelfKey. */
@@ -23,7 +23,6 @@ export function ForYouShelf({ shelfKey, device }: ForYouShelfProps) {
   const hero = useRecommendations(ALL_TAB, FOR_YOU_LIMIT);
   const feed = useRecommendations(deviceId, FOR_YOU_LIMIT, false, resolved);
   const { feedback, send, error } = useFeedback();
-  const cardReturn = useCardReturn();
   const ready = resolved && hero.isSuccess && feed.isSuccess;
   const heroId = hero.data?.[0]?.game.igdbId ?? null;
   const shelf = ready ? shelfPicks(feed.data, shelfKey, heroId) : null;
@@ -65,30 +64,13 @@ export function ForYouShelf({ shelfKey, device }: ForYouShelfProps) {
       )}
       {ready && !shelf && <Notice>Nothing on this shelf right now.</Notice>}
       {devices.data && shelf && (
-        <ul className={CARD_GRID}>
-          {shelf.picks.map((r) => {
-            const id = r.game.igdbId;
-            return (
-              <li key={id}>
-                <GameCard
-                  title={r.game.name}
-                  coverUrl={r.game.coverUrl}
-                  coverUrlSmall={r.game.coverUrlSmall}
-                  accent={r.game.accent}
-                  chips={cardChips(r, devices.data, deviceId)}
-                  sizes={CARD_GRID_SIZES}
-                  layoutId={cardReturn.coverId(id)}
-                  fadeIn={cardReturn.fadeIn}
-                  className="w-full"
-                  to={`/games/${id}`}
-                  actions={
-                    <FeedbackActions value={feedback[id]} onSend={(kind) => send(id, kind)} />
-                  }
-                />
-              </li>
-            );
-          })}
-        </ul>
+        <PickGrid
+          picks={shelf.picks}
+          devices={devices.data}
+          deviceId={deviceId}
+          feedback={feedback}
+          onSend={send}
+        />
       )}
     </section>
   );

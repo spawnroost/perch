@@ -62,6 +62,10 @@ export const parseDevice = (value: string | null | undefined): string => value |
 export const shelfPath = (key: string, device: string): string =>
   `/for-you/${key}${deviceSearch(device)}`;
 
+/** Route of a game's "More like this" grid; the device rides along unless it is All. */
+export const similarPath = (igdbId: number, device: string): string =>
+  `/for-you/like/${igdbId}${deviceSearch(device)}`;
+
 /**
  * Shelves for the launcher, grouped by reason. Each game appears once and the hero game never.
  * Claim order, most specific first: From your backlog, Short sessions (at most

@@ -17,6 +17,7 @@ import { createFitFetchers, loadDevices, loadRecommendInput } from './load.js';
 import { buildProfile } from './profile.js';
 import { computeIdf } from './rank.js';
 import { mergeLibrary, recommend, similaritySources } from './recommend.js';
+import { similarTo, SIMILAR_LIMIT } from './similar.js';
 import { batteryMatters, rankForSession, type SessionRanked } from './session.js';
 import { DeviceNotFoundError, selectDevices } from '../devices/store.js';
 import type { Recommendation, Vocab } from './types.js';
@@ -115,7 +116,18 @@ async function recommendPicks(
     },
     { library, feedback, limit: opts.limit, devices: selectDevices(allDevices, opts.device) },
   );
-  // The picks are cached by now, so this is one DB read.
+  return enrichPicks(deps, recs, allDevices, fetchers, opts);
+}
+
+/** Adds cover, time-to-beat and per-device fit to picks. The picks are cached by now: one DB read. */
+async function enrichPicks(
+  deps: UserEngineDeps,
+  recs: readonly Recommendation[],
+  allDevices: readonly (FilterDevice & { name: string })[],
+  fetchers: FitFetchers,
+  opts: { gpuRequirementsFor?: string; warmTimeToBeat?: boolean; warmWaitMs?: number },
+): Promise<SessionPick[]> {
+  const { db, cache } = deps;
   const ids = recs.map((r) => r.game.igdbId);
   if (opts.warmTimeToBeat) {
     const warm = Promise.resolve(cache.warmTimeToBeat(ids));
@@ -156,6 +168,49 @@ async function waitAtMost(p: Promise<unknown>, ms: number): Promise<void> {
     }),
   ]);
   clearTimeout(timer);
+}
+
+/**
+ * "More like this" for a user: games close to `game` (see `similarTo`), filtered by `device` as in
+ * `recommendForUser`, each with the same cover/fit/time-to-beat fields. Null when the game is
+ * unknown. Writes nothing.
+ */
+export async function similarForUser(
+  deps: UserEngineDeps & { cache: Pick<IgdbCache, 'getGame'> },
+  userId: string,
+  igdbId: number,
+  opts: { device?: string; limit?: number; warmTimeToBeat?: boolean } = {},
+): Promise<{ game: { igdbId: number; name: string }; picks: UserRecommendation[] } | null> {
+  const { db, cache, mapVocab, labels, steam } = deps;
+  const seed = await cache.getGame(igdbId);
+  if (!seed) return null;
+  const { library, feedback } = await loadRecommendInput(db, userId, mapVocab);
+  const allDevices = await loadDevices(db, userId);
+  const fetchers = createFitFetchers(db, steam);
+  const recs = await similarTo(
+    {
+      getGames: (ids) => cache.getGames(ids),
+      queryByTags: (q) => cache.queryByTags(q),
+      mapVocab,
+      ...fetchers,
+      explain: createNoneProvider({ labels }),
+    },
+    {
+      game: { ...seed, vocab: mapVocab(seed) },
+      library: mergeLibrary(library),
+      feedback,
+      labels,
+      limit: opts.limit ?? SIMILAR_LIMIT,
+      devices: selectDevices(allDevices, opts.device),
+    },
+  );
+  const picks = await enrichPicks(deps, recs, allDevices, fetchers, {
+    warmTimeToBeat: opts.warmTimeToBeat,
+  });
+  return {
+    game: { igdbId: seed.igdbId, name: seed.name },
+    picks: picks.map(withoutGpu),
+  };
 }
 
 /** Session picks: the user's recommendations re-ranked for `minutes` of play on one device. */

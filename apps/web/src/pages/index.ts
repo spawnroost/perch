@@ -8,5 +8,6 @@ export { LibraryPage } from './LibraryPage';
 export { LoginPage } from './LoginPage';
 export { OnboardingPage } from './OnboardingPage';
 export { ResetPasswordPage } from './ResetPasswordPage';
+export { SimilarPage } from './SimilarPage';
 export { SignupPage } from './SignupPage';
 export { VerifyEmailPage } from './VerifyEmailPage';

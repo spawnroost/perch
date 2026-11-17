@@ -40,3 +40,16 @@ export const recommendationsResponseSchema = z.object({
 });
 
 export type RecommendationsResponse = z.infer<typeof recommendationsResponseSchema>;
+
+export const similarQuerySchema = z.object({
+  /** A device id or preset id, 'all' (default) or 'none' (no device filtering). */
+  device: z.string().trim().min(1).max(64).optional(),
+});
+
+export const similarResponseSchema = z.object({
+  /** The game the list is "more like". */
+  game: z.object({ igdbId: z.number().int(), name: z.string() }),
+  recommendations: z.array(recommendationSchema),
+});
+
+export type SimilarResponse = z.infer<typeof similarResponseSchema>;

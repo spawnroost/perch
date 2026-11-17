@@ -1,6 +1,6 @@
 export { buildCandidates, CANDIDATE_CAP } from './candidates.js';
 export type { CandidateDeps, CandidateInput } from './candidates.js';
-export { closestSource, createNoneProvider } from './explain.js';
+export { closestSource, createNoneProvider, likeReason } from './explain.js';
 export type { ExplainProvider, ExplainRequest } from './explain.js';
 export { buildProfile, weighGames } from './profile.js';
 export type { ProfileInput } from './profile.js';
@@ -24,6 +24,8 @@ export type {
   FitRequirements,
   FitStatus,
 } from './filters.js';
+export { SIMILAR_LIMIT, similarTo } from './similar.js';
+export type { SimilarInput } from './similar.js';
 export { mergeLibrary, recommend, similaritySources } from './recommend.js';
 export type { RecommendDeps, RecommendInput } from './recommend.js';
 export { createFitFetchers, loadDevices, loadRecommendInput } from './load.js';
@@ -47,5 +49,6 @@ export {
   gameFitForUser,
   recommendForUser,
   sessionForUser,
+  similarForUser,
 } from './for-user.js';
 export type { DeviceFit, GameFit, UserEngineDeps, UserRecommendation } from './for-user.js';

@@ -9,7 +9,7 @@ import { ApiError } from '@/lib/api';
 import { coverImage } from '@/lib/coverSrcSet';
 import { coverLayoutId, fadeTransition } from '@/lib/motion';
 import { releaseYear } from '@/lib/onboarding';
-import { platformChips } from '@/lib/forYou';
+import { ALL_TAB, platformChips, similarPath } from '@/lib/forYou';
 import { platformNames } from '@/lib/platforms';
 import { timeToBeatLabel } from '@/lib/timeToBeat';
 
@@ -166,6 +166,7 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
               labels
               value={feedback[game.igdbId]}
               onSend={(kind) => send(game.igdbId, kind)}
+              moreLikeTo={similarPath(game.igdbId, ALL_TAB)}
             />
           </>
         }

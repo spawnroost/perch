@@ -258,6 +258,56 @@ describe.skipIf(!testUrl)('api routes', () => {
       expect(((await res.json()) as { why: string[] }).why).toEqual([]);
     });
 
+    it('lists more like a game, minus the library, filtered by device', async () => {
+      const u = await newUser();
+      expect((await call('POST', '/api/devices', u.cookie, { preset: 'ps5' })).status).toBe(201);
+      const res = await get(`/api/games/${A}/similar?device=none`, u.cookie);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as {
+        game: { igdbId: number; name: string };
+        recommendations: {
+          reason: string;
+          sourceGame: { igdbId: number } | null;
+          game: { igdbId: number };
+          fits: unknown[];
+        }[];
+      };
+      expect(body.game).toEqual({ igdbId: A, name: 'Routetest Alpha' });
+      const ids = body.recommendations.map((r) => r.game.igdbId);
+      expect(ids).toContain(B);
+      expect(ids).not.toContain(A);
+      const beta = body.recommendations.find((r) => r.game.igdbId === B)!;
+      expect(beta.reason).toMatch(/^Like Routetest Alpha/);
+      expect(beta.sourceGame?.igdbId).toBe(A);
+      expect(beta.fits).toHaveLength(1);
+
+      // Beta is on PS5, so the PS5 filter keeps it.
+      const ps5 = (await (await get(`/api/games/${A}/similar?device=ps5`, u.cookie)).json()) as {
+        recommendations: { game: { igdbId: number }; fit: { status: string } }[];
+      };
+      expect(ps5.recommendations.map((r) => r.game.igdbId)).toEqual([B]);
+      expect(ps5.recommendations[0]?.fit.status).toBe('green');
+
+      // A library game never comes back.
+      await call('POST', '/api/library', u.cookie, {
+        igdbId: B,
+        hoursPlayed: 30,
+        status: 'playing',
+      });
+      const after = (await (await get(`/api/games/${A}/similar?device=none`, u.cookie)).json()) as {
+        recommendations: { game: { igdbId: number } }[];
+      };
+      expect(after.recommendations.map((r) => r.game.igdbId)).not.toContain(B);
+    });
+
+    it('similar: 400 on a bad id, 404 unknown game or device, 401 signed out', async () => {
+      const u = await newUser();
+      expect((await get('/api/games/abc/similar', u.cookie)).status).toBe(400);
+      expect((await get(`/api/games/${BASE + 9}/similar`, u.cookie)).status).toBe(404);
+      expect((await get(`/api/games/${A}/similar?device=nope`, u.cookie)).status).toBe(404);
+      expect((await get(`/api/games/${A}/similar`)).status).toBe(401);
+    });
+
     it('400 on a bad id, 404 on an unknown game', async () => {
       const u = await newUser();
       expect((await get('/api/games/abc', u.cookie)).status).toBe(400);

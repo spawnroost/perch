@@ -13,6 +13,7 @@ export { PcDeviceForm } from './PcDeviceForm';
 export { PicksStep } from './PicksStep';
 export { ResetPasswordForm } from './ResetPasswordForm';
 export { SignupForm } from './SignupForm';
+export { SimilarGames } from './SimilarGames';
 export { VerifyEmailNotice } from './VerifyEmailNotice';
 export { AccountSettings } from './AccountSettings';
 export { DeviceAdder } from './DeviceAdder';

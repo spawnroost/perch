@@ -15,6 +15,7 @@ import {
   OnboardingPage,
   ResetPasswordPage,
   SignupPage,
+  SimilarPage,
   VerifyEmailPage,
 } from '@/pages';
 import { shouldRetry } from '@/lib/retry';
@@ -42,6 +43,7 @@ export function App() {
             <Route element={<RouteGuard />}>
               <Route element={<AppLayout />}>
                 <Route index element={<HomePage />} />
+                <Route path="for-you/like/:igdbId" element={<SimilarPage />} />
                 <Route path="for-you/:shelfKey" element={<ForYouShelfPage />} />
                 <Route path="library" element={<LibraryPage />} />
                 <Route path="devices" element={<DevicesPage />} />

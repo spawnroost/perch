@@ -10,6 +10,7 @@ import {
   deviceSearch,
   parseDevice,
   parseShelfKey,
+  similarPath,
   shelfPath,
   shelfPicks,
   sourceShelfKey,
@@ -428,5 +429,12 @@ describe('cardChips', () => {
     const rec = { fits: [fit('pc', 'green')], backlog: false, deck: null };
     expect(cardChips(rec, [dev('pc', 'pc')], 'all').map((c) => c.label)).toEqual(['pc']);
     expect(cardChips(rec, [dev('pc', 'pc')], 'gone').map((c) => c.label)).toEqual(['pc']);
+  });
+});
+
+describe('similarPath', () => {
+  it('routes to the More like this grid; the device rides along unless it is All', () => {
+    expect(similarPath(42, ALL_TAB)).toBe('/for-you/like/42');
+    expect(similarPath(42, 'dev 1')).toBe('/for-you/like/42?device=dev%201');
   });
 });
