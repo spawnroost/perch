@@ -159,6 +159,7 @@ describe.skipIf(!testUrl)('api routes', () => {
     it.each([
       ['GET', '/api/games/search?q=alpha'],
       ['GET', `/api/games/${A}`],
+      ['GET', `/api/games/${A}/fit`],
       ['GET', '/api/library'],
       ['POST', '/api/library'],
       ['PATCH', `/api/library/${crypto.randomUUID()}`],
@@ -245,6 +246,30 @@ describe.skipIf(!testUrl)('api routes', () => {
         'PlayStation 5': 'hidden',
       });
       expect(body.why).toHaveLength(1);
+    });
+
+    it('returns just the per-device fit and deck category', async () => {
+      const u = await newUser();
+      await call('POST', '/api/devices', u.cookie, { preset: 'steam-deck' });
+      await call('POST', '/api/devices', u.cookie, { preset: 'ps5' });
+      const res = await get(`/api/games/${A}/fit`, u.cookie);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as {
+        deck: string;
+        fits: { deviceName: string; status: string }[];
+      };
+      expect(Object.keys(body).sort()).toEqual(['deck', 'fits']);
+      expect(body.deck).toBe('verified');
+      expect(Object.fromEntries(body.fits.map((f) => [f.deviceName, f.status]))).toEqual({
+        'Steam Deck': 'green',
+        'PlayStation 5': 'hidden',
+      });
+    });
+
+    it('fit: 400 on a bad id, 404 on an unknown game', async () => {
+      const u = await newUser();
+      expect((await get('/api/games/abc/fit', u.cookie)).status).toBe(400);
+      expect((await get(`/api/games/${BASE + 9}/fit`, u.cookie)).status).toBe(404);
     });
 
     it('explains nothing when no library game is similar', async () => {

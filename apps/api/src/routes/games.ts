@@ -8,6 +8,7 @@ import {
   similarQuerySchema,
   toTimeToBeatHours,
   type GameDetailResponse,
+  type GameFitResponse,
   type GameSearchResponse,
   type SimilarResponse,
 } from '@perch/core';
@@ -50,6 +51,15 @@ export function gamesRoutes(deps: RouteDeps) {
       game: found.game,
       recommendations: found.picks.map(recommendationDto),
     } satisfies SimilarResponse);
+  });
+
+  r.get('/:igdbId/fit', async (c) => {
+    const { igdbId } = parseParams(c, igdbIdParamSchema);
+    const { cache } = requireIgdb(deps);
+    const game = await cache.getGame(igdbId);
+    if (!game) return c.json({ error: 'game not found' }, 404);
+    const { deck, fits } = await gameFitForUser(deps, c.get('user').id, game);
+    return c.json({ deck, fits } satisfies GameFitResponse);
   });
 
   r.get('/:igdbId', async (c) => {

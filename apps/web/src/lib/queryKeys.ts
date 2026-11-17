@@ -6,6 +6,8 @@ export const queryKeys = {
   presets: ['device-presets'] as const,
   gameDetailAll: ['games', 'detail'] as const,
   game: (igdbId: number) => ['games', 'detail', igdbId] as const,
+  /** Under `gameDetailAll`, so library and device changes refresh it. */
+  gameFit: (igdbId: number) => ['games', 'detail', igdbId, 'fit'] as const,
   /** The user's feedback, by game. */
   feedback: ['feedback'] as const,
   gameSearch: (q: string) => ['games', 'search', q] as const,

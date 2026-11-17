@@ -14,6 +14,7 @@ import type {
   FeedbackKind,
   FeedbackListResponse,
   GameDetailResponse,
+  GameFitResponse,
   GameSearchResponse,
   HardwareResponse,
   ImportConfirm,
@@ -75,6 +76,16 @@ export function useGameSearch(q: string) {
     select: (data) => data.results,
     enabled: q.length >= 2,
     placeholderData: keepPreviousData,
+  });
+}
+
+/** Per-device fit for one game, cached per game; `enabled` limits requests to visible rows. */
+export function useGameFit(igdbId: number, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.gameFit(igdbId),
+    queryFn: ({ signal }) => api.get<GameFitResponse>(`/api/games/${igdbId}/fit`, { signal }),
+    enabled,
+    staleTime: 5 * 60_000,
   });
 }
 

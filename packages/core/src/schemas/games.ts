@@ -64,5 +64,12 @@ export const gameDetailResponseSchema = z.object({
   why: z.array(z.string()),
 });
 
+/** Light per-device fit for one game (search results fill this lazily). */
+export const gameFitResponseSchema = z.object({
+  deck: deckCategorySchema.nullable(),
+  fits: z.array(deviceFitSchema),
+});
+
+export type GameFitResponse = z.infer<typeof gameFitResponseSchema>;
 export type GameSearchResponse = z.infer<typeof gameSearchResponseSchema>;
 export type GameDetailResponse = z.infer<typeof gameDetailResponseSchema>;

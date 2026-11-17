@@ -17,6 +17,9 @@ const panelVariants = cva(
           'inset-y-0 right-0 w-full max-w-md border-l border-line data-[state=open]:animate-sheet-in-right data-[state=closed]:animate-sheet-out-right',
         bottom:
           'inset-x-0 bottom-0 max-h-4/5 rounded-t-xl border-t border-line data-[state=open]:animate-sheet-in-bottom data-[state=closed]:animate-sheet-out-bottom',
+        /** Command palette: full screen on mobile, a centred panel from `sm`. Brings its own header and close. */
+        palette:
+          'inset-0 gap-0 p-0 sm:inset-x-0 sm:top-24 sm:bottom-auto sm:mx-auto sm:max-h-3/4 sm:w-full sm:max-w-xl sm:rounded-xl sm:border sm:border-line data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out',
       },
     },
     defaultVariants: { side: 'right' },
@@ -27,7 +30,7 @@ export interface SheetContentProps extends Omit<
   ComponentProps<typeof Dialog.Content>,
   'title' | 'children'
 > {
-  side?: 'right' | 'bottom';
+  side?: 'right' | 'bottom' | 'palette';
   title: string;
   description: string;
   children?: ReactNode;
@@ -41,23 +44,26 @@ export function SheetContent({
   children,
   ...props
 }: SheetContentProps) {
+  const palette = side === 'palette';
   return (
     <Dialog.Portal>
       <Dialog.Overlay className="fixed inset-0 z-50 bg-scrim data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out" />
       <Dialog.Content className={cn(panelVariants({ side }), className)} {...props}>
-        <div className="flex items-start justify-between gap-3">
+        <div className={cn('flex items-start justify-between gap-3', palette && 'sr-only')}>
           <div className="flex flex-col gap-0.5">
             <Dialog.Title className="text-lg font-semibold tracking-tight text-fg">
               {title}
             </Dialog.Title>
             <Dialog.Description className="text-sm text-fg-muted">{description}</Dialog.Description>
           </div>
-          <Dialog.Close
-            aria-label="Close"
-            className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm text-fg-muted transition-colors duration-fast ease-out hover:bg-surface-2 hover:text-fg"
-          >
-            <X size={16} strokeWidth={1.75} aria-hidden />
-          </Dialog.Close>
+          {!palette && (
+            <Dialog.Close
+              aria-label="Close"
+              className="inline-flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-sm text-fg-muted transition-colors duration-fast ease-out hover:bg-surface-2 hover:text-fg"
+            >
+              <X size={16} strokeWidth={1.75} aria-hidden />
+            </Dialog.Close>
+          )}
         </div>
         {children}
       </Dialog.Content>

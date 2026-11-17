@@ -1,6 +1,7 @@
 import { Link, Outlet, useLocation } from 'react-router';
 import { NavBar } from '../molecules';
 import { AccountMenu } from './AccountMenu';
+import { GlobalSearch } from './GlobalSearch';
 import { cn } from '@/lib/cn';
 import { layoutKind } from '@/lib/layout';
 
@@ -17,7 +18,10 @@ export function AppLayout() {
             </Link>
             <NavBar />
           </div>
-          <AccountMenu />
+          <div className="flex items-center gap-2">
+            <GlobalSearch />
+            <AccountMenu />
+          </div>
         </div>
       </header>
       <main

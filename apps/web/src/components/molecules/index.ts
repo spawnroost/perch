@@ -26,3 +26,5 @@ export { DeviceCard } from './DeviceCard';
 export { ImportRowItem } from './ImportRowItem';
 export { LibraryControls } from './LibraryControls';
 export { SelectField } from './SelectField';
+export { SearchResultRow } from './SearchResultRow';
+export type { SearchResultRowProps } from './SearchResultRow';
