@@ -94,3 +94,12 @@ export function canUnlinkSteam(account: Pick<AccountResponse, 'steamId' | 'hasPa
 export function steamStartPath(mode: SteamAuthMode): string {
   return `/api/auth/steam/start?mode=${mode}`;
 }
+
+/** The Account page's line under the title: the email, unless it is a Steam placeholder. */
+export function accountSubtitle(
+  email: string | undefined,
+  steamId: string | null | undefined,
+): string {
+  if (email && !isSteamPlaceholderEmail(email)) return email;
+  return steamId && email ? 'Signed in with Steam' : 'Signed in';
+}

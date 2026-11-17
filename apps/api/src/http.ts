@@ -38,3 +38,8 @@ function formatZodError(err: z.ZodError): string {
 export function isAuthPost(c: Context): boolean {
   return c.req.method === 'POST' && c.req.path.startsWith('/api/auth/');
 }
+
+/** The Steam OpenID redirects: GETs, but they start/finish a sign-in so get the strict bucket. */
+export function isSteamAuthGet(c: Context): boolean {
+  return c.req.method === 'GET' && c.req.path.startsWith('/api/auth/steam/');
+}

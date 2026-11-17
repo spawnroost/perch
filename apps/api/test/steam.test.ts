@@ -182,6 +182,7 @@ describe.skipIf(!testUrl)('steam openid', () => {
     const login = await call(callbackPath, cookie);
     const res = await call('/api/account/steam/unlink', cookieFrom(login), 'POST');
     expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: 'Steam is your only sign-in method.' });
     const [row] = await ctx.db.select().from(schema.users).where(eq(schema.users.steamId, steamId));
     expect(row).toBeDefined();
   });
@@ -210,5 +211,90 @@ describe.skipIf(!testUrl)('steam openid', () => {
       body: JSON.stringify({ email: `${steamId}@steam.perch.invalid`, redirectTo: `${WEB}/reset` }),
     });
     expect(ctx.mailer.sent.length).toBe(before);
+  });
+
+  it('handles two concurrent first-time logins for one Steam id', async () => {
+    valid = true;
+    const steamId = newSteamId();
+    const [a, b] = await Promise.all([begin('login', steamId), begin('login', steamId)]);
+    const [ra, rb] = await Promise.all([
+      call(a.callbackPath, a.cookie),
+      call(b.callbackPath, b.cookie),
+    ]);
+    for (const r of [ra, rb]) {
+      expect(dest(r).href).toBe(`${WEB}/`);
+      expect(cookieFrom(r)).toContain('session_token');
+    }
+    const rows = await ctx.db.select().from(schema.users).where(eq(schema.users.steamId, steamId));
+    expect(rows).toHaveLength(1);
+  });
+
+  it('refuses email signup for reserved .invalid addresses', async () => {
+    const res = await ctx.app.request('/api/auth/sign-up/email', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: WEB },
+      body: JSON.stringify({
+        name: 'Squatter',
+        email: `${newSteamId()}@steam.perch.invalid`,
+        password: PASSWORD,
+      }),
+    });
+    expect(res.status).toBe(400);
+    const none = await ctx.db.select().from(schema.users).where(eq(schema.users.name, 'Squatter'));
+    expect(none).toHaveLength(0);
+  });
+
+  it('lets a Steam-only user delete their account with a fresh session, no password', async () => {
+    valid = true;
+    const steamId = newSteamId();
+    const { callbackPath, cookie } = await begin('login', steamId);
+    const login = await call(callbackPath, cookie);
+    const res = await ctx.app.request('/api/auth/delete-user', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        origin: WEB,
+        cookie: cookieFrom(login),
+      },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(200);
+    const rows = await ctx.db.select().from(schema.users).where(eq(schema.users.steamId, steamId));
+    expect(rows).toHaveLength(0);
+  });
+
+  it('records the request user agent on the Steam session', async () => {
+    valid = true;
+    const steamId = newSteamId();
+    const { callbackPath, cookie } = await begin('login', steamId);
+    const res = await ctx.app.request(callbackPath, {
+      headers: { cookie, 'user-agent': 'steam-test-agent' },
+    });
+    expect(res.status).toBe(302);
+    const [u] = await ctx.db.select().from(schema.users).where(eq(schema.users.steamId, steamId));
+    const rows = await ctx.db
+      .select()
+      .from(schema.sessions)
+      .where(eq(schema.sessions.userId, u!.id));
+    expect(rows[0]?.userAgent).toBe('steam-test-agent');
+  });
+});
+
+describe.skipIf(!testUrl)('steam openid rate limit', () => {
+  it('puts the Steam redirects in the strict auth bucket', async () => {
+    const ctx = await setupApi(
+      { api: { limit: 100_000, windowMs: 60_000 }, auth: { limit: 2, windowMs: 60_000 } },
+      {},
+      { steamOpenId: { verify: async () => true } },
+    );
+    try {
+      const statuses: number[] = [];
+      for (let i = 0; i < 3; i++) {
+        statuses.push((await ctx.app.request('/api/auth/steam/start?mode=login')).status);
+      }
+      expect(statuses).toEqual([302, 302, 429]);
+    } finally {
+      await ctx.cleanup();
+    }
   });
 });

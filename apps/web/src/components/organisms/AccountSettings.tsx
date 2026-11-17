@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { Button, Notice } from '../atoms';
 import { ActionForm, FormField, SteamSignInButton } from '../molecules';
-import { canUnlinkSteam, isSteamPlaceholderEmail } from '@perch/core';
+import { accountSubtitle, canUnlinkSteam } from '@perch/core';
 import { useAccount, useUnlinkSteam } from '@/hooks/queries';
 import { useSteamError } from '@/hooks/useSteamError';
 import { useAction } from '@/hooks/useAction';
@@ -99,22 +99,18 @@ function SteamLink() {
       {(steamError ?? unlinkError) && <Notice tone="error">{steamError ?? unlinkError}</Notice>}
       {data &&
         (linked ? (
-          <>
+          canUnlinkSteam(data) ? (
             <Button
               variant="secondary"
               className="w-fit"
               loading={unlink.isPending}
-              disabled={!canUnlinkSteam(data)}
               onClick={() => unlink.mutate()}
             >
               Unlink Steam
             </Button>
-            {!canUnlinkSteam(data) && (
-              <p className="text-sm text-fg-muted">
-                Steam is how you sign in, so it can't be unlinked.
-              </p>
-            )}
-          </>
+          ) : (
+            <p className="text-sm text-fg-muted">Steam is your only sign-in method.</p>
+          )
         ) : (
           <div className="w-fit">
             <SteamSignInButton mode="link">Link Steam</SteamSignInButton>
@@ -124,12 +120,16 @@ function SteamLink() {
   );
 }
 
-function DeleteAccount() {
+function DeleteAccount({ hasPassword }: { hasPassword: boolean }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [confirming, setConfirming] = useState(false);
   const { run, pending, error } = useAction(async (password: string) => {
-    unwrapAuth(await authClient.deleteUser({ password }));
+    // Steam-only users have no password: better-auth then needs a fresh session instead.
+    const result = await authClient.deleteUser(hasPassword ? { password } : {});
+    if (!hasPassword && result.error)
+      throw new Error('Your session is too old. Sign out, sign in with Steam again, then retry.');
+    unwrapAuth(result);
     queryClient.clear();
     await navigate('/login', { replace: true });
   });
@@ -140,7 +140,7 @@ function DeleteAccount() {
     >
       {confirming ? (
         <ActionForm
-          onSubmit={(data) => void run(String(data.get('password')))}
+          onSubmit={(data) => void run(String(data.get('password') ?? ''))}
           submitLabel="Delete my account"
           pending={pending}
           error={error}
@@ -150,13 +150,15 @@ function DeleteAccount() {
             </Button>
           }
         >
-          <FormField
-            label="Confirm with your password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-          />
+          {hasPassword && (
+            <FormField
+              label="Confirm with your password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+            />
+          )}
         </ActionForm>
       ) : (
         <Button variant="danger" className="w-fit" onClick={() => setConfirming(true)}>
@@ -176,9 +178,7 @@ export function AccountSettings() {
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-2xl font-semibold tracking-display text-fg">Account</h1>
-        <p className="text-sm text-fg-muted">
-          {email && !isSteamPlaceholderEmail(email) ? email : 'Signed in with Steam'}
-        </p>
+        <p className="text-sm text-fg-muted">{accountSubtitle(email, account?.steamId)}</p>
       </div>
       {account?.hasPassword !== false && <ChangePassword />}
       <SteamLink />
@@ -193,7 +193,7 @@ export function AccountSettings() {
           Sign out
         </Button>
       </Section>
-      <DeleteAccount />
+      <DeleteAccount hasPassword={account?.hasPassword !== false} />
     </div>
   );
 }

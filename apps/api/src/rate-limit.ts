@@ -1,7 +1,7 @@
 import { createMiddleware } from 'hono/factory';
 import { getConnInfo } from '@hono/node-server/conninfo';
 import type { AppVars } from './app.js';
-import { isAuthPost } from './http.js';
+import { isAuthPost, isSteamAuthGet } from './http.js';
 
 export interface RateRule {
   limit: number;
@@ -68,7 +68,7 @@ export function clientKey(p: {
 export interface RateLimitConfig {
   /** Everything under /api except POST /api/auth/*. */
   api: RateRule;
-  /** POST /api/auth/*; stricter, always keyed by IP. */
+  /** POST /api/auth/* and the Steam sign-in redirects; stricter, always keyed by IP. */
   auth: RateRule;
 }
 
@@ -89,7 +89,7 @@ export function rateLimit(config: RateLimitConfig, { trustProxy }: { trustProxy:
 
   return createMiddleware<AppVars>(async (c, next) => {
     // Only credential-handling POSTs (sign-in, sign-up, reset, ...) get the strict bucket.
-    const isAuth = isAuthPost(c);
+    const isAuth = isAuthPost(c) || isSteamAuthGet(c);
     let remoteAddress: string | undefined;
     try {
       remoteAddress = getConnInfo(c).remote.address;

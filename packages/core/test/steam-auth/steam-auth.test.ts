@@ -6,6 +6,7 @@ import {
   isSteamPlaceholderEmail,
   steamErrorMessage,
   canUnlinkSteam,
+  accountSubtitle,
   steamStartPath,
   steamPlaceholderEmail,
 } from '../../src/steam-auth/index.js';
@@ -111,5 +112,14 @@ describe('account helpers', () => {
   it('builds the start path', () => {
     expect(steamStartPath('login')).toBe('/api/auth/steam/start?mode=login');
     expect(steamStartPath('link')).toBe('/api/auth/steam/start?mode=link');
+  });
+});
+
+describe('accountSubtitle', () => {
+  it('shows real emails, labels Steam placeholders, else falls back', () => {
+    expect(accountSubtitle('a@b.dev', null)).toBe('a@b.dev');
+    expect(accountSubtitle(steamPlaceholderEmail(ID), ID)).toBe('Signed in with Steam');
+    expect(accountSubtitle(steamPlaceholderEmail(ID), null)).toBe('Signed in');
+    expect(accountSubtitle(undefined, ID)).toBe('Signed in');
   });
 });

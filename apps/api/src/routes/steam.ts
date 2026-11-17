@@ -1,6 +1,7 @@
 import { and, eq, isNotNull } from 'drizzle-orm';
 import { Hono, type Context } from 'hono';
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie';
+import { getConnInfo } from '@hono/node-server/conninfo';
 import { HTTPException } from 'hono/http-exception';
 import {
   SteamAuthModeSchema,
@@ -19,6 +20,16 @@ const STATE_COOKIE = 'perch_steam_state';
 const STATE_TTL_SEC = 10 * 60;
 
 /** `/api/auth/steam/*`: custom Steam OpenID 2.0 flow (better-auth has no Steam provider). */
+function requestIp(c: Context, trustProxy: boolean): string {
+  const hop = trustProxy ? c.req.header('x-forwarded-for')?.split(',').at(-1)?.trim() : undefined;
+  if (hop) return hop;
+  try {
+    return getConnInfo(c).remote.address ?? '';
+  } catch {
+    return '';
+  }
+}
+
 export function steamAuthRoutes(deps: RouteDeps) {
   const { db, env, auth } = deps;
   const verifier = deps.steamOpenId ?? createSteamOpenIdVerifier();
@@ -90,26 +101,44 @@ export function steamAuthRoutes(deps: RouteDeps) {
 
     let userId = owner?.id;
     if (!userId) {
-      const ctx = await auth.$context;
-      const created = await ctx.internalAdapter.createUser(
-        {
-          email: steamPlaceholderEmail(steamId),
-          emailVerified: true,
-          name: 'Steam user',
-        },
-        { method: 'steam-openid' },
-      );
-      userId = created.id;
-      await db.update(schema.users).set({ steamId }).where(eq(schema.users.id, userId));
+      userId = await createSteamUser(steamId);
     }
     await startSession(c, userId);
     return webRedirect(c, '/');
   });
 
+  /** Creates the user with steamId in the same write; on a concurrent first login, reuses the winner. */
+  async function createSteamUser(steamId: string): Promise<string> {
+    const ctx = await auth.$context;
+    try {
+      const created = await ctx.internalAdapter.createUser(
+        {
+          email: steamPlaceholderEmail(steamId),
+          emailVerified: true,
+          name: 'Steam user',
+          steamId,
+        },
+        { method: 'steam-openid' },
+      );
+      return created.id;
+    } catch (err) {
+      const [existing] = await db
+        .select({ id: schema.users.id })
+        .from(schema.users)
+        .where(eq(schema.users.steamId, steamId))
+        .limit(1);
+      if (existing) return existing.id;
+      throw err;
+    }
+  }
+
   /** Creates a session and sets the cookie the way better-auth's setSessionCookie does. */
   async function startSession(c: Context, userId: string) {
     const ctx = await auth.$context;
-    const session = await ctx.internalAdapter.createSession(userId, false);
+    const session = await ctx.internalAdapter.createSession(userId, false, {
+      ipAddress: requestIp(c, env.TRUST_PROXY),
+      userAgent: c.req.header('user-agent') ?? '',
+    });
     const { name, attributes } = ctx.authCookies.sessionToken;
     await setSignedCookie(c, name, session.token, ctx.secret, {
       ...attributes,
@@ -141,22 +170,14 @@ export function accountRoutes({ db }: RouteDeps) {
   }
 
   r.get('/', async (c) => {
-    const { id, email } = c.get('user');
-    const [row] = await db
-      .select({ steamId: schema.users.steamId })
-      .from(schema.users)
-      .where(eq(schema.users.id, id))
-      .limit(1);
-    return c.json({ email, steamId: row?.steamId ?? null, hasPassword: await hasPassword(id) });
+    const { id, email, steamId } = c.get('user');
+    return c.json({ email, steamId: steamId ?? null, hasPassword: await hasPassword(id) });
   });
 
   r.post('/steam/unlink', async (c) => {
     const { id } = c.get('user');
     if (!(await hasPassword(id)))
-      return c.json(
-        { error: 'Set a password before unlinking Steam, or you would be locked out.' },
-        409,
-      );
+      return c.json({ error: 'Steam is your only sign-in method.' }, 409);
     await db.update(schema.users).set({ steamId: null }).where(eq(schema.users.id, id));
     return c.json({ ok: true });
   });

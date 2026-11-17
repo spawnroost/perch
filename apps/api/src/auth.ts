@@ -1,5 +1,7 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { APIError, createAuthMiddleware } from 'better-auth/api';
+import { isSteamPlaceholderEmail } from '@perch/core';
 import { schema, type Db } from '@perch/db';
 import type { ApiEnv } from './env.js';
 import { skipPlaceholderRecipients, type Mailer } from './mailer.js';
@@ -35,7 +37,28 @@ export function createAuth(db: Db, env: ApiEnv, rawMailer: Mailer) {
       },
     },
     // Deleting a user cascades to library, devices, feedback, profiles and sessions (FKs).
-    user: { deleteUser: { enabled: true } },
+    // Without a password in the body, better-auth requires a fresh session instead.
+    user: {
+      deleteUser: { enabled: true },
+      additionalFields: {
+        /** SteamID64; set only by our Steam OpenID flow, never from client input. */
+        steamId: { type: 'string', required: false, input: false },
+      },
+    },
+    hooks: {
+      // `.invalid` addresses are reserved for Steam-only accounts: nobody may claim one.
+      before: createAuthMiddleware(async (ctx) => {
+        const body = ctx.body as { email?: unknown; newEmail?: unknown } | undefined;
+        const email = ctx.path === '/sign-up/email' ? body?.email : body?.newEmail;
+        if (
+          (ctx.path === '/sign-up/email' || ctx.path === '/change-email') &&
+          typeof email === 'string' &&
+          isSteamPlaceholderEmail(email.trim())
+        ) {
+          throw new APIError('BAD_REQUEST', { message: 'That email address is not allowed.' });
+        }
+      }),
+    },
   });
 }
 
