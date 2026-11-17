@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { LibraryEntry } from '@perch/core';
-import { Button } from '../atoms';
+import { Button, Notice } from '../atoms';
 import { ActionForm, FormField, SelectField } from '../molecules';
 import { useRemoveLibraryEntry, useUpdateLibraryEntry } from '@/hooks/queries';
 import { buildPatch, STATUS_LABEL, STATUSES, toForm, type Status } from '@/lib/library';
@@ -12,6 +12,7 @@ export function LibraryEntryEditor({ entry, onDone }: { entry: LibraryEntry; onD
   const [formError, setFormError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const form = toForm(entry);
+  const busy = update.isPending || remove.isPending;
 
   function onSubmit(data: FormData) {
     const result = buildPatch(entry, {
@@ -30,23 +31,28 @@ export function LibraryEntryEditor({ entry, onDone }: { entry: LibraryEntry; onD
       onSubmit={onSubmit}
       submitLabel="Save"
       pending={update.isPending}
-      error={formError ?? update.error?.message ?? remove.error?.message ?? null}
+      disabled={busy}
+      error={formError ?? update.error?.message ?? null}
       after={
         confirming ? (
-          <div className="flex gap-2">
-            <Button
-              variant="danger"
-              loading={remove.isPending}
-              onClick={() => remove.mutate(entry.id, { onSuccess: onDone })}
-            >
-              Remove {entry.name}
-            </Button>
-            <Button variant="ghost" onClick={() => setConfirming(false)}>
-              Keep
-            </Button>
+          <div className="flex flex-col gap-2">
+            {remove.error && <Notice tone="error">{remove.error.message}</Notice>}
+            <div className="flex gap-2">
+              <Button
+                variant="danger"
+                loading={remove.isPending}
+                disabled={busy}
+                onClick={() => remove.mutate(entry.id, { onSuccess: onDone })}
+              >
+                Remove {entry.name}
+              </Button>
+              <Button variant="ghost" disabled={busy} onClick={() => setConfirming(false)}>
+                Keep
+              </Button>
+            </div>
           </div>
         ) : (
-          <Button variant="ghost" onClick={() => setConfirming(true)}>
+          <Button variant="ghost" disabled={busy} onClick={() => setConfirming(true)}>
             Remove from library
           </Button>
         )

@@ -4,7 +4,7 @@ import { Notice, Skeleton } from '../atoms';
 import { DevicePresetCard } from '../molecules';
 import { PcDeviceForm } from './PcDeviceForm';
 import { useAddDevice, useDevicePresets, useDevices } from '@/hooks/queries';
-import { addedKinds, deviceType, needsDefault } from '@/lib/devices';
+import { addedKinds, deviceType } from '@/lib/devices';
 
 function iconFor(kind: string) {
   const type = deviceType(kind);
@@ -22,8 +22,6 @@ export function DeviceAdder() {
 
   const kinds = addedKinds(devices.data ?? []);
   const busy = add.isPending;
-  // Wait for the list so the first device is not mistaken for a second one.
-  const isDefault = devices.data ? needsDefault(devices.data) : undefined;
 
   return (
     <div className="flex flex-col gap-4">
@@ -47,7 +45,7 @@ export function DeviceAdder() {
               icon={iconFor(p.id)}
               added={kinds.has(p.id)}
               disabled={busy || kinds.has(p.id)}
-              onSelect={() => add.mutate({ preset: p.id, isDefault })}
+              onSelect={() => add.mutate({ preset: p.id })}
             />
           ))}
         </div>
@@ -57,7 +55,7 @@ export function DeviceAdder() {
           submitLabel="Add PC"
           pending={add.isPending}
           error={add.error?.message ?? null}
-          onSubmit={(pc) => add.mutate({ pc, isDefault }, { onSuccess: () => setPcOpen(false) })}
+          onSubmit={(pc) => add.mutate({ pc }, { onSuccess: () => setPcOpen(false) })}
           onCancel={() => setPcOpen(false)}
         />
       )}

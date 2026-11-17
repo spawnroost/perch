@@ -6,7 +6,13 @@ import { GameSearchAdd } from './GameSearchAdd';
 import { ImportList } from './ImportList';
 import { LibraryEntryEditor } from './LibraryEntryEditor';
 import { useLibrary } from '@/hooks/queries';
-import { filterLibrary, sortLibrary, type LibraryFilter, type LibrarySort } from '@/lib/library';
+import {
+  filterLibrary,
+  games,
+  sortLibrary,
+  type LibraryFilter,
+  type LibrarySort,
+} from '@/lib/library';
 
 type Panel = { kind: 'add' } | { kind: 'import' } | { kind: 'edit'; id: string };
 
@@ -26,7 +32,7 @@ export function LibraryView() {
         <div>
           <h1 className="text-2xl font-semibold tracking-display text-fg">Library</h1>
           {library.data && (
-            <p className="text-sm text-fg-muted tabular-nums">{library.data.length} games</p>
+            <p className="text-sm text-fg-muted tabular-nums">{games(library.data.length)}</p>
           )}
         </div>
         <div className="flex gap-2">

@@ -4,6 +4,7 @@ import {
   canConfirm,
   confirmItems,
   initialRows,
+  retryAfterImport,
   selectMatch,
   summarizeImport,
   unmatchedCount,
@@ -97,5 +98,22 @@ describe('summarizeImport', () => {
         failed: [{ igdbId: 3, error: 'x' }],
       }),
     ).toBe('Imported 2 games. 1 failed.');
+  });
+});
+
+describe('retryAfterImport', () => {
+  const text = 'Hades | 40\nCelest\n\nNothing';
+  it('keeps only the failed lines and labels each failure', () => {
+    const rows = initialRows(lines);
+    const r = retryAfterImport(text, rows, [{ igdbId: 1, error: 'boom' }]);
+    expect(r.text).toBe('Hades | 40');
+    expect(r.failures).toEqual([{ label: 'Hades (IGDB 1)', error: 'boom' }]);
+  });
+  it('is empty when nothing failed', () => {
+    expect(retryAfterImport(text, initialRows(lines), [])).toEqual({ text: '', failures: [] });
+  });
+  it('labels a failed id with no matching row by id alone', () => {
+    const r = retryAfterImport(text, initialRows(lines), [{ igdbId: 99, error: 'x' }]);
+    expect(r).toEqual({ text: '', failures: [{ label: 'IGDB 99', error: 'x' }] });
   });
 });

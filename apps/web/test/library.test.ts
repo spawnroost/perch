@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { LibraryEntry } from '@perch/core';
 import {
   buildPatch,
+  games,
   filterLibrary,
   formatHours,
   formatLastPlayed,
@@ -128,5 +129,25 @@ describe('buildPatch', () => {
       ok: true,
       patch: { status: 'finished' },
     });
+  });
+});
+
+describe('impossible dates', () => {
+  const base = entry({ lastPlayed: null });
+  it('rejects dates that do not exist', () => {
+    for (const d of ['2026-02-30', '2026-13-01', '2026-00-10', '2026-04-31', '2025-02-29']) {
+      expect(buildPatch(base, { ...toForm(base), lastPlayed: d }).ok, d).toBe(false);
+    }
+  });
+  it('accepts real dates including leap days', () => {
+    expect(buildPatch(base, { ...toForm(base), lastPlayed: '2024-02-29' }).ok).toBe(true);
+  });
+});
+
+describe('games', () => {
+  it('pluralizes', () => {
+    expect(games(1)).toBe('1 game');
+    expect(games(0)).toBe('0 games');
+    expect(games(12)).toBe('12 games');
   });
 });

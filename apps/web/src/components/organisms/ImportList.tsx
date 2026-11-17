@@ -6,6 +6,7 @@ import {
   canConfirm,
   confirmItems,
   initialRows,
+  retryAfterImport,
   selectMatch,
   summarizeImport,
   unmatchedCount,
@@ -17,6 +18,7 @@ export function ImportList({ onDone }: { onDone: () => void }) {
   const [text, setText] = useState('');
   const [rows, setRows] = useState<ImportRow[] | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
+  const [failures, setFailures] = useState<{ label: string; error: string }[]>([]);
   const [lineErrors, setLineErrors] = useState<{ line: number; error: string }[]>([]);
   const preview = useImportPreview();
   const confirm = useImportConfirm();
@@ -36,9 +38,12 @@ export function ImportList({ onDone }: { onDone: () => void }) {
       { items: confirmItems(rows) },
       {
         onSuccess: (res) => {
+          const retry = retryAfterImport(text, rows, res.failed);
           setSummary(summarizeImport(res));
+          setFailures(retry.failures);
           setRows(null);
-          setText('');
+          // Failed lines stay in the textarea so they can be retried.
+          setText(retry.text);
         },
       },
     );
@@ -47,10 +52,32 @@ export function ImportList({ onDone }: { onDone: () => void }) {
   if (summary) {
     return (
       <div className="flex flex-col gap-3">
-        <Notice tone="success">{summary}</Notice>
-        <Button variant="secondary" onClick={onDone}>
-          Done
-        </Button>
+        <Notice tone={failures.length > 0 ? 'error' : 'success'}>{summary}</Notice>
+        {failures.length > 0 && (
+          <ul className="flex flex-col gap-1 text-sm text-fg-muted">
+            {failures.map((f) => (
+              <li key={f.label}>
+                {f.label}: {f.error}
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="flex gap-2">
+          {failures.length > 0 && (
+            <Button
+              variant="primary"
+              onClick={() => {
+                setSummary(null);
+                setFailures([]);
+              }}
+            >
+              Retry failed
+            </Button>
+          )}
+          <Button variant="secondary" onClick={onDone}>
+            Done
+          </Button>
+        </div>
       </div>
     );
   }

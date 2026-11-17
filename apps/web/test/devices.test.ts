@@ -1,13 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DeviceView } from '@perch/core';
-import {
-  addedKinds,
-  canEditHardware,
-  deviceSummary,
-  deviceType,
-  needsDefault,
-  successorDefault,
-} from '../src/lib/devices.js';
+import { addedKinds, canEditHardware, deviceSummary, deviceType } from '../src/lib/devices.js';
 
 function device(over: Partial<DeviceView>): DeviceView {
   return {
@@ -49,26 +42,6 @@ describe('deviceType', () => {
   it('only PCs have editable hardware', () => {
     expect(canEditHardware(device({ kind: 'pc' }))).toBe(true);
     expect(canEditHardware(device({ kind: 'steam-deck' }))).toBe(false);
-  });
-});
-
-describe('default device', () => {
-  const list = [
-    device({ id: 'a', isDefault: true, createdAt: '2026-01-01T00:00:00.000Z' }),
-    device({ id: 'c', createdAt: '2026-03-01T00:00:00.000Z' }),
-    device({ id: 'b', createdAt: '2026-02-01T00:00:00.000Z' }),
-  ];
-  it('needs a default when none is flagged', () => {
-    expect(needsDefault([])).toBe(true);
-    expect(needsDefault([device({})])).toBe(true);
-    expect(needsDefault(list)).toBe(false);
-  });
-  it('promotes the oldest remaining device when the default is removed', () => {
-    expect(successorDefault(list, 'a')).toBe('b');
-  });
-  it('promotes nobody when a non-default is removed or none remain', () => {
-    expect(successorDefault(list, 'c')).toBeNull();
-    expect(successorDefault([list[0]!], 'a')).toBeNull();
   });
 });
 

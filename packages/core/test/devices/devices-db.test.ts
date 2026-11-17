@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { createDb, devices, runMigrations, users, type Db } from '@perch/db';
 import {
   addDevice,
+  deleteDevice,
   listDevices,
   removeDevice,
   selectDevices,
@@ -73,6 +74,43 @@ describe.skipIf(!url)('device store', () => {
     expect(list[0]!.id).toBe(b.id);
     expect(list.filter((d) => d.isDefault)).toHaveLength(1);
     expect(list.find((d) => d.id === a.id)!.isDefault).toBe(false);
+  });
+
+  describe('default invariant', () => {
+    const U2 = 'devices-db-test-user-2';
+    beforeAll(async () => {
+      await db.delete(users).where(eq(users.id, U2));
+      await db.insert(users).values({ id: U2, name: 'T2', email: 'devices-db-2@test.local' });
+    });
+    afterAll(async () => {
+      await db?.delete(users).where(eq(users.id, U2));
+    });
+
+    it('first device becomes default, later ones do not', async () => {
+      const a = await addDevice(db, U2, { preset: 'switch' });
+      const b = await addDevice(db, U2, { preset: 'mac' });
+      expect(a.isDefault).toBe(true);
+      expect(b.isDefault).toBe(false);
+    });
+
+    it('deleting the default promotes the oldest remaining device', async () => {
+      const [first] = await listDevices(db, U2);
+      const c = await addDevice(db, U2, { preset: 'ps5' });
+      await deleteDevice(db, U2, first!.id);
+      const list = await listDevices(db, U2);
+      expect(list).toHaveLength(2);
+      expect(list.filter((d) => d.isDefault)).toHaveLength(1);
+      expect(list[0]!.id).not.toBe(c.id); // mac (older) is promoted, not ps5
+      expect(list[0]!.kind).toBe('mac');
+    });
+
+    it('deleting a non-default device keeps the default; deleting the last leaves none', async () => {
+      const [def, other] = await listDevices(db, U2);
+      await deleteDevice(db, U2, other!.id);
+      expect((await listDevices(db, U2))[0]!.id).toBe(def!.id);
+      await removeDevice(db, U2, def!.id);
+      expect(await listDevices(db, U2)).toHaveLength(0);
+    });
   });
 
   it('removeDevice deletes own device and errors on unknown id', async () => {

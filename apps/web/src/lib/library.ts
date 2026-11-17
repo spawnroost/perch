@@ -91,6 +91,16 @@ export function toForm(entry: LibraryEntry): EntryForm {
   };
 }
 
+/** `YYYY-MM-DD` that exists on the calendar (rejects 2026-02-30). */
+function isRealDate(s: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const [y, m, d] = s.split('-').map(Number) as [number, number, number];
+  const t = new Date(Date.UTC(y, m - 1, d));
+  return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === d;
+}
+
+export const games = (n: number) => `${n} game${n === 1 ? '' : 's'}`;
+
 export type PatchResult =
   { ok: true; patch: LibraryPatchInput | null } | { ok: false; error: string };
 
@@ -103,9 +113,7 @@ export function buildPatch(entry: LibraryEntry, form: EntryForm): PatchResult {
   if (hours !== (entry.hoursPlayed ?? undefined)) patch.hoursPlayed = hours ?? null;
 
   const date = form.lastPlayed.trim();
-  if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    return { ok: false, error: 'Enter the date as YYYY-MM-DD.' };
-  }
+  if (date && !isRealDate(date)) return { ok: false, error: 'Enter a real date as YYYY-MM-DD.' };
   if (date !== (entry.lastPlayed?.slice(0, 10) ?? '')) patch.lastPlayed = date || null;
 
   if (form.status !== entry.status) patch.status = form.status;

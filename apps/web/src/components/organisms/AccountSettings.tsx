@@ -45,7 +45,12 @@ function ChangePassword() {
   return (
     <Section title="Password" description="Other devices are signed out when you change it.">
       <ActionForm
-        onSubmit={(data) => void run(String(data.get('current')), String(data.get('next')))}
+        onSubmit={(data, form) =>
+          void run(String(data.get('current')), String(data.get('next'))).then(
+            (ok) => ok && form.reset(),
+          )
+        }
+        onChange={() => setDone(false)}
         submitLabel="Change password"
         pending={pending}
         error={error}

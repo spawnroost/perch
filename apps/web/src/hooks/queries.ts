@@ -209,14 +209,11 @@ export function useUpdateDevice() {
   });
 }
 
-/** Deletes a device; `promoteId` (see `successorDefault`) becomes the default when the default goes. */
+/** Deletes a device; the API promotes a new default when the default goes. */
 export function useDeleteDevice() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, promoteId }: { id: string; promoteId: string | null }) => {
-      await api.delete(`/api/devices/${id}`);
-      if (promoteId) await api.patch(`/api/devices/${promoteId}`, { isDefault: true });
-    },
+    mutationFn: (id: string) => api.delete(`/api/devices/${id}`),
     onSettled: () => invalidateAll(qc, devicesAffected),
   });
 }

@@ -1,4 +1,4 @@
-/** Device list logic: labels, spec summary and default handling. */
+/** Device list logic: labels and spec summary. */
 import type { DeviceView } from '@perch/core';
 import { platformNames } from './platforms';
 
@@ -24,15 +24,3 @@ export function deviceSummary(d: DeviceView): string {
 }
 
 export const addedKinds = (devices: DeviceView[]) => new Set(devices.map((d) => d.kind));
-
-/** A new device becomes the default when none is flagged yet. */
-export const needsDefault = (devices: DeviceView[]) => !devices.some((d) => d.isDefault);
-
-/** The device to promote when `removedId` is deleted: the oldest other one, only if it was the default. */
-export function successorDefault(devices: DeviceView[], removedId: string): string | null {
-  if (!devices.some((d) => d.id === removedId && d.isDefault)) return null;
-  const rest = devices
-    .filter((d) => d.id !== removedId)
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  return rest[0]?.id ?? null;
-}

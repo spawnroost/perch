@@ -6,7 +6,7 @@ import { DeviceRow, LoadError } from '../molecules';
 import { DeviceAdder } from './DeviceAdder';
 import { PcDeviceForm } from './PcDeviceForm';
 import { useDeleteDevice, useDevices, useUpdateDevice } from '@/hooks/queries';
-import { canEditHardware, successorDefault } from '@/lib/devices';
+import { canEditHardware } from '@/lib/devices';
 
 type Panel = { kind: 'add' } | { kind: 'edit'; id: string };
 
@@ -16,11 +16,13 @@ export function DevicesView() {
   const remove = useDeleteDevice();
   const [panel, setPanel] = useState<Panel | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
-  const close = () => setPanel(null);
+  const close = () => {
+    setPanel(null);
+    update.reset();
+  };
 
   const list = devices.data ?? [];
   const editing = panel?.kind === 'edit' ? list.find((d) => d.id === panel.id) : undefined;
-  const error = update.error ?? remove.error;
 
   function actionsFor(d: DeviceView) {
     if (confirmId === d.id) {
@@ -30,12 +32,7 @@ export function DevicesView() {
             variant="danger"
             size="sm"
             loading={remove.isPending}
-            onClick={() =>
-              remove.mutate(
-                { id: d.id, promoteId: successorDefault(list, d.id) },
-                { onSettled: () => setConfirmId(null) },
-              )
-            }
+            onClick={() => remove.mutate(d.id, { onSettled: () => setConfirmId(null) })}
           >
             Delete
           </Button>
@@ -97,7 +94,8 @@ export function DevicesView() {
       {devices.isError && (
         <LoadError message={devices.error.message} onRetry={() => void devices.refetch()} />
       )}
-      {error && <Notice tone="error">{error.message}</Notice>}
+      {remove.error && <Notice tone="error">{remove.error.message}</Notice>}
+      {update.error && !editing && <Notice tone="error">{update.error.message}</Notice>}
       {devices.data?.length === 0 && (
         <Notice>No devices yet. Add one to see what runs on it.</Notice>
       )}

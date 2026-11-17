@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { devices, type Db } from '@perch/db';
 import { matchCpu, matchGpu } from '../hardware/tiers.js';
 import type { FilterDevice } from '../engine/filters.js';
@@ -42,7 +42,7 @@ function scoreCpu(name: string) {
   return m.score;
 }
 
-/** Adds a preset or PC device; `isDefault` moves the user's default flag to it. */
+/** Adds a preset or PC device; `isDefault` moves the default flag to it. The first device is always the default. */
 export async function addDevice(db: Db, userId: string, input: AddDeviceInput): Promise<Device> {
   let row: typeof devices.$inferInsert;
   if (input.preset !== undefined) {
@@ -81,8 +81,14 @@ export async function addDevice(db: Db, userId: string, input: AddDeviceInput): 
     };
   }
   return db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({ id: devices.id })
+      .from(devices)
+      .where(eq(devices.userId, userId))
+      .limit(1);
+    const makeDefault = input.isDefault || !existing;
     // The partial unique index allows one default per user: clear the old one first.
-    if (input.isDefault) {
+    if (makeDefault) {
       await tx
         .update(devices)
         .set({ isDefault: false })
@@ -90,7 +96,7 @@ export async function addDevice(db: Db, userId: string, input: AddDeviceInput): 
     }
     const [created] = await tx
       .insert(devices)
-      .values({ ...row, isDefault: input.isDefault ?? false })
+      .values({ ...row, isDefault: makeDefault })
       .returning();
     return created!;
   });
@@ -119,7 +125,7 @@ export async function removeDevice(db: Db, userId: string, idOrPrefix: string): 
     const ids = matches.map((d) => d.id).join(', ');
     throw new Error(`device id "${idOrPrefix}" is ambiguous (${ids}); use more characters`);
   }
-  await db.delete(devices).where(and(eq(devices.userId, userId), eq(devices.id, matches[0]!.id)));
+  await deleteDevice(db, userId, matches[0]!.id);
 }
 
 /**
@@ -189,11 +195,23 @@ export async function updateDevice(
   });
 }
 
-/** Deletes the user's device by full id; false when it is not theirs. */
+/** Deletes the user's device by full id; false when it is not theirs. Deleting the default promotes the oldest remaining device. */
 export async function deleteDevice(db: Db, userId: string, id: string): Promise<boolean> {
-  const rows = await db
-    .delete(devices)
-    .where(and(eq(devices.userId, userId), eq(devices.id, id)))
-    .returning({ id: devices.id });
-  return rows.length > 0;
+  return db.transaction(async (tx) => {
+    const [gone] = await tx
+      .delete(devices)
+      .where(and(eq(devices.userId, userId), eq(devices.id, id)))
+      .returning({ isDefault: devices.isDefault });
+    if (!gone) return false;
+    if (gone.isDefault) {
+      const [next] = await tx
+        .select({ id: devices.id })
+        .from(devices)
+        .where(eq(devices.userId, userId))
+        .orderBy(asc(devices.createdAt), asc(devices.id))
+        .limit(1);
+      if (next) await tx.update(devices).set({ isDefault: true }).where(eq(devices.id, next.id));
+    }
+    return true;
+  });
 }
