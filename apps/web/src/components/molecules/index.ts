@@ -16,6 +16,8 @@ export type { HeroProps } from './Hero';
 export { LoadError } from './LoadError';
 export { NavBar } from './NavBar';
 export { PickRow } from './PickRow';
+export { SeeAllTile } from './SeeAllTile';
+export type { SeeAllTileProps } from './SeeAllTile';
 export { Shelf } from './Shelf';
 export type { ShelfProps } from './Shelf';
 export { StepFooter } from './StepFooter';

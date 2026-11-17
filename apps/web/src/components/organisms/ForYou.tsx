@@ -9,21 +9,21 @@ import {
   GameCard,
   Hero,
   LoadError,
+  SeeAllTile,
   Shelf,
 } from '../molecules';
 import { QuickSession } from './QuickSession';
-import { useDevices, useFeedback, useRecommendations } from '@/hooks/queries';
+import { useDevices, useFeedback, useRecommendations, useShelfFeed } from '@/hooks/queries';
 import { useCardReturn } from '@/hooks/useCardReturn';
-import { hasDeckDevice } from '@/lib/devices';
 import {
   ALL_TAB,
   buildShelves,
   cardKey,
   deviceOptions,
   FOR_YOU_LIMIT,
+  cardChips,
   layoutOwners,
-  pickChips,
-  capChips,
+  shelfPath,
 } from '@/lib/forYou';
 
 function LauncherSkeleton() {
@@ -49,8 +49,7 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
   const selectedDevice = devices.find((d) => d.id === picked);
   const selected = selectedDevice ? picked : ALL_TAB;
   // The hero is the overall top pick; the shelves follow the selected device's own server-ranked feed.
-  const shelfFeed = useRecommendations(selected, FOR_YOU_LIMIT, true);
-  const deckDevice = selectedDevice ? selectedDevice.kind === 'steam-deck' : hasDeckDevice(devices);
+  const shelfFeed = useShelfFeed(selected);
 
   if (feed.isPending) return <LauncherSkeleton />;
   if (feed.isError) {
@@ -156,12 +155,7 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
                   coverUrl={r.game.coverUrl}
                   coverUrlSmall={r.game.coverUrlSmall}
                   accent={r.game.accent}
-                  chips={capChips(
-                    pickChips(r, {
-                      hasDeckDevice: deckDevice,
-                      omitDeviceId: selectedDevice?.id,
-                    }),
-                  )}
+                  chips={cardChips(r, devices, selected)}
                   actions={
                     <FeedbackActions value={feedback[id]} onSend={(kind) => send(id, kind)} />
                   }
@@ -171,6 +165,7 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
                 />
               );
             })}
+            {shelf.seeAll && <SeeAllTile label={shelf.title} to={shelfPath(shelf.id, selected)} />}
           </Shelf>
         ))}
       </div>

@@ -4,6 +4,7 @@ export { AuthLayout } from './AuthLayout';
 export { DevicesStep } from './DevicesStep';
 export { ForgotPasswordForm } from './ForgotPasswordForm';
 export { ForYou } from './ForYou';
+export { ForYouShelf } from './ForYouShelf';
 export { GameDetail } from './GameDetail';
 export { GamesStep } from './GamesStep';
 export { LoginForm } from './LoginForm';

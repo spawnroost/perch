@@ -7,6 +7,7 @@ import {
   AccountPage,
   DevicesPage,
   ForgotPasswordPage,
+  ForYouShelfPage,
   GamePage,
   HomePage,
   LibraryPage,
@@ -41,6 +42,7 @@ export function App() {
             <Route element={<RouteGuard />}>
               <Route element={<AppLayout />}>
                 <Route index element={<HomePage />} />
+                <Route path="for-you/:shelfKey" element={<ForYouShelfPage />} />
                 <Route path="library" element={<LibraryPage />} />
                 <Route path="devices" element={<DevicesPage />} />
                 <Route path="games/:id" element={<GamePage />} />

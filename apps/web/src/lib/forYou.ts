@@ -1,11 +1,16 @@
-import type { RecommendationsResponse } from '@perch/core';
+import type { DeviceView, RecommendationsResponse } from '@perch/core';
 import { firstOfEach } from './motion';
 import { deckDisplay, fitDisplay, type Tone } from './fit';
 import { timeToBeatHours } from './timeToBeat';
+import { hasDeckDevice } from './devices';
 
 export const ALL_TAB = 'all';
 /** Picks per feed (the all-devices feed and each device's feed) on For you. */
 export const FOR_YOU_LIMIT = 20;
+/** The fuller feed fetched in the background once the first FOR_YOU_LIMIT picks are on screen. */
+export const FOR_YOU_FULL_LIMIT = 60;
+/** The feed behind a See all grid. */
+export const SEE_ALL_LIMIT = 100;
 
 export type Recommendation = RecommendationsResponse['recommendations'][number];
 /** One device's will-it-run result for a pick. */
@@ -19,30 +24,55 @@ export function parseGameId(param: string | undefined): number | null {
 }
 
 export interface PickShelf {
+  /** Stable shelf key (also the See all route param): backlog | short | source-<igdbId> | more. */
   id: string;
   title: string;
+  /** Picks shown on the shelf: at most the cap. */
   picks: Recommendation[];
+  /** Every pick the shelf claimed, before the cap. */
+  total: number;
+  /** The shelf ends with a See all tile. */
+  seeAll: boolean;
 }
 
 /** Fewest short games for the Short sessions shelf to be worth showing. */
 export const SHORT_SESSION_MIN = 3;
 /** Longest time to beat, in hours, for a game to count as a short session. */
 export const SHORT_SESSION_MAX_HOURS = 12;
-export const SHORT_SESSIONS_ID = 'short-sessions';
+export const SHORT_SESSIONS_ID = 'short';
 export const BACKLOG_ID = 'backlog';
-export const MORE_PICKS_ID = 'more-picks';
-/** Fewest picks sharing a source game for a "Because you played" shelf. */
-export const SOURCE_SHELF_MIN = 2;
+export const MORE_PICKS_ID = 'more';
+/** Fewest picks sharing a source game for a "Because you played" shelf; fewer go on More picks. */
+export const SOURCE_SHELF_MIN = 4;
+/** Cards on a shelf before the rest sit behind See all. */
+export const SHELF_CAP = 12;
+
+export const sourceShelfKey = (igdbId: number) => `source-${igdbId}`;
+
+/** The shelf key from a route param; null unless it is one buildShelves can make. */
+export function parseShelfKey(param: string | undefined): string | null {
+  if (param === BACKLOG_ID || param === SHORT_SESSIONS_ID || param === MORE_PICKS_ID) return param;
+  const m = param?.match(/^source-(\d+)$/);
+  return m && Number(m[1]) > 0 ? (param as string) : null;
+}
+
+/** Route of a shelf's See all grid; the device rides along unless it is All. */
+export function shelfPath(key: string, device: string): string {
+  return `/for-you/${key}${device === ALL_TAB ? '' : `?device=${encodeURIComponent(device)}`}`;
+}
 
 /**
  * Shelves for the launcher, grouped by reason. Each game appears once and the hero game never.
  * Claim order, most specific first: From your backlog, Short sessions (at most
- * SHORT_SESSION_MAX_HOURS, shortest first), then "Because you played X" per source game; leftovers
- * go on More picks. Shown order: Because shelves (largest first), Short sessions, backlog, more.
+ * SHORT_SESSION_MAX_HOURS, shortest first), then "Because you played X" per source game with at
+ * least SOURCE_SHELF_MIN picks; leftovers go on More picks. Shown order: Because shelves (largest
+ * first), Short sessions, backlog, more. A shelf shows at most `cap` cards; the rest are only
+ * counted in `total` (they stay claimed, so they never spill onto another shelf).
  */
 export function buildShelves(
   picks: readonly Recommendation[],
   heroId: number | null = null,
+  cap: number = SHELF_CAP,
 ): PickShelf[] {
   const seen = new Set<number>(heroId === null ? [] : [heroId]);
   const claim = (list: readonly Recommendation[]) =>
@@ -68,23 +98,54 @@ export function buildShelves(
     group.picks.push(p);
     bySource.set(p.sourceGame.igdbId, group);
   }
-  const because: PickShelf[] = [...bySource]
+  const because = [...bySource]
     .filter(([, g]) => g.picks.length >= SOURCE_SHELF_MIN)
     .sort((a, b) => b[1].picks.length - a[1].picks.length)
     .map(([id, g]) => ({
-      id: `because-${id}`,
+      id: sourceShelfKey(id),
       title: `Because you played ${g.name}`,
-      picks: claim(g.picks),
+      claimed: claim(g.picks),
+      alwaysSeeAll: true,
     }));
   const more = claim(picks);
 
-  const shelves: PickShelf[] = [
+  return [
     ...because,
-    { id: SHORT_SESSIONS_ID, title: 'Short sessions', picks: short },
-    { id: BACKLOG_ID, title: 'From your backlog', picks: backlog },
-    { id: MORE_PICKS_ID, title: 'More picks', picks: more },
-  ];
-  return shelves.filter((s) => s.picks.length > 0);
+    { id: SHORT_SESSIONS_ID, title: 'Short sessions', claimed: short, alwaysSeeAll: false },
+    { id: BACKLOG_ID, title: 'From your backlog', claimed: backlog, alwaysSeeAll: false },
+    { id: MORE_PICKS_ID, title: 'More picks', claimed: more, alwaysSeeAll: false },
+  ]
+    .filter((s) => s.claimed.length > 0)
+    .map(({ claimed, alwaysSeeAll, ...shelf }) => ({
+      ...shelf,
+      picks: claimed.slice(0, cap),
+      total: claimed.length,
+      seeAll: alwaysSeeAll || claimed.length > cap,
+    }));
+}
+
+/** A shelf's full pick list from a feed (no cap, no hero): what its See all grid shows. */
+export function shelfPicks(
+  picks: readonly Recommendation[],
+  key: string,
+): { title: string; picks: Recommendation[] } | null {
+  const shelf = buildShelves(picks, null, Infinity).find((s) => s.id === key);
+  return shelf ? { title: shelf.title, picks: shelf.picks } : null;
+}
+
+/**
+ * The fuller feed laid over the one already on screen: the shown picks keep their place (with fresh
+ * data), picks the full feed no longer has drop out, and the new ones follow in the full feed's
+ * order. Shelves built from the result grow at their ends instead of reshuffling.
+ */
+export function mergeFeeds(
+  shown: readonly Recommendation[],
+  full: readonly Recommendation[],
+): Recommendation[] {
+  const fresh = new Map(full.map((r) => [r.game.igdbId, r]));
+  const kept = shown.flatMap((r) => fresh.get(r.game.igdbId) ?? []);
+  const keptIds = new Set(kept.map((r) => r.game.igdbId));
+  return [...kept, ...full.filter((r) => !keptIds.has(r.game.igdbId))];
 }
 
 /** An option in the device switcher: All, then one per device. */
@@ -159,6 +220,25 @@ export function capChips(chips: readonly PickChip[], max: number = CARD_CHIP_LIM
   ];
 }
 
+/**
+ * Chips for a launcher card (shelf or See all grid) when `selectedId` is the picked device (All, or
+ * one that no longer exists, when it matches none): the selected device's green fit is dropped, and
+ * with a Deck device the Deck chip too. Capped to CARD_CHIP_LIMIT plus "+N".
+ */
+export function cardChips(
+  rec: Pick<Recommendation, 'fits' | 'backlog' | 'deck'>,
+  devices: readonly DeviceView[],
+  selectedId: string,
+): PickChip[] {
+  const selected = devices.find((d) => d.id === selectedId);
+  return capChips(
+    pickChips(rec, {
+      hasDeckDevice: selected ? selected.kind === 'steam-deck' : hasDeckDevice([...devices]),
+      omitDeviceId: selected?.id,
+    }),
+  );
+}
+
 /** Platforms shown on the game detail before the rest collapse into "+N". */
 export const DETAIL_PLATFORM_LIMIT = 4;
 
@@ -177,7 +257,7 @@ export const cardKey = (shelfId: string, igdbId: number) => `${shelfId}:${igdbId
  * Cards allowed to carry the shared-element id: each game's first card in shelf order. A layoutId
  * must be unique on screen, so repeats on later shelves open without the cover expand.
  */
-export function layoutOwners(shelves: readonly PickShelf[]): Set<string> {
+export function layoutOwners(shelves: readonly Pick<PickShelf, 'id' | 'picks'>[]): Set<string> {
   const cards = shelves.flatMap((shelf) =>
     shelf.picks.map(({ game }) => ({ igdbId: game.igdbId, key: cardKey(shelf.id, game.igdbId) })),
   );

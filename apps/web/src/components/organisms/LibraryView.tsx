@@ -15,12 +15,8 @@ import {
   type LibraryFilter,
   type LibrarySort,
 } from '@/lib/library';
+import { CARD_GRID, CARD_GRID_SIZES } from '@/lib/cardWidth';
 import { firstOfEach } from '@/lib/motion';
-
-const GRID =
-  'grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6';
-const GRID_SIZES =
-  '(min-width: 1280px) 15rem, (min-width: 1024px) 18rem, (min-width: 640px) 14rem, 10rem';
 
 type Panel = { kind: 'add' } | { kind: 'import' } | { kind: 'edit'; id: string };
 
@@ -62,7 +58,7 @@ export function LibraryView() {
       </div>
 
       {library.isPending && (
-        <div aria-busy className={GRID}>
+        <div aria-busy className={CARD_GRID}>
           {[0, 1, 2, 3, 4, 5].map((i) => (
             <GameCard key={i} skeleton title="" className="w-full" />
           ))}
@@ -86,7 +82,7 @@ export function LibraryView() {
           {shown.length === 0 ? (
             <Notice>No games match this filter.</Notice>
           ) : (
-            <ul className={GRID}>
+            <ul className={CARD_GRID}>
               {shown.map((e) => (
                 <li key={e.id}>
                   <GameCard
@@ -97,7 +93,7 @@ export function LibraryView() {
                     chips={entryChips(e)}
                     meta={entryMeta(e)}
                     glow={e.status === 'playing'}
-                    sizes={GRID_SIZES}
+                    sizes={CARD_GRID_SIZES}
                     layoutId={coverOwners.has(e) ? cardReturn.coverId(e.igdbId) : undefined}
                     fadeIn={cardReturn.fadeIn}
                     className="w-full"

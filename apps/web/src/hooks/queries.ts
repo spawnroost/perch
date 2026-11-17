@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
   keepPreviousData,
   useMutation,
@@ -34,6 +35,7 @@ import {
   revertFeedback,
   type FeedbackMap,
 } from '@/lib/feedback';
+import { FOR_YOU_FULL_LIMIT, FOR_YOU_LIMIT, mergeFeeds } from '@/lib/forYou';
 import { seedGameDetail } from '@/lib/gameSeed';
 import { devicesAffected, libraryAffected } from '@/lib/invalidation';
 import { queryKeys } from '@/lib/queryKeys';
@@ -100,11 +102,33 @@ function recommendationsQuery(device: string, limit: number) {
 }
 
 /** `keepPrevious` shows the last feed while another device's loads (no skeleton flash on switch). */
-export function useRecommendations(device: string, limit = 5, keepPrevious = false) {
+export function useRecommendations(
+  device: string,
+  limit = 5,
+  keepPrevious = false,
+  enabled = true,
+) {
   return useQuery({
     ...recommendationsQuery(device, limit),
     ...(keepPrevious ? { placeholderData: keepPreviousData } : {}),
+    enabled,
   });
+}
+
+/**
+ * The For you shelf feed: the quick FOR_YOU_LIMIT picks paint first, then the fuller feed loads in
+ * the background and is merged in with the shown picks staying put. A failed fuller load leaves the
+ * quick picks as they are.
+ */
+export function useShelfFeed(device: string) {
+  const quick = useRecommendations(device, FOR_YOU_LIMIT, true);
+  const settled = quick.isSuccess && !quick.isPlaceholderData;
+  const full = useRecommendations(device, FOR_YOU_FULL_LIMIT, false, settled);
+  const data = useMemo(
+    () => (quick.data && full.data ? mergeFeeds(quick.data, full.data) : quick.data),
+    [quick.data, full.data],
+  );
+  return { ...quick, data };
 }
 
 /** Ranked picks for a play session; idle until `params` is set (no device yet, battery still being read). */
