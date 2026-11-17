@@ -1,6 +1,7 @@
 import type { SessionQuery } from '@perch/core';
 
 export const queryKeys = {
+  account: ['account'] as const,
   library: ['library'] as const,
   devices: ['devices'] as const,
   presets: ['device-presets'] as const,

@@ -57,6 +57,13 @@
       "when": 1794884974257,
       "tag": "0007_closed_arachne",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794926431835,
+      "tag": "0008_youthful_tyger_tiger",
+      "breakpoints": true
     }
   ]
 }

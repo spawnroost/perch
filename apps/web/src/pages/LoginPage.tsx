@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { AuthLayout, LoginForm } from '@/components/organisms';
+import { AuthLayout, LoginForm, SteamAuthOptions } from '@/components/organisms';
 
 export function LoginPage() {
   return (
@@ -16,6 +16,7 @@ export function LoginPage() {
       }
     >
       <LoginForm />
+      <SteamAuthOptions />
     </AuthLayout>
   );
 }

@@ -25,6 +25,8 @@ import { gamesRoutes } from './routes/games.js';
 import { libraryRoutes } from './routes/library.js';
 import { recommendationsRoutes } from './routes/recommendations.js';
 import { sessionRoutes } from './routes/session.js';
+import { accountRoutes, steamAuthRoutes } from './routes/steam.js';
+import type { SteamOpenIdVerifier } from './steam-openid.js';
 import { DEFAULT_RATE_LIMITS, rateLimit, type RateLimitConfig } from './rate-limit.js';
 
 export type { RateLimitConfig };
@@ -39,6 +41,8 @@ export interface AppDeps {
   accentFor?: (coverUrl: string) => Promise<string | null>;
   /** Overrides the Steam client (tests); the default talks to Steam. */
   steam?: SteamClient;
+  /** Verifies Steam OpenID assertions; the default asks Steam (tests stub it). */
+  steamOpenId?: SteamOpenIdVerifier;
   /** Overrides the default limits (tests). */
   rateLimit?: RateLimitConfig;
 }
@@ -89,12 +93,15 @@ export function createApp(appDeps: AppDeps) {
 
   // Container healthcheck. No secrets, no row data.
   app.get('/api/health', (c) => c.json({ ok: true }));
+  // Before the catch-all: Steam sign-in is ours, not better-auth's.
+  app.route('/api/auth/steam', steamAuthRoutes(deps));
   app.on(['GET', 'POST'], '/api/auth/*', (c) => auth.handler(c.req.raw));
   app.get('/api/me', requireAuth(), (c) => {
     const { id, email, name } = c.get('user');
     return c.json({ id, email, name });
   });
 
+  app.route('/api/account', accountRoutes(deps));
   app.route('/api/games', gamesRoutes(deps));
   app.route('/api/library', libraryRoutes(deps));
   app.route('/api/devices', devicesRoutes(deps));

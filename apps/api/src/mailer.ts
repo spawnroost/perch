@@ -1,3 +1,4 @@
+import { isSteamPlaceholderEmail } from '@perch/core';
 import type { ApiEnv } from './env.js';
 
 export interface Mail {
@@ -33,4 +34,14 @@ export function resendMailer(apiKey: string, from: string, fetchFn: typeof fetch
 
 export function createMailer(env: Pick<ApiEnv, 'RESEND_API_KEY' | 'MAIL_FROM'>): Mailer {
   return env.RESEND_API_KEY ? resendMailer(env.RESEND_API_KEY, env.MAIL_FROM) : consoleMailer;
+}
+
+/** Drops mail to unmailable placeholder addresses (Steam-only accounts have no real email). */
+export function skipPlaceholderRecipients(mailer: Mailer): Mailer {
+  return {
+    async send(mail) {
+      if (isSteamPlaceholderEmail(mail.to)) return;
+      await mailer.send(mail);
+    },
+  };
 }

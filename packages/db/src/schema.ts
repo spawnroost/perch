@@ -29,6 +29,8 @@ export const users = pgTable('users', {
   email: text('email').notNull().unique(),
   emailVerified: boolean('email_verified').default(false).notNull(),
   image: text('image'),
+  /** SteamID64 once the user signs in with / links Steam; unique across users. */
+  steamId: text('steam_id').unique(),
   /** Feature gate: 'free' | 'pro'. Pro is a flag flip once billing ships. */
   plan: text('plan').default('free').notNull(),
   createdAt: ts('created_at').defaultNow().notNull(),

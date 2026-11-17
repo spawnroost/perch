@@ -7,6 +7,7 @@ import {
   type QueryKey,
 } from '@tanstack/react-query';
 import type {
+  AccountResponse,
   DeviceCreate,
   DevicePatchInput,
   DevicePresetsResponse,
@@ -294,5 +295,20 @@ export function useDeleteDevice() {
   return useMutation({
     mutationFn: (id: string) => api.delete(`/api/devices/${id}`),
     onSettled: () => invalidateAll(qc, devicesAffected),
+  });
+}
+
+export function useAccount() {
+  return useQuery({
+    queryKey: queryKeys.account,
+    queryFn: ({ signal }) => api.get<AccountResponse>('/api/account', { signal }),
+  });
+}
+
+export function useUnlinkSteam() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<{ ok: true }>('/api/account/steam/unlink'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.account }),
   });
 }

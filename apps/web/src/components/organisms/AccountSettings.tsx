@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { Button, Notice } from '../atoms';
-import { ActionForm, FormField } from '../molecules';
+import { ActionForm, FormField, SteamSignInButton } from '../molecules';
+import { canUnlinkSteam, isSteamPlaceholderEmail } from '@perch/core';
+import { useAccount, useUnlinkSteam } from '@/hooks/queries';
+import { useSteamError } from '@/hooks/useSteamError';
 import { useAction } from '@/hooks/useAction';
 import { useSignOut } from '@/hooks/useSignOut';
 import { authClient, unwrapAuth } from '@/lib/auth-client';
@@ -77,6 +80,50 @@ function ChangePassword() {
   );
 }
 
+function SteamLink() {
+  const account = useAccount();
+  const unlink = useUnlinkSteam();
+  const steamError = useSteamError();
+  const data = account.data;
+  const linked = Boolean(data?.steamId);
+  const unlinkError = unlink.error instanceof Error ? unlink.error.message : null;
+  return (
+    <Section
+      title="Steam"
+      description={
+        linked
+          ? `Linked to Steam account ${data?.steamId}.`
+          : 'Link Steam to sign in with it and pull in your library.'
+      }
+    >
+      {(steamError ?? unlinkError) && <Notice tone="error">{steamError ?? unlinkError}</Notice>}
+      {data &&
+        (linked ? (
+          <>
+            <Button
+              variant="secondary"
+              className="w-fit"
+              loading={unlink.isPending}
+              disabled={!canUnlinkSteam(data)}
+              onClick={() => unlink.mutate()}
+            >
+              Unlink Steam
+            </Button>
+            {!canUnlinkSteam(data) && (
+              <p className="text-sm text-fg-muted">
+                Steam is how you sign in, so it can't be unlinked.
+              </p>
+            )}
+          </>
+        ) : (
+          <div className="w-fit">
+            <SteamSignInButton mode="link">Link Steam</SteamSignInButton>
+          </div>
+        ))}
+    </Section>
+  );
+}
+
 function DeleteAccount() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -123,13 +170,18 @@ function DeleteAccount() {
 export function AccountSettings() {
   const { data } = authClient.useSession();
   const signOut = useSignOut();
+  const { data: account } = useAccount();
+  const email = data?.user.email;
   return (
     <div className="flex flex-col gap-4">
       <div>
         <h1 className="text-2xl font-semibold tracking-display text-fg">Account</h1>
-        <p className="text-sm text-fg-muted">{data ? data.user.email : 'Signed in'}</p>
+        <p className="text-sm text-fg-muted">
+          {email && !isSteamPlaceholderEmail(email) ? email : 'Signed in with Steam'}
+        </p>
       </div>
-      <ChangePassword />
+      {account?.hasPassword !== false && <ChangePassword />}
+      <SteamLink />
       <Section title="Sign out">
         {signOut.error && <Notice tone="error">{signOut.error}</Notice>}
         <Button

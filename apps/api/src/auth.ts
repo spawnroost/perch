@@ -2,9 +2,10 @@ import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { schema, type Db } from '@perch/db';
 import type { ApiEnv } from './env.js';
-import type { Mailer } from './mailer.js';
+import { skipPlaceholderRecipients, type Mailer } from './mailer.js';
 
-export function createAuth(db: Db, env: ApiEnv, mailer: Mailer) {
+export function createAuth(db: Db, env: ApiEnv, rawMailer: Mailer) {
+  const mailer = skipPlaceholderRecipients(rawMailer);
   return betterAuth({
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
