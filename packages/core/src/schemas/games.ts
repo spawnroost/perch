@@ -11,6 +11,8 @@ export const gameSearchResponseSchema = z.object({
       slug: z.string().nullable(),
       ratingCount: z.number(),
       firstRelease: isoDate.nullable(),
+      coverUrl: z.string().nullable(),
+      coverUrlSmall: z.string().nullable(),
     }),
   ),
 });

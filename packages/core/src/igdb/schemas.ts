@@ -9,6 +9,7 @@ export const igdbSearchResultSchema = z.object({
   slug: z.string().optional(),
   total_rating_count: z.number().optional(),
   first_release_date: z.number().optional(),
+  cover: z.object({ image_id: z.string() }).optional(),
 });
 export const igdbSearchResponseSchema = z.array(igdbSearchResultSchema);
 
@@ -111,6 +112,10 @@ export interface GameCandidate {
   slug: string | null;
   ratingCount: number;
   firstRelease: Date | null;
+  /** t_cover_big cover URL; null when IGDB has no art. */
+  coverUrl: string | null;
+  /** t_cover_small (90x128) cover URL. */
+  coverUrlSmall: string | null;
 }
 
 export interface SearchResult {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Search } from 'lucide-react';
 import { Input, Notice, Skeleton } from '../atoms';
-import { GameResultRow } from '../molecules';
+import { GameResultCard } from '../molecules';
 import { useAddToLibrary, useGameSearch, useLibrary } from '@/hooks/queries';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { cn } from '@/lib/cn';
@@ -36,28 +36,38 @@ export function GameSearchAdd() {
       />
       {add.error && <Notice tone="error">{add.error.message}</Notice>}
       {search.isError && <Notice tone="error">{search.error.message}</Notice>}
-      {search.isFetching && !results && <Skeleton className="h-24" />}
+      {search.isFetching && !results && (
+        <div aria-busy className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="aspect-3/4 w-full rounded-lg" />
+          ))}
+        </div>
+      )}
       {results && results.length === 0 && <Notice>No games found for "{q}".</Notice>}
       {results && results.length > 0 && (
-        <ul
-          aria-busy={search.isPlaceholderData}
-          className={cn(
-            'overflow-hidden rounded-lg border border-line bg-surface-1 transition-opacity',
-            search.isPlaceholderData && 'opacity-50',
-          )}
-        >
-          {results.map((g) => (
-            <GameResultRow
-              key={g.igdbId}
-              name={g.name}
-              year={releaseYear(g.firstRelease)}
-              added={owned.has(g.igdbId)}
-              pending={addingId === g.igdbId}
-              disabled={search.isPlaceholderData}
-              onAdd={(hours) => addGame(g.igdbId, hours)}
-            />
-          ))}
-        </ul>
+        <div className="@container">
+          <ul
+            aria-busy={search.isPlaceholderData}
+            className={cn(
+              'grid grid-cols-2 gap-x-3 gap-y-5 transition-opacity @lg:grid-cols-3 @2xl:grid-cols-4',
+              search.isPlaceholderData && 'opacity-50',
+            )}
+          >
+            {results.map((g) => (
+              <GameResultCard
+                key={g.igdbId}
+                name={g.name}
+                year={releaseYear(g.firstRelease)}
+                coverUrl={g.coverUrl}
+                coverUrlSmall={g.coverUrlSmall}
+                added={owned.has(g.igdbId)}
+                pending={addingId === g.igdbId}
+                disabled={search.isPlaceholderData}
+                onAdd={(hours) => addGame(g.igdbId, hours)}
+              />
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

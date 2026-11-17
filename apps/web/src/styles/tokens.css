@@ -181,6 +181,15 @@
     }
   }
 
+  --animate-mosaic-drift: mosaic-drift 40s var(--ease-in-out) infinite alternate;
+  @keyframes mosaic-drift {
+    from {
+      transform: translateY(-1.5rem);
+    }
+    to {
+      transform: translateY(1.5rem);
+    }
+  }
   --animate-shimmer: shimmer 1.6s linear infinite;
   @keyframes shimmer {
     from {

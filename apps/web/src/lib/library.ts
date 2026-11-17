@@ -1,5 +1,7 @@
 /** Library page logic: sort, filter, display text and the edit form -> patch. */
 import type { LibraryEntry, LibraryPatchInput } from '@perch/core';
+import type { HudChipProps } from '@/components/atoms/HudChip';
+import type { Tone } from './fit';
 import { parseHours } from './onboarding';
 
 export type Status = LibraryEntry['status'];
@@ -10,6 +12,15 @@ export const STATUS_LABEL: Record<Status, string> = {
   dropped: 'Dropped',
   backlog: 'Backlog',
 };
+
+/** Filter chip order: everything, then statuses in the order a player thinks of them. */
+export const STATUS_FILTERS = [
+  'all',
+  'playing',
+  'backlog',
+  'finished',
+  'dropped',
+] as const satisfies (Status | 'all')[];
 
 export const SORTS = ['recent', 'hours', 'title', 'added'] as const;
 export type LibrarySort = (typeof SORTS)[number];
@@ -30,6 +41,37 @@ export function filterLibrary(entries: LibraryEntry[], { query, status }: Librar
   return entries.filter(
     (e) => (status === 'all' || e.status === status) && (!q || e.name.toLowerCase().includes(q)),
   );
+}
+
+/** Entry count per status filter, limited to titles matching `query` so chips agree with the grid. */
+export function statusCounts(
+  entries: LibraryEntry[],
+  query = '',
+): Record<(typeof STATUS_FILTERS)[number], number> {
+  const counts = { all: 0, playing: 0, backlog: 0, finished: 0, dropped: 0 };
+  for (const e of filterLibrary(entries, { query, status: 'all' })) {
+    counts.all += 1;
+    counts[e.status] += 1;
+  }
+  return counts;
+}
+
+const STATUS_TONE: Record<Status, Tone> = {
+  playing: 'yes',
+  backlog: 'unknown',
+  finished: 'unknown',
+  dropped: 'no',
+};
+
+/** Plain HUD chips for a library card: status, then hours when known. */
+export function entryChips(entry: LibraryEntry): Pick<HudChipProps, 'label' | 'tone' | 'plain'>[] {
+  const chips: Pick<HudChipProps, 'label' | 'tone' | 'plain'>[] = [
+    { label: STATUS_LABEL[entry.status], tone: STATUS_TONE[entry.status], plain: true },
+  ];
+  if (entry.hoursPlayed !== null) {
+    chips.push({ label: formatHours(entry.hoursPlayed), tone: 'unknown', plain: true });
+  }
+  return chips;
 }
 
 const byTitle = (a: LibraryEntry, b: LibraryEntry) =>

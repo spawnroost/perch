@@ -1,23 +1,34 @@
 import { useState } from 'react';
-import { ListPlus, Plus } from 'lucide-react';
-import { Button, Notice, Sheet, SheetContent, Skeleton } from '../atoms';
-import { LibraryControls, LibraryRow, LoadError } from '../molecules';
+import { useNavigate } from 'react-router';
+import { ListPlus, Pencil, Plus } from 'lucide-react';
+import { Button, Notice, Sheet, SheetContent } from '../atoms';
+import { GameCard, LibraryControls, LoadError } from '../molecules';
 import { GameSearchAdd } from './GameSearchAdd';
 import { ImportList } from './ImportList';
 import { LibraryEntryEditor } from './LibraryEntryEditor';
 import { useLibrary } from '@/hooks/queries';
+import { useReduced } from '@/hooks/useMotionPrefs';
 import {
+  entryChips,
   filterLibrary,
   games,
   sortLibrary,
+  statusCounts,
   type LibraryFilter,
   type LibrarySort,
 } from '@/lib/library';
+import { coverLayoutId } from '@/lib/motion';
+
+const GRID = 'grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5';
+const GRID_SIZES =
+  '(min-width: 1280px) 15rem, (min-width: 1024px) 18rem, (min-width: 640px) 14rem, 10rem';
 
 type Panel = { kind: 'add' } | { kind: 'import' } | { kind: 'edit'; id: string };
 
 export function LibraryView() {
   const library = useLibrary();
+  const navigate = useNavigate();
+  const reduced = useReduced();
   const [filter, setFilter] = useState<LibraryFilter>({ query: '', status: 'all' });
   const [sort, setSort] = useState<LibrarySort>('recent');
   const [panel, setPanel] = useState<Panel | null>(null);
@@ -27,10 +38,10 @@ export function LibraryView() {
   const shown = library.data ? sortLibrary(filterLibrary(library.data, filter), sort) : [];
 
   return (
-    <section className="flex flex-col gap-4">
+    <section className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-display text-fg">Library</h1>
+          <h1 className="font-title text-3xl text-fg">Library</h1>
           {library.data && (
             <p className="text-sm text-fg-muted tabular-nums">{games(library.data.length)}</p>
           )}
@@ -47,7 +58,13 @@ export function LibraryView() {
         </div>
       </div>
 
-      {library.isPending && <Skeleton className="h-40" />}
+      {library.isPending && (
+        <div aria-busy className={GRID}>
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <GameCard key={i} skeleton title="" className="w-full" />
+          ))}
+        </div>
+      )}
       {library.isError && (
         <LoadError message={library.error.message} onRetry={() => void library.refetch()} />
       )}
@@ -56,17 +73,41 @@ export function LibraryView() {
       )}
       {library.data && library.data.length > 0 && (
         <>
-          <LibraryControls filter={filter} sort={sort} onFilter={setFilter} onSort={setSort} />
+          <LibraryControls
+            filter={filter}
+            sort={sort}
+            counts={statusCounts(library.data, filter.query)}
+            onFilter={setFilter}
+            onSort={setSort}
+          />
           {shown.length === 0 ? (
             <Notice>No games match this filter.</Notice>
           ) : (
-            <ul className="overflow-hidden rounded-lg border border-line bg-surface-1">
+            <ul className={GRID}>
               {shown.map((e) => (
-                <LibraryRow
-                  key={e.id}
-                  entry={e}
-                  onEdit={() => setPanel({ kind: 'edit', id: e.id })}
-                />
+                <li key={e.id}>
+                  <GameCard
+                    title={e.name}
+                    coverUrl={e.coverUrl}
+                    coverUrlSmall={e.coverUrlSmall}
+                    accent={e.accent}
+                    chips={entryChips(e)}
+                    sizes={GRID_SIZES}
+                    layoutId={coverLayoutId(e.igdbId, reduced)}
+                    className="w-full"
+                    onClick={() => void navigate(`/games/${e.igdbId}`)}
+                    actions={
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Edit ${e.name}`}
+                        onClick={() => setPanel({ kind: 'edit', id: e.id })}
+                      >
+                        <Pencil size={14} strokeWidth={1.75} aria-hidden />
+                      </Button>
+                    }
+                  />
+                </li>
               ))}
             </ul>
           )}

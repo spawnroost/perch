@@ -1,10 +1,11 @@
 import { Search } from 'lucide-react';
-import { Input, Select, Tabs, TabsList, TabsTrigger } from '../atoms';
+import { Input, Select } from '../atoms';
+import { cn } from '@/lib/cn';
 import {
   SORT_LABEL,
   SORTS,
+  STATUS_FILTERS,
   STATUS_LABEL,
-  STATUSES,
   type LibraryFilter,
   type LibrarySort,
 } from '@/lib/library';
@@ -12,13 +13,15 @@ import {
 export interface LibraryControlsProps {
   filter: LibraryFilter;
   sort: LibrarySort;
+  /** Entries per status filter (see statusCounts). */
+  counts: Record<(typeof STATUS_FILTERS)[number], number>;
   onFilter: (filter: LibraryFilter) => void;
   onSort: (sort: LibrarySort) => void;
 }
 
-export function LibraryControls({ filter, sort, onFilter, onSort }: LibraryControlsProps) {
+export function LibraryControls({ filter, sort, counts, onFilter, onSort }: LibraryControlsProps) {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       <div className="flex gap-2">
         <Input
           icon={<Search size={14} strokeWidth={1.75} />}
@@ -41,21 +44,28 @@ export function LibraryControls({ filter, sort, onFilter, onSort }: LibraryContr
           ))}
         </Select>
       </div>
-      <Tabs
-        value={filter.status}
-        onValueChange={(status) =>
-          onFilter({ ...filter, status: status as LibraryFilter['status'] })
-        }
-      >
-        <TabsList className="max-w-full overflow-x-auto">
-          <TabsTrigger value="all">All</TabsTrigger>
-          {STATUSES.map((s) => (
-            <TabsTrigger key={s} value={s}>
-              {STATUS_LABEL[s]}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      <div role="group" aria-label="Filter by status" className="flex flex-wrap gap-2">
+        {STATUS_FILTERS.map((status) => {
+          const active = filter.status === status;
+          return (
+            <button
+              key={status}
+              type="button"
+              aria-pressed={active}
+              onClick={() => onFilter({ ...filter, status })}
+              className={cn(
+                'font-hud inline-flex h-8 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm transition-colors duration-fast ease-out',
+                active
+                  ? 'border-accent bg-accent-soft text-fg'
+                  : 'border-line bg-surface-1 text-fg-muted hover:bg-surface-2 hover:text-fg',
+              )}
+            >
+              {status === 'all' ? 'All' : STATUS_LABEL[status]}
+              <span className="tabular-nums text-fg-subtle">{counts[status]}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

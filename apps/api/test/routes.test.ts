@@ -65,6 +65,8 @@ const fakeIgdb: IgdbClient = {
         slug: g.slug,
         ratingCount: g.ratingCount ?? 0,
         firstRelease: g.firstRelease,
+        coverUrl: g.coverUrl,
+        coverUrlSmall: g.coverUrlSmall,
       }));
     return { best: candidates[0] ?? null, candidates };
   },

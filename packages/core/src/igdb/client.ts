@@ -172,7 +172,7 @@ export function createIgdbClient(opts: IgdbClientOptions): IgdbClient {
       const q = name.replace(/["\\]/g, ' ').trim();
       const rows = await query(
         'games',
-        `search "${q}"; fields name,slug,total_rating_count,first_release_date; limit 20;`,
+        `search "${q}"; fields name,slug,total_rating_count,first_release_date,cover.image_id; limit 20;`,
         igdbSearchResponseSchema,
       );
       const candidates = rows
@@ -182,6 +182,8 @@ export function createIgdbClient(opts: IgdbClientOptions): IgdbClient {
           slug: r.slug ?? null,
           ratingCount: r.total_rating_count ?? 0,
           firstRelease: r.first_release_date ? new Date(r.first_release_date * 1000) : null,
+          coverUrl: r.cover ? imageUrl('t_cover_big', r.cover.image_id) : null,
+          coverUrlSmall: r.cover ? imageUrl('t_cover_small', r.cover.image_id) : null,
         }))
         // Stable sort: ties keep IGDB's relevance order.
         .sort((a, b) => b.ratingCount - a.ratingCount);

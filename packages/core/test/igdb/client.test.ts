@@ -123,6 +123,22 @@ describe('searchGames', () => {
     expect(candidates.map((c) => c.igdbId)).toEqual([2, 1, 3]);
   });
 
+  it('maps the search cover to big and small urls, null without one', async () => {
+    const net = fakeFetch({
+      intercept: () =>
+        json([
+          { id: 1, name: 'Hades', total_rating_count: 9, cover: { image_id: 'c1' } },
+          { id: 2, name: 'Hades II', total_rating_count: 1 },
+        ]),
+    });
+    const img = (size: string, id: string) =>
+      `https://images.igdb.com/igdb/image/upload/${size}/${id}.jpg`;
+    const { candidates } = await make(net).searchGames('Hades');
+    expect(candidates[0]?.coverUrl).toBe(img('t_cover_big', 'c1'));
+    expect(candidates[0]?.coverUrlSmall).toBe(img('t_cover_small', 'c1'));
+    expect(candidates[1]?.coverUrl).toBeNull();
+  });
+
   it('returns best = null when nothing matches', async () => {
     const res = await make(fakeFetch()).searchGames('zzz no such game');
     expect(res).toEqual({ best: null, candidates: [] });

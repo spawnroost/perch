@@ -28,6 +28,8 @@ export function gamesRoutes(deps: RouteDeps) {
         slug: g.slug,
         ratingCount: g.ratingCount,
         firstRelease: iso(g.firstRelease),
+        coverUrl: g.coverUrl,
+        coverUrlSmall: g.coverUrlSmall,
       })),
     } satisfies GameSearchResponse);
   });

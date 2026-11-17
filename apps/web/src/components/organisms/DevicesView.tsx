@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { Pencil, Plus, Star, Trash2 } from 'lucide-react';
 import type { DeviceView } from '@perch/core';
 import { Button, Notice, Sheet, SheetContent, Skeleton } from '../atoms';
-import { DeviceRow, LoadError } from '../molecules';
+import { DeviceCard, LoadError } from '../molecules';
 import { DeviceAdder } from './DeviceAdder';
 import { PcDeviceForm } from './PcDeviceForm';
 import { useDeleteDevice, useDevices, useUpdateDevice } from '@/hooks/queries';
 import { canEditHardware } from '@/lib/devices';
+
+const GRID = 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3';
 
 type Panel = { kind: 'add' } | { kind: 'edit'; id: string };
 
@@ -78,10 +80,10 @@ export function DevicesView() {
   }
 
   return (
-    <section className="flex flex-col gap-4">
+    <section className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-display text-fg">Devices</h1>
+          <h1 className="font-title text-3xl text-fg">Devices</h1>
           <p className="text-sm text-fg-muted">Picks are filtered to what each device can run.</p>
         </div>
         <Button variant="primary" onClick={() => setPanel({ kind: 'add' })}>
@@ -90,7 +92,13 @@ export function DevicesView() {
         </Button>
       </div>
 
-      {devices.isPending && <Skeleton className="h-24" />}
+      {devices.isPending && (
+        <div aria-busy className={GRID}>
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-36 rounded-lg" />
+          ))}
+        </div>
+      )}
       {devices.isError && (
         <LoadError message={devices.error.message} onRetry={() => void devices.refetch()} />
       )}
@@ -100,9 +108,9 @@ export function DevicesView() {
         <Notice>No devices yet. Add one to see what runs on it.</Notice>
       )}
       {list.length > 0 && (
-        <ul className="overflow-hidden rounded-lg border border-line bg-surface-1">
+        <ul className={GRID}>
           {list.map((d) => (
-            <DeviceRow key={d.id} device={d} actions={actionsFor(d)} />
+            <DeviceCard key={d.id} device={d} actions={actionsFor(d)} />
           ))}
         </ul>
       )}

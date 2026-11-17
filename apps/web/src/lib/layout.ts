@@ -1,4 +1,4 @@
-/** Routes whose page owns its width (hero art runs edge to edge); others sit in the narrow column. */
+/** Routes whose page owns its width (hero art and card grids run wide); others sit in the narrow column. */
 export function isFullBleedPath(pathname: string): boolean {
-  return pathname === '/' || /^\/games\/[^/]+\/?$/.test(pathname);
+  return pathname === '/' || /^\/(games\/[^/]+|library|devices)\/?$/.test(pathname);
 }

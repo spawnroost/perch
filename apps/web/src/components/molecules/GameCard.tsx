@@ -27,6 +27,8 @@ export type GameCardProps = {
   actions?: ReactNode;
   /** Shared-element id on the cover, matched by the detail view's cover for the expand. */
   layoutId?: string;
+  /** img sizes hint when the caller overrides the default card width. */
+  sizes?: string;
   /** Shimmer placeholder while the game loads. */
   skeleton?: boolean;
   className?: string;
@@ -60,6 +62,7 @@ export function GameCard({
   chips,
   actions,
   layoutId,
+  sizes = COVER_SIZES,
   skeleton,
   className,
   ...props
@@ -134,7 +137,7 @@ export function GameCard({
           <Cover
             src={image?.src ?? null}
             srcSet={image?.srcSet}
-            sizes={COVER_SIZES}
+            sizes={sizes}
             alt=""
             className={cn(
               'w-full rounded-lg transition-shadow duration-base ease-out',

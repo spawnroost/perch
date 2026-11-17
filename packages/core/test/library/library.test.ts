@@ -19,6 +19,8 @@ const cand = (igdbId: number, name: string, ratingCount: number): GameCandidate 
   slug: null,
   ratingCount,
   firstRelease: null,
+  coverUrl: null,
+  coverUrlSmall: null,
 });
 
 describe('normaliseName', () => {
