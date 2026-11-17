@@ -194,6 +194,24 @@ describe('row builders', () => {
     expect(insert.owned).toBeUndefined();
     expect(update).toEqual({});
   });
+  it('buildLibraryRow: hours without a status default to playing', () => {
+    const { insert } = buildLibraryRow({
+      userId: 'u',
+      igdbId: 7,
+      platform: 'pc',
+      source: 'manual',
+      hours: 40,
+    });
+    expect(insert.status).toBe('playing');
+    const zero = buildLibraryRow({
+      userId: 'u',
+      igdbId: 7,
+      platform: 'pc',
+      source: 'manual',
+      hours: 0,
+    });
+    expect(zero.insert.status).toBe('backlog');
+  });
   it('buildLibraryRow: owned=false is passed through', () => {
     const { insert, update } = buildLibraryRow({
       userId: 'u',

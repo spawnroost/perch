@@ -16,7 +16,7 @@ export function LibraryRow({ entry, onEdit }: { entry: LibraryEntry; onEdit: () 
           {entry.name}
         </Link>
         <p className="truncate text-sm text-fg-muted tabular-nums">
-          {formatHours(entry.hoursPlayed)} · {formatLastPlayed(entry.lastPlayed)}
+          {formatHours(entry.hoursPlayed)} · {formatLastPlayed(entry.lastPlayed, entry.hoursPlayed)}
         </p>
       </div>
       <Badge tone={entry.status === 'playing' ? 'coral' : 'neutral'}>

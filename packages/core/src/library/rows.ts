@@ -36,7 +36,7 @@ export function buildLibraryRow(input: LibraryInput): {
     platform,
     hoursPlayed: hours ?? null,
     lastPlayed: lastPlayed ?? null,
-    status: status ?? 'backlog',
+    status: status ?? (hours ? 'playing' : 'backlog'),
     source,
   };
   // `owned` undefined: DB default on insert, untouched on conflict.

@@ -82,6 +82,8 @@ describe('formatting', () => {
   });
   it('formats the last played date in UTC', () => {
     expect(formatLastPlayed(null)).toBe('Never played');
+    expect(formatLastPlayed(null, 0)).toBe('Never played');
+    expect(formatLastPlayed(null, 40)).toBe('Last played unknown');
     expect(formatLastPlayed('2026-06-03T00:00:00.000Z')).toBe('3 Jun 2026');
   });
 });

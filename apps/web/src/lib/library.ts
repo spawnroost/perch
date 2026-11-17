@@ -72,8 +72,9 @@ const DATE = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'UTC',
 });
 
-export function formatLastPlayed(iso: string | null): string {
-  return iso ? DATE.format(new Date(iso)) : 'Never played';
+export function formatLastPlayed(iso: string | null, hours?: number | null): string {
+  if (iso) return DATE.format(new Date(iso));
+  return hours ? 'Last played unknown' : 'Never played';
 }
 
 export interface EntryForm {
