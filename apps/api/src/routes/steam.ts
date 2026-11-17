@@ -6,6 +6,8 @@ import { HTTPException } from 'hono/http-exception';
 import {
   SteamAuthModeSchema,
   buildSteamLoginUrl,
+  canUnlinkSteam,
+  linkedSocialProviders,
   parseSteamCallback,
   steamPlaceholderEmail,
   type SteamAuthMode,
@@ -154,6 +156,14 @@ export function accountRoutes({ db }: RouteDeps) {
   const r = new Hono<AppVars>();
   r.use('*', requireAuth());
 
+  async function socialProvidersOf(userId: string): Promise<string[]> {
+    const rows = await db
+      .select({ providerId: schema.accounts.providerId })
+      .from(schema.accounts)
+      .where(eq(schema.accounts.userId, userId));
+    return linkedSocialProviders(rows.map((r) => r.providerId));
+  }
+
   async function hasPassword(userId: string): Promise<boolean> {
     const rows = await db
       .select({ id: schema.accounts.id })
@@ -171,12 +181,19 @@ export function accountRoutes({ db }: RouteDeps) {
 
   r.get('/', async (c) => {
     const { id, email, steamId } = c.get('user');
-    return c.json({ email, steamId: steamId ?? null, hasPassword: await hasPassword(id) });
+    return c.json({
+      email,
+      steamId: steamId ?? null,
+      hasPassword: await hasPassword(id),
+      linkedProviders: await socialProvidersOf(id),
+    });
   });
 
   r.post('/steam/unlink', async (c) => {
-    const { id } = c.get('user');
-    if (!(await hasPassword(id)))
+    const { id, steamId } = c.get('user');
+    const password = await hasPassword(id);
+    const linkedProviders = await socialProvidersOf(id);
+    if (!canUnlinkSteam({ steamId: steamId ?? null, hasPassword: password, linkedProviders }))
       return c.json({ error: 'Steam is your only sign-in method.' }, 409);
     await db.update(schema.users).set({ steamId: null }).where(eq(schema.users.id, id));
     return c.json({ ok: true });

@@ -24,4 +24,4 @@ export { ImportList } from './ImportList';
 export { LibraryEntryEditor } from './LibraryEntryEditor';
 export { LibraryView } from './LibraryView';
 export { GlobalSearch } from './GlobalSearch';
-export { SteamAuthOptions } from './SteamAuthOptions';
+export { ProviderAuthOptions } from './ProviderAuthOptions';

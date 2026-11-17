@@ -1,10 +1,25 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
-import { isSteamPlaceholderEmail } from '@perch/core';
+import {
+  isSteamPlaceholderEmail,
+  socialProfileOverrides,
+  socialProviderConfig,
+  type SocialCredentials,
+  type SocialProviderConfig,
+} from '@perch/core';
 import { schema, type Db } from '@perch/db';
 import type { ApiEnv } from './env.js';
 import { skipPlaceholderRecipients, type Mailer } from './mailer.js';
+
+/** Registers only configured providers, each behind the email gate (no `.invalid`, no unverified). */
+function gatedSocialProviders(config: SocialProviderConfig) {
+  const gate = (c: SocialCredentials) => ({ ...c, mapProfileToUser: socialProfileOverrides });
+  return {
+    ...(config.google && { google: gate(config.google) }),
+    ...(config.discord && { discord: gate(config.discord) }),
+  };
+}
 
 export function createAuth(db: Db, env: ApiEnv, rawMailer: Mailer) {
   const mailer = skipPlaceholderRecipients(rawMailer);
@@ -44,6 +59,14 @@ export function createAuth(db: Db, env: ApiEnv, rawMailer: Mailer) {
         /** SteamID64; set only by our Steam OpenID flow, never from client input. */
         steamId: { type: 'string', required: false, input: false },
       },
+    },
+    // Only providers with credentials are registered; the Account page and login buttons key off this.
+    socialProviders: gatedSocialProviders(socialProviderConfig(env)),
+    account: {
+      // Google and Discord are trusted: a sign-in whose verified email matches a verified Perch
+      // account links to it instead of creating a duplicate. Trust skips better-auth's own
+      // provider-verified check, so `socialProfileOverrides` blanks unverified emails first.
+      accountLinking: { enabled: true, trustedProviders: ['google', 'discord'] },
     },
     hooks: {
       // `.invalid` addresses are reserved for Steam-only accounts: nobody may claim one.

@@ -1,6 +1,7 @@
 import { z } from 'zod';
+import { incompleteSocialProviders, type SocialEnv } from '@perch/core';
 
-export const ApiEnvSchema = z.object({
+const ApiEnvShape = z.object({
   BETTER_AUTH_SECRET: z.string().min(16),
   BETTER_AUTH_URL: z.url(),
   WEB_ORIGIN: z.url(),
@@ -12,15 +13,34 @@ export const ApiEnvSchema = z.object({
     .enum(['0', '1'])
     .default('0')
     .transform((v) => v === '1'),
+  /** Google / Discord OAuth app credentials: both of a pair, or neither. */
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  DISCORD_CLIENT_ID: z.string().optional(),
+  DISCORD_CLIENT_SECRET: z.string().optional(),
   NODE_ENV: z.string().optional(),
 });
+
+/** Fails fast when only one of a provider's id/secret is set. */
+function requireCredentialPairs(env: SocialEnv, ctx: z.RefinementCtx) {
+  for (const p of incompleteSocialProviders(env)) {
+    const name = p.toUpperCase();
+    ctx.addIssue({
+      code: 'custom',
+      path: [`${name}_CLIENT_ID`],
+      message: `${name}_CLIENT_ID and ${name}_CLIENT_SECRET must be set together`,
+    });
+  }
+}
+
+export const ApiEnvSchema = ApiEnvShape.superRefine(requireCredentialPairs);
 export type ApiEnv = z.infer<typeof ApiEnvSchema>;
 
 /** Extra settings only the server entrypoint needs. */
-export const ServerEnvSchema = ApiEnvSchema.extend({
+export const ServerEnvSchema = ApiEnvShape.extend({
   DATABASE_URL: z.string().min(1),
   API_PORT: z.coerce.number().int().min(1).max(65535).default(8787),
-});
+}).superRefine(requireCredentialPairs);
 export type ServerEnv = z.infer<typeof ServerEnvSchema>;
 
 /** Drops unset and empty values so schema defaults and optionals apply. */

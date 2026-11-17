@@ -25,3 +25,4 @@ export type { NoticeProps } from './Notice';
 export { SectionHeading } from './SectionHeading';
 export { Select } from './Select';
 export { Textarea } from './Textarea';
+export { ProviderMark } from './ProviderMark';

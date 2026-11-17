@@ -28,5 +28,5 @@ export { LibraryControls } from './LibraryControls';
 export { SelectField } from './SelectField';
 export { SearchResultRow } from './SearchResultRow';
 export type { SearchResultRowProps } from './SearchResultRow';
-export { SteamSignInButton } from './SteamSignInButton';
-export type { SteamSignInButtonProps } from './SteamSignInButton';
+export { ProviderButton } from './ProviderButton';
+export type { ProviderButtonProps } from './ProviderButton';

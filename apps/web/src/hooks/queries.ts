@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-query';
 import type {
   AccountResponse,
+  AuthProviders,
   DeviceCreate,
   DevicePatchInput,
   DevicePresetsResponse,
@@ -296,6 +297,18 @@ export function useDeleteDevice() {
     mutationFn: (id: string) => api.delete(`/api/devices/${id}`),
     onSettled: () => invalidateAll(qc, devicesAffected),
   });
+}
+
+const STEAM_ONLY: AuthProviders = { google: false, discord: false, steam: true };
+
+/** Which sign-in providers the API has enabled; Steam only until it answers. */
+export function useAuthProviders(): AuthProviders {
+  const { data } = useQuery({
+    queryKey: queryKeys.authProviders,
+    queryFn: ({ signal }) => api.get<AuthProviders>('/api/auth-providers', { signal }),
+    staleTime: Infinity,
+  });
+  return data ?? STEAM_ONLY;
 }
 
 export function useAccount() {

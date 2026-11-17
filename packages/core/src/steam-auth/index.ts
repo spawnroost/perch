@@ -82,12 +82,19 @@ export const AccountResponseSchema = z.object({
   email: z.string(),
   steamId: z.string().nullable(),
   hasPassword: z.boolean(),
+  /** Linked Google/Discord accounts (provider ids). */
+  linkedProviders: z.array(z.string()),
 });
 export type AccountResponse = z.infer<typeof AccountResponseSchema>;
 
-/** Steam is the only way in for a user without a password, so it can't be unlinked then. */
-export function canUnlinkSteam(account: Pick<AccountResponse, 'steamId' | 'hasPassword'>): boolean {
-  return account.steamId !== null && account.hasPassword;
+/** Steam can't be unlinked when it is the only way in: no password and no Google/Discord. */
+export function canUnlinkSteam(
+  account: Pick<AccountResponse, 'steamId' | 'hasPassword'> &
+    Partial<Pick<AccountResponse, 'linkedProviders'>>,
+): boolean {
+  return (
+    account.steamId !== null && (account.hasPassword || (account.linkedProviders?.length ?? 0) > 0)
+  );
 }
 
 /** Same-origin URL that starts the Steam OpenID flow. */

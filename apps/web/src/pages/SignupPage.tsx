@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { AuthLayout, SignupForm, SteamAuthOptions } from '@/components/organisms';
+import { AuthLayout, SignupForm, ProviderAuthOptions } from '@/components/organisms';
 
 export function SignupPage() {
   return (
@@ -16,7 +16,7 @@ export function SignupPage() {
       }
     >
       <SignupForm />
-      <SteamAuthOptions />
+      <ProviderAuthOptions />
     </AuthLayout>
   );
 }

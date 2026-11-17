@@ -2,10 +2,15 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { Button, Notice } from '../atoms';
-import { ActionForm, FormField, SteamSignInButton } from '../molecules';
-import { accountSubtitle, canUnlinkSteam } from '@perch/core';
-import { useAccount, useUnlinkSteam } from '@/hooks/queries';
-import { useSteamError } from '@/hooks/useSteamError';
+import { ActionForm, FormField, ProviderButton } from '../molecules';
+import {
+  SOCIAL_PROVIDERS,
+  accountSubtitle,
+  canUnlinkSteam,
+  socialProviderLabel,
+} from '@perch/core';
+import { useAccount, useAuthProviders, useUnlinkSteam } from '@/hooks/queries';
+import { useAuthError } from '@/hooks/useAuthError';
 import { useAction } from '@/hooks/useAction';
 import { useSignOut } from '@/hooks/useSignOut';
 import { authClient, unwrapAuth } from '@/lib/auth-client';
@@ -83,7 +88,7 @@ function ChangePassword() {
 function SteamLink() {
   const account = useAccount();
   const unlink = useUnlinkSteam();
-  const steamError = useSteamError();
+  const authError = useAuthError();
   const data = account.data;
   const linked = Boolean(data?.steamId);
   const unlinkError = unlink.error instanceof Error ? unlink.error.message : null;
@@ -96,7 +101,7 @@ function SteamLink() {
           : 'Link Steam to sign in with it and pull in your library.'
       }
     >
-      {(steamError ?? unlinkError) && <Notice tone="error">{steamError ?? unlinkError}</Notice>}
+      {(authError ?? unlinkError) && <Notice tone="error">{authError ?? unlinkError}</Notice>}
       {data &&
         (linked ? (
           canUnlinkSteam(data) ? (
@@ -113,9 +118,39 @@ function SteamLink() {
           )
         ) : (
           <div className="w-fit">
-            <SteamSignInButton mode="link">Link Steam</SteamSignInButton>
+            <ProviderButton provider="steam" mode="link" />
           </div>
         ))}
+    </Section>
+  );
+}
+
+/** Google / Discord: what is linked, and a link button for enabled providers that are not. */
+function SocialLinks() {
+  const account = useAccount();
+  const enabled = useAuthProviders();
+  const linked = account.data?.linkedProviders ?? [];
+  const shown = SOCIAL_PROVIDERS.filter((p) => enabled[p] || linked.includes(p));
+  if (!account.data || shown.length === 0) return null;
+  return (
+    <Section
+      title="Google and Discord"
+      description="Link them to sign in with one click. Your email must match and be verified."
+    >
+      <ul className="flex flex-col gap-2">
+        {shown.map((p) => (
+          <li key={p} className="flex items-center justify-between gap-3 text-sm text-fg">
+            {socialProviderLabel(p)}
+            {linked.includes(p) ? (
+              <span className="text-fg-muted">Linked</span>
+            ) : (
+              <div className="w-44">
+                <ProviderButton provider={p} mode="link" />
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
     </Section>
   );
 }
@@ -125,10 +160,10 @@ function DeleteAccount({ hasPassword }: { hasPassword: boolean }) {
   const navigate = useNavigate();
   const [confirming, setConfirming] = useState(false);
   const { run, pending, error } = useAction(async (password: string) => {
-    // Steam-only users have no password: better-auth then needs a fresh session instead.
+    // Steam- or social-only users have no password: better-auth then needs a fresh session instead.
     const result = await authClient.deleteUser(hasPassword ? { password } : {});
     if (!hasPassword && result.error)
-      throw new Error('Your session is too old. Sign out, sign in with Steam again, then retry.');
+      throw new Error('Your session is too old. Sign out, sign in again, then retry.');
     unwrapAuth(result);
     queryClient.clear();
     await navigate('/login', { replace: true });
@@ -182,6 +217,7 @@ export function AccountSettings() {
       </div>
       {account?.hasPassword !== false && <ChangePassword />}
       <SteamLink />
+      <SocialLinks />
       <Section title="Sign out">
         {signOut.error && <Notice tone="error">{signOut.error}</Notice>}
         <Button

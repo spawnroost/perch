@@ -7,6 +7,7 @@ import {
   GameNotFoundError,
   IgdbError,
   ImportTooLargeError,
+  authProvidersFor,
   createAccentFetcher,
   createIgdbCache,
   type IgdbCache,
@@ -94,6 +95,8 @@ export function createApp(appDeps: AppDeps) {
 
   // Container healthcheck. No secrets, no row data.
   app.get('/api/health', (c) => c.json({ ok: true }));
+  // Which sign-in buttons the web should render. Public; booleans only, never credentials.
+  app.get('/api/auth-providers', (c) => c.json(authProvidersFor(env)));
   // Before the catch-all: Steam sign-in is ours, not better-auth's.
   app.route('/api/auth/steam', steamAuthRoutes(deps));
   app.on(['GET', 'POST'], '/api/auth/*', (c) => auth.handler(c.req.raw));
