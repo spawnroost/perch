@@ -31,15 +31,24 @@ export type HudChipProps = {
   tone: Tone;
   /** A plain tag (e.g. Backlog): no tone icon and no spoken status. */
   plain?: boolean;
+  /** Spoken text replacing the visible label (e.g. what a "+N" chip hides); also the hover title. */
+  srLabel?: string;
 } & Omit<ComponentProps<'span'>, 'children'>;
 
 /** Small HUD-style device-fit chip: device label plus a tone icon, never colour alone. */
-export function HudChip({ label, tone, plain, className, ...props }: HudChipProps) {
+export function HudChip({ label, tone, plain, srLabel, className, ...props }: HudChipProps) {
   const Icon = TONE_ICON[tone];
   return (
-    <span className={cn('font-hud', chipVariants({ tone }), className)} {...props}>
-      {plain ? null : <Icon size={12} strokeWidth={2} aria-hidden />}
-      {label}
+    <span
+      className={cn('font-hud', chipVariants({ tone }), className)}
+      title={srLabel ?? label}
+      {...props}
+    >
+      {plain ? null : <Icon size={12} strokeWidth={2} aria-hidden className="shrink-0" />}
+      <span aria-hidden={srLabel ? true : undefined} className="min-w-0 truncate">
+        {label}
+      </span>
+      {srLabel ? <span className="sr-only">{srLabel}</span> : null}
       {plain ? null : <span className="sr-only">: {TONE_TEXT[tone]}</span>}
     </span>
   );

@@ -79,6 +79,8 @@ export function fitChips(fits: readonly DeviceFit[]): FitChip[] {
 /** A chip on a launcher card; `plain` chips carry no fit tone (no icon, no spoken status). */
 export interface PickChip extends FitChip {
   plain?: true;
+  /** Spoken text standing in for a visible label that hides detail (the "+N" overflow chip). */
+  srLabel?: string;
 }
 
 /** Chips a launcher card shows before the rest collapse into a "+N" chip. */
@@ -104,9 +106,15 @@ export function pickChips(
 /** The first `max` chips, plus a plain "+N" chip standing in for the rest. */
 export function capChips(chips: readonly PickChip[], max: number = CARD_CHIP_LIMIT): PickChip[] {
   if (chips.length <= max) return [...chips];
+  const hidden = chips.slice(max);
   return [
     ...chips.slice(0, max),
-    { label: `+${chips.length - max}`, tone: 'unknown', plain: true },
+    {
+      label: `+${hidden.length}`,
+      tone: 'unknown',
+      plain: true,
+      srLabel: `and ${hidden.length} more: ${hidden.map((c) => c.label).join(', ')}`,
+    },
   ];
 }
 

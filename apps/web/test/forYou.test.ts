@@ -144,8 +144,13 @@ describe('capChips', () => {
     expect(capChips(chips, 2)).toEqual([
       chips[0],
       chips[1],
-      { label: '+2', tone: 'unknown', plain: true },
+      { label: '+2', tone: 'unknown', plain: true, srLabel: 'and 2 more: C, D' },
     ]);
+  });
+
+  it('describes a single hidden chip for screen readers', () => {
+    const three = [chips[0]!, chips[1]!, { label: 'Deck: Verified', tone: 'yes' as const }];
+    expect(capChips(three, 2).at(-1)?.srLabel).toBe('and 1 more: Deck: Verified');
   });
 });
 

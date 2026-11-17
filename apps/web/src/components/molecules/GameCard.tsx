@@ -24,7 +24,7 @@ export type GameCardProps = {
   coverUrlSmall?: string | null;
   /** Per-game hex accent; unset falls back to the default accent. */
   accent?: string | null;
-  chips?: Pick<HudChipProps, 'label' | 'tone' | 'plain'>[];
+  chips?: Pick<HudChipProps, 'label' | 'tone' | 'plain' | 'srLabel'>[];
   /** Controls (e.g. feedback) over the cover corner: shown on hover and focus, always on touch. */
   actions?: ReactNode;
   /** Shared-element id on the cover, matched by the detail view's cover for the expand. */
@@ -158,7 +158,12 @@ export function GameCard({
       {chips && chips.length > 0 ? (
         <span className="flex flex-nowrap gap-1 overflow-hidden">
           {chips.map((chip) => (
-            <HudChip key={chip.label} {...chip} />
+            <HudChip
+              key={chip.label}
+              {...chip}
+              // Chips shrink and truncate so the trailing "+N" chip stays whole.
+              className={chip.srLabel ? undefined : 'min-w-0 shrink'}
+            />
           ))}
         </span>
       ) : null}
