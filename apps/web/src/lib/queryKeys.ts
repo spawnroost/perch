@@ -6,8 +6,11 @@ export const queryKeys = {
   presets: ['device-presets'] as const,
   gameDetailAll: ['games', 'detail'] as const,
   game: (igdbId: number) => ['games', 'detail', igdbId] as const,
-  /** Under `gameDetailAll`, so library and device changes refresh it. */
-  gameFit: (igdbId: number) => ['games', 'detail', igdbId, 'fit'] as const,
+  /** Prefix of every batched search-fit query; refreshed with library and device changes. */
+  gameFitsAll: ['games', 'fit'] as const,
+  /** One batched fit request; the ids are sorted so any order shares a cache entry. */
+  gameFits: (igdbIds: readonly number[]) =>
+    ['games', 'fit', [...igdbIds].sort((a, b) => a - b)] as const,
   /** The user's feedback, by game. */
   feedback: ['feedback'] as const,
   gameSearch: (q: string) => ['games', 'search', q] as const,

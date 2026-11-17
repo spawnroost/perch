@@ -1,7 +1,9 @@
-import { Cover, Skeleton } from '../atoms';
+import type { DeckCategory } from '@perch/core';
+import { Cover, DeckBadge, Skeleton } from '../atoms';
 import { FitChips } from './FitChips';
 import { coverImage } from '@/lib/coverSrcSet';
 import { cn } from '@/lib/cn';
+import { searchResultLabel } from '@/lib/globalSearch';
 import type { DeviceFit } from '@/lib/forYou';
 
 export interface SearchResultRowProps {
@@ -12,7 +14,11 @@ export interface SearchResultRowProps {
   coverUrlSmall?: string | null;
   /** Per-device fit; undefined until loaded (or when it failed). */
   fits?: readonly DeviceFit[];
+  /** Steam Deck compatibility, when known. */
+  deck?: DeckCategory | null;
   fitLoading: boolean;
+  /** The fit request failed: say so, rather than showing nothing. */
+  fitError?: boolean;
   active: boolean;
   onSelect: () => void;
   onHover: () => void;
@@ -28,7 +34,9 @@ export function SearchResultRow({
   coverUrl,
   coverUrlSmall,
   fits,
+  deck,
   fitLoading,
+  fitError,
   active,
   onSelect,
   onHover,
@@ -38,6 +46,7 @@ export function SearchResultRow({
     <li
       id={id}
       role="option"
+      aria-label={searchResultLabel(name, fits, deck)}
       aria-selected={active}
       onClick={onSelect}
       onMouseMove={onHover}
@@ -58,8 +67,13 @@ export function SearchResultRow({
           {name}
           {year && <span className="ml-2 text-xs text-fg-subtle tabular-nums">{year}</span>}
         </p>
-        {fitLoading && <Skeleton className="h-5 w-24 rounded-sm" />}
-        {fits && <FitChips fits={fits} />}
+        {/* The option's aria-label already speaks all of this. */}
+        <div aria-hidden className="flex flex-wrap items-center gap-1.5 empty:hidden">
+          {fitLoading && <Skeleton className="h-5 w-24 rounded-sm" />}
+          {fitError && <span className="text-2xs text-fg-subtle">Fit unavailable</span>}
+          {fits && <FitChips fits={fits} />}
+          {deck && <DeckBadge category={deck} />}
+        </div>
       </div>
     </li>
   );

@@ -64,12 +64,36 @@ export const gameDetailResponseSchema = z.object({
   why: z.array(z.string()),
 });
 
-/** Light per-device fit for one game (search results fill this lazily). */
-export const gameFitResponseSchema = z.object({
+/** Most games whose fit one batched request covers. */
+export const FIT_BATCH_LIMIT = 8;
+
+/** `?ids=1,2,3`: 1 to FIT_BATCH_LIMIT positive integer ids; duplicates collapse. */
+export const gameFitQuerySchema = z.object({
+  ids: z
+    .string()
+    .transform((s) => s.split(','))
+    .pipe(
+      z
+        .array(z.string().regex(/^\d{1,15}$/, 'ids must be positive integers'))
+        .min(1)
+        .max(FIT_BATCH_LIMIT),
+    )
+    .transform((parts) => [...new Set(parts.map(Number))])
+    .pipe(z.array(z.number().int().positive())),
+});
+
+/** Light per-device fit and deck category for one game. */
+export const gameFitSchema = z.object({
   deck: deckCategorySchema.nullable(),
   fits: z.array(deviceFitSchema),
 });
 
-export type GameFitResponse = z.infer<typeof gameFitResponseSchema>;
+/** Batched fit keyed by IGDB id; ids that are not known games are absent. */
+export const gameFitsResponseSchema = z.object({
+  fits: z.record(z.string(), gameFitSchema),
+});
+
+export type GameFitEntry = z.infer<typeof gameFitSchema>;
+export type GameFitsResponse = z.infer<typeof gameFitsResponseSchema>;
 export type GameSearchResponse = z.infer<typeof gameSearchResponseSchema>;
 export type GameDetailResponse = z.infer<typeof gameDetailResponseSchema>;

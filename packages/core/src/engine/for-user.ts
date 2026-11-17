@@ -313,3 +313,25 @@ export async function gameFitForUser(
   void gpuRequirement;
   return fit;
 }
+
+/**
+ * Will-it-run for several games at once: devices are read once. Returns each game's fit keyed by
+ * its IGDB id.
+ */
+export async function gameFitsForUser(
+  deps: Pick<UserEngineDeps, 'db' | 'steam'>,
+  userId: string,
+  games: readonly Pick<Game, 'igdbId' | 'platforms' | 'steamAppId'>[],
+): Promise<Record<number, GameFit>> {
+  if (games.length === 0) return {};
+  const devices = await loadDevices(deps.db, userId);
+  const fetchers = createFitFetchers(deps.db, deps.steam);
+  const entries = await Promise.all(
+    games.map(async (game) => {
+      const { gpuRequirement, ...fit } = await fitsForGame(devices, fetchers, game);
+      void gpuRequirement;
+      return [game.igdbId, fit] as const;
+    }),
+  );
+  return Object.fromEntries(entries);
+}

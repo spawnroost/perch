@@ -1,5 +1,6 @@
 import { useEffect, useId, useState, type KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router';
+import type { GameFitEntry } from '@perch/core';
 import { Search, X } from 'lucide-react';
 import {
   Input,
@@ -12,10 +13,16 @@ import {
   Skeleton,
 } from '../atoms';
 import { SearchResultRow } from '../molecules';
-import { useGameFit, useGameSearch } from '@/hooks/queries';
+import { useGameSearch, useSearchFits } from '@/hooks/queries';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { cn } from '@/lib/cn';
-import { isSearchShortcut, moveActive, optionId, visibleResults } from '@/lib/globalSearch';
+import {
+  isSearchShortcut,
+  modalDialogOpen,
+  moveActive,
+  optionId,
+  visibleResults,
+} from '@/lib/globalSearch';
 import { releaseYear } from '@/lib/onboarding';
 
 type Result = NonNullable<ReturnType<typeof useGameSearch>['data']>[number];
@@ -26,7 +33,7 @@ export function GlobalSearch() {
 
   useEffect(() => {
     function onKeyDown(e: globalThis.KeyboardEvent) {
-      if (!isSearchShortcut(e)) return;
+      if (!isSearchShortcut(e) || modalDialogOpen(document)) return;
       e.preventDefault();
       setOpen(true);
     }
@@ -70,6 +77,10 @@ function SearchPanel({ onDone }: { onDone: () => void }) {
   const results = q.length >= 2 ? visibleResults(search.data) : undefined;
   const stale = search.isPlaceholderData;
   const rows = results ?? [];
+  const fits = useSearchFits(
+    rows.map((g) => g.igdbId),
+    !stale,
+  );
   const activeIndex = rows.length === 0 ? -1 : Math.min(active, rows.length - 1);
   const activeId = activeIndex >= 0 ? optionId(optionPrefix, rows[activeIndex]!.igdbId) : undefined;
 
@@ -139,14 +150,16 @@ function SearchPanel({ onDone }: { onDone: () => void }) {
             : ''}
         </p>
         {search.isError && <Notice tone="error">{search.error.message}</Notice>}
-        {search.isFetching && !results && (
+        {q.length >= 2 && !results && !search.isError && (
           <div aria-busy className="flex flex-col gap-2">
             {[0, 1, 2].map((i) => (
               <Skeleton key={i} className="h-16 w-full rounded-lg" />
             ))}
           </div>
         )}
-        {results && results.length === 0 && !stale && <Notice>No games found for "{q}".</Notice>}
+        {results && results.length === 0 && !stale && !search.isError && (
+          <Notice>No games found for "{q}".</Notice>
+        )}
         <ul
           id={listId}
           role="listbox"
@@ -159,6 +172,9 @@ function SearchPanel({ onDone }: { onDone: () => void }) {
             <ResultOption
               key={g.igdbId}
               game={g}
+              fit={fits.data?.[g.igdbId]}
+              fitLoading={fits.isPending && !fits.isError}
+              fitError={fits.isError}
               id={optionId(optionPrefix, g.igdbId)}
               active={i === activeIndex}
               onSelect={() => open(g)}
@@ -173,19 +189,23 @@ function SearchPanel({ onDone }: { onDone: () => void }) {
 
 function ResultOption({
   game,
+  fit,
+  fitLoading,
+  fitError,
   id,
   active,
   onSelect,
   onHover,
 }: {
   game: Result;
+  fit: GameFitEntry | undefined;
+  fitLoading: boolean;
+  fitError: boolean;
   id: string;
   active: boolean;
   onSelect: () => void;
   onHover: () => void;
 }) {
-  // Only visible rows mount, so only they request fit; react-query caches it per game.
-  const fit = useGameFit(game.igdbId, true);
   return (
     <SearchResultRow
       id={id}
@@ -193,8 +213,10 @@ function ResultOption({
       year={releaseYear(game.firstRelease)}
       coverUrl={game.coverUrl}
       coverUrlSmall={game.coverUrlSmall}
-      fits={fit.data?.fits}
-      fitLoading={fit.isPending && !fit.isError}
+      fits={fit?.fits}
+      deck={fit?.deck}
+      fitLoading={fitLoading}
+      fitError={fitError}
       active={active}
       onSelect={onSelect}
       onHover={onHover}

@@ -2,13 +2,15 @@ import { Hono } from 'hono';
 import {
   explainGameForUser,
   gameFitForUser,
+  gameFitQuerySchema,
+  gameFitsForUser,
   gameSearchQuerySchema,
   igdbIdParamSchema,
   similarForUser,
   similarQuerySchema,
   toTimeToBeatHours,
   type GameDetailResponse,
-  type GameFitResponse,
+  type GameFitsResponse,
   type GameSearchResponse,
   type SimilarResponse,
 } from '@perch/core';
@@ -38,6 +40,15 @@ export function gamesRoutes(deps: RouteDeps) {
     } satisfies GameSearchResponse);
   });
 
+  // Registered before `/:igdbId`, which would otherwise take "fit" as an id.
+  r.get('/fit', async (c) => {
+    const { ids } = parseQuery(c, gameFitQuerySchema);
+    const { cache } = requireIgdb(deps);
+    const found = await cache.getGames(ids);
+    const fits = await gameFitsForUser(deps, c.get('user').id, found);
+    return c.json({ fits } satisfies GameFitsResponse);
+  });
+
   r.get('/:igdbId/similar', async (c) => {
     const { igdbId } = parseParams(c, igdbIdParamSchema);
     const { device } = parseQuery(c, similarQuerySchema);
@@ -51,15 +62,6 @@ export function gamesRoutes(deps: RouteDeps) {
       game: found.game,
       recommendations: found.picks.map(recommendationDto),
     } satisfies SimilarResponse);
-  });
-
-  r.get('/:igdbId/fit', async (c) => {
-    const { igdbId } = parseParams(c, igdbIdParamSchema);
-    const { cache } = requireIgdb(deps);
-    const game = await cache.getGame(igdbId);
-    if (!game) return c.json({ error: 'game not found' }, 404);
-    const { deck, fits } = await gameFitForUser(deps, c.get('user').id, game);
-    return c.json({ deck, fits } satisfies GameFitResponse);
   });
 
   r.get('/:igdbId', async (c) => {

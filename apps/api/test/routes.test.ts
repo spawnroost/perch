@@ -159,7 +159,7 @@ describe.skipIf(!testUrl)('api routes', () => {
     it.each([
       ['GET', '/api/games/search?q=alpha'],
       ['GET', `/api/games/${A}`],
-      ['GET', `/api/games/${A}/fit`],
+      ['GET', `/api/games/fit?ids=${A}`],
       ['GET', '/api/library'],
       ['POST', '/api/library'],
       ['PATCH', `/api/library/${crypto.randomUUID()}`],
@@ -248,28 +248,37 @@ describe.skipIf(!testUrl)('api routes', () => {
       expect(body.why).toHaveLength(1);
     });
 
-    it('returns just the per-device fit and deck category', async () => {
+    it('batches per-device fit and deck by game id; unknown ids are absent', async () => {
       const u = await newUser();
       await call('POST', '/api/devices', u.cookie, { preset: 'steam-deck' });
       await call('POST', '/api/devices', u.cookie, { preset: 'ps5' });
-      const res = await get(`/api/games/${A}/fit`, u.cookie);
+      const res = await get(`/api/games/fit?ids=${A},${B},${BASE + 9}`, u.cookie);
       expect(res.status).toBe(200);
       const body = (await res.json()) as {
-        deck: string;
-        fits: { deviceName: string; status: string }[];
+        fits: Record<
+          string,
+          { deck: string | null; fits: { deviceName: string; status: string }[] }
+        >;
       };
-      expect(Object.keys(body).sort()).toEqual(['deck', 'fits']);
-      expect(body.deck).toBe('verified');
-      expect(Object.fromEntries(body.fits.map((f) => [f.deviceName, f.status]))).toEqual({
+      expect(Object.keys(body)).toEqual(['fits']);
+      expect(Object.keys(body.fits).sort()).toEqual([String(A), String(B)].sort());
+      const a = body.fits[String(A)]!;
+      expect(Object.keys(a).sort()).toEqual(['deck', 'fits']);
+      expect(a.deck).toBe('verified');
+      expect(Object.fromEntries(a.fits.map((f) => [f.deviceName, f.status]))).toEqual({
         'Steam Deck': 'green',
         'PlayStation 5': 'hidden',
       });
     });
 
-    it('fit: 400 on a bad id, 404 on an unknown game', async () => {
+    it('fit: 400 on bad or too many ids', async () => {
       const u = await newUser();
-      expect((await get('/api/games/abc/fit', u.cookie)).status).toBe(400);
-      expect((await get(`/api/games/${BASE + 9}/fit`, u.cookie)).status).toBe(404);
+      expect((await get('/api/games/fit', u.cookie)).status).toBe(400);
+      expect((await get('/api/games/fit?ids=abc', u.cookie)).status).toBe(400);
+      expect((await get(`/api/games/fit?ids=${A},,${B}`, u.cookie)).status).toBe(400);
+      expect((await get('/api/games/fit?ids=0', u.cookie)).status).toBe(400);
+      const nine = Array.from({ length: 9 }, (_, i) => BASE + i + 1).join(',');
+      expect((await get(`/api/games/fit?ids=${nine}`, u.cookie)).status).toBe(400);
     });
 
     it('explains nothing when no library game is similar', async () => {

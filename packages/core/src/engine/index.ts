@@ -47,6 +47,7 @@ export type { SessionDevice, SessionOptions, SessionRanked, SessionRec } from '.
 export {
   explainGameForUser,
   gameFitForUser,
+  gameFitsForUser,
   recommendForUser,
   sessionForUser,
   similarForUser,

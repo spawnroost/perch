@@ -14,7 +14,7 @@ import type {
   FeedbackKind,
   FeedbackListResponse,
   GameDetailResponse,
-  GameFitResponse,
+  GameFitsResponse,
   GameSearchResponse,
   HardwareResponse,
   ImportConfirm,
@@ -39,6 +39,7 @@ import {
 import { FOR_YOU_LIMIT } from '@/lib/forYou';
 import { seedGameDetail } from '@/lib/gameSeed';
 import { devicesAffected, libraryAffected } from '@/lib/invalidation';
+import { shouldRetry } from '@/lib/retry';
 import { queryKeys } from '@/lib/queryKeys';
 
 export function useLibrary(enabled = true) {
@@ -79,13 +80,23 @@ export function useGameSearch(q: string) {
   });
 }
 
-/** Per-device fit for one game, cached per game; `enabled` limits requests to visible rows. */
-export function useGameFit(igdbId: number, enabled: boolean) {
+/**
+ * Per-device fit and deck category for a result set, one request. `enabled` is false while the
+ * results are placeholder or stale, so only the rows on screen are asked about.
+ */
+export function useSearchFits(igdbIds: readonly number[], enabled: boolean) {
   return useQuery({
-    queryKey: queryKeys.gameFit(igdbId),
-    queryFn: ({ signal }) => api.get<GameFitResponse>(`/api/games/${igdbId}/fit`, { signal }),
-    enabled,
+    queryKey: queryKeys.gameFits(igdbIds),
+    queryFn: ({ signal }) =>
+      api.get<GameFitsResponse>('/api/games/fit', {
+        query: { ids: [...igdbIds].sort((a, b) => a - b).join(',') },
+        signal,
+      }),
+    select: (data) => data.fits,
+    enabled: enabled && igdbIds.length > 0,
     staleTime: 5 * 60_000,
+    // Client errors (400/401) will not change on a retry.
+    retry: shouldRetry,
   });
 }
 

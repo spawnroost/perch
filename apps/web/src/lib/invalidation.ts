@@ -1,10 +1,11 @@
 import { queryKeys } from './queryKeys';
 
-/** Query keys to refetch after the library changes: picks and game pages depend on it. */
+/** Query keys to refetch after the library changes: picks, game pages and search fits depend on it. */
 export const libraryAffected = [
   queryKeys.library,
   queryKeys.recommendationsAll,
   queryKeys.gameDetailAll,
+  queryKeys.gameFitsAll,
 ] as const;
 
 /** Query keys to refetch after devices change: picks and fit on game pages depend on them. */
@@ -12,4 +13,5 @@ export const devicesAffected = [
   queryKeys.devices,
   queryKeys.recommendationsAll,
   queryKeys.gameDetailAll,
+  queryKeys.gameFitsAll,
 ] as const;

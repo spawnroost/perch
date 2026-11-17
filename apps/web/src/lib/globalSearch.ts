@@ -1,3 +1,6 @@
+import type { DeckCategory } from '@perch/core';
+import type { DeviceFit } from './forYou';
+
 /** Rows whose fit is requested at once; the list shows no more than this. */
 export const FIT_REQUEST_LIMIT = 8;
 
@@ -20,13 +23,17 @@ function isTyping(target: ShortcutEvent['target']): boolean {
 }
 
 /**
- * Whether a keydown opens global search: `/` (never while typing in a field) or Ctrl/Cmd+K
- * (works from a field too, as it types nothing).
+ * Whether a keydown opens global search: `/` or Ctrl/Cmd+K, never while typing in a field.
  */
 export function isSearchShortcut(e: ShortcutEvent): boolean {
-  if (e.repeat || e.isComposing || e.altKey) return false;
-  if (e.key === '/') return !e.ctrlKey && !e.metaKey && !isTyping(e.target);
+  if (e.repeat || e.isComposing || e.altKey || isTyping(e.target)) return false;
+  if (e.key === '/') return !e.ctrlKey && !e.metaKey;
   return e.key.toLowerCase() === 'k' && (e.ctrlKey || e.metaKey) && !e.shiftKey;
+}
+
+/** Whether a modal dialog (Radix sets role and data-state) is open, which the palette must not stack on. */
+export function modalDialogOpen(doc: Pick<Document, 'querySelector'>): boolean {
+  return doc.querySelector('[role="dialog"][data-state="open"]') !== null;
 }
 
 /** Active row after a navigation key; arrows wrap, Home/End jump, other keys keep it. -1 means none. */
@@ -46,12 +53,33 @@ export function moveActive(index: number, key: string, count: number): number {
   }
 }
 
-/** Rows the list shows, and so the only games whose fit is requested. */
+/**
+ * Rows the list shows, and so the only games whose fit is requested. Undefined until the first
+ * response, so it never passes for an empty result.
+ */
 export function visibleResults<T>(
   results: readonly T[] | undefined,
   limit = FIT_REQUEST_LIMIT,
-): T[] {
-  return (results ?? []).slice(0, limit);
+): T[] | undefined {
+  return results?.slice(0, limit);
+}
+
+const SPOKEN_FIT: Record<DeviceFit['status'], string> = {
+  green: 'runs',
+  yellow: 'may struggle',
+  hidden: "won't run",
+  unknown: 'unknown',
+};
+
+/** The option's accessible name: the game plus how it fares on each device and on Steam Deck. */
+export function searchResultLabel(
+  name: string,
+  fits: readonly DeviceFit[] = [],
+  deck?: DeckCategory | null,
+): string {
+  const parts = fits.map((f) => `${f.deviceName}: ${SPOKEN_FIT[f.status]}`);
+  if (deck) parts.push(`Deck: ${deck}`);
+  return parts.length > 0 ? `${name} \u2014 ${parts.join(', ')}` : name;
 }
 
 /** DOM id of a result option, for `aria-activedescendant`. */
