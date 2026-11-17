@@ -6,6 +6,8 @@ export { Card, cardVariants } from './Card';
 export { Cover } from './Cover';
 export type { CoverProps } from './Cover';
 export type { CardProps } from './Card';
+export { FilterChip } from './FilterChip';
+export type { FilterChipProps } from './FilterChip';
 export { HudChip } from './HudChip';
 export type { HudChipProps } from './HudChip';
 export { Input } from './Input';

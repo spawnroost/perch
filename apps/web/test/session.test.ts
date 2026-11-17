@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { DeviceView } from '@perch/core';
 import {
-  batteryPercent,
-  readBatteryPercent,
+  capSession,
   sessionDevice,
   sessionParams,
   sessionTitle,
-  showBattery,
   SESSION_MINUTES,
+  SESSION_RESULT_CAP,
 } from '../src/lib/session.js';
 
 function device(over: Partial<DeviceView>): DeviceView {
@@ -30,66 +29,22 @@ describe('SESSION_MINUTES', () => {
 });
 
 describe('sessionDevice', () => {
-  it('uses the picked device', () => {
+  it('finds the picked device', () => {
     expect(sessionDevice([pc, deck], 'deck1')).toBe(deck);
   });
-  it('uses the default device on All', () => {
-    expect(sessionDevice([deck, pc], 'all')).toBe(pc);
-  });
-  it('falls back to the first device when none is default', () => {
-    expect(sessionDevice([deck], 'all')).toBe(deck);
-  });
-  it('falls back to the default when the picked device is gone', () => {
-    expect(sessionDevice([pc, deck], 'gone')).toBe(pc);
-  });
-  it('is undefined with no devices', () => {
-    expect(sessionDevice([], 'all')).toBeUndefined();
+  it('has no default: nothing picked, or a pick that is gone, is undefined', () => {
+    expect(sessionDevice([pc, deck], undefined)).toBeUndefined();
+    expect(sessionDevice([pc, deck], 'gone')).toBeUndefined();
+    expect(sessionDevice([], 'pc1')).toBeUndefined();
   });
 });
 
-describe('showBattery', () => {
-  it('only for handhelds', () => {
-    expect(showBattery(deck)).toBe(true);
-    expect(showBattery(device({ kind: 'rog-ally' }))).toBe(true);
-    expect(showBattery(pc)).toBe(false);
-    expect(showBattery(undefined)).toBe(false);
-  });
-});
-
-describe('batteryPercent', () => {
-  it('rounds a 0-1 level to a percent', () => {
-    expect(batteryPercent(0.554)).toBe(55);
-    expect(batteryPercent(1)).toBe(100);
-    expect(batteryPercent(0)).toBe(0);
-  });
-  it('clamps and rejects junk', () => {
-    expect(batteryPercent(1.4)).toBe(100);
-    expect(batteryPercent(-1)).toBe(0);
-    expect(batteryPercent(Number.NaN)).toBeUndefined();
-  });
-});
-
-describe('readBatteryPercent', () => {
-  it('reads navigator.getBattery', async () => {
-    const nav = { getBattery: () => Promise.resolve({ level: 0.42 }) };
-    expect(await readBatteryPercent(nav)).toBe(42);
-  });
-  it('is undefined when unsupported or failing', async () => {
-    expect(await readBatteryPercent({})).toBeUndefined();
-    expect(await readBatteryPercent({ getBattery: () => Promise.reject(new Error('no')) })).toBe(
-      undefined,
-    );
-  });
-});
-
-describe('readBatteryPercent timeout', () => {
-  it('gives up when getBattery never settles', async () => {
-    const nav = { getBattery: () => new Promise<{ level: number }>(() => undefined) };
-    expect(await readBatteryPercent(nav, 20)).toBeUndefined();
-  });
-  it('still returns a fast read', async () => {
-    const nav = { getBattery: () => Promise.resolve({ level: 0.8 }) };
-    expect(await readBatteryPercent(nav, 20)).toBe(80);
+describe('capSession', () => {
+  it('keeps at most SESSION_RESULT_CAP picks', () => {
+    const many = Array.from({ length: 20 }, (_, i) => i);
+    expect(SESSION_RESULT_CAP).toBe(12);
+    expect(capSession(many)).toEqual(many.slice(0, 12));
+    expect(capSession([1, 2])).toEqual([1, 2]);
   });
 });
 
@@ -100,20 +55,9 @@ describe('sessionTitle', () => {
 });
 
 describe('sessionParams', () => {
-  it('sends battery for a handheld', () => {
-    expect(sessionParams({ minutes: 30, battery: 55, device: deck })).toEqual({
+  it('sends minutes and the device id, never a battery', () => {
+    expect(sessionParams({ minutes: 30, device: deck })).toEqual({
       minutes: 30,
-      battery: 55,
-      deviceId: 'deck1',
-    });
-  });
-  it('drops battery for a desktop and when unknown', () => {
-    expect(sessionParams({ minutes: 60, battery: 55, device: pc })).toEqual({
-      minutes: 60,
-      deviceId: 'pc1',
-    });
-    expect(sessionParams({ minutes: 15, battery: undefined, device: deck })).toEqual({
-      minutes: 15,
       deviceId: 'deck1',
     });
   });

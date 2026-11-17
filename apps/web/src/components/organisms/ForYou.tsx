@@ -129,7 +129,7 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
               onChange={select}
               className="min-w-0"
             />
-            <QuickSession devices={devices} pickedId={selected} />
+            <QuickSession devices={devices} />
           </div>
         )}
         {shelfFeed.isError && (

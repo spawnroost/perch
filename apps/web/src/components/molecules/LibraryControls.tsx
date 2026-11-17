@@ -1,6 +1,5 @@
 import { Search } from 'lucide-react';
-import { Input, Select } from '../atoms';
-import { cn } from '@/lib/cn';
+import { FilterChip, Input, Select } from '../atoms';
 import {
   SORT_LABEL,
   SORTS,
@@ -49,21 +48,15 @@ export function LibraryControls({ filter, sort, counts, onFilter, onSort }: Libr
         {STATUS_FILTERS.map((status) => {
           const active = filter.status === status;
           return (
-            <button
+            <FilterChip
               key={status}
-              type="button"
               aria-pressed={active}
+              active={active}
               onClick={() => onFilter({ ...filter, status })}
-              className={cn(
-                'font-hud inline-flex h-8 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm transition-colors duration-fast ease-out',
-                active
-                  ? 'border-accent bg-accent-soft text-fg'
-                  : 'border-line bg-surface-1 text-fg-muted hover:bg-surface-2 hover:text-fg',
-              )}
             >
               {status === 'all' ? 'All' : STATUS_LABEL[status]}
               <span className="tabular-nums text-fg-subtle">{counts[status]}</span>
-            </button>
+            </FilterChip>
           );
         })}
       </div>
