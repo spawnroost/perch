@@ -29,41 +29,72 @@ export const SHORT_SESSION_MIN = 3;
 /** Longest time to beat, in hours, for a game to count as a short session. */
 export const SHORT_SESSION_MAX_HOURS = 12;
 export const SHORT_SESSIONS_ID = 'short-sessions';
-
-/** One device's server-ranked feed. */
-export interface DeviceFeed {
-  id: string;
-  name: string;
-  picks: readonly Recommendation[];
-}
+export const BACKLOG_ID = 'backlog';
+export const MORE_PICKS_ID = 'more-picks';
+/** Fewest picks sharing a source game for a "Because you played" shelf. */
+export const SOURCE_SHELF_MIN = 2;
 
 /**
- * Shelves for the launcher: All picks, one per device with a non-empty feed (server-ranked for
- * that device), then Short sessions (all picks that take at most SHORT_SESSION_MAX_HOURS).
+ * Shelves for the launcher, grouped by reason. Each game appears once and the hero game never.
+ * Claim order, most specific first: From your backlog, Short sessions (at most
+ * SHORT_SESSION_MAX_HOURS, shortest first), then "Because you played X" per source game; leftovers
+ * go on More picks. Shown order: Because shelves (largest first), Short sessions, backlog, more.
  */
 export function buildShelves(
   picks: readonly Recommendation[],
-  deviceFeeds: readonly DeviceFeed[],
+  heroId: number | null = null,
 ): PickShelf[] {
-  const shelves: PickShelf[] = [{ id: ALL_TAB, title: 'All picks', picks: [...picks] }];
-  for (const d of deviceFeeds) {
-    if (d.picks.length > 0) {
-      shelves.push({ id: d.id, title: `Fits your ${d.name}`, picks: [...d.picks] });
-    }
-  }
-  const short = picks.flatMap((p) => {
+  const seen = new Set<number>(heroId === null ? [] : [heroId]);
+  const claim = (list: readonly Recommendation[]) =>
+    list.filter((p) => !seen.has(p.game.igdbId) && seen.add(p.game.igdbId));
+
+  const backlog = claim(picks.filter((p) => p.backlog));
+
+  const timed = picks.flatMap((p) => {
     const hours = timeToBeatHours(p.timeToBeat);
-    return hours !== null && hours <= SHORT_SESSION_MAX_HOURS ? [{ p, hours }] : [];
+    return hours !== null && hours <= SHORT_SESSION_MAX_HOURS && !seen.has(p.game.igdbId)
+      ? [{ p, hours }]
+      : [];
   });
-  if (short.length >= SHORT_SESSION_MIN) {
-    short.sort((a, b) => a.hours - b.hours);
-    shelves.push({
-      id: SHORT_SESSIONS_ID,
-      title: 'Short sessions',
-      picks: short.map((t) => t.p),
-    });
+  const short =
+    timed.length >= SHORT_SESSION_MIN
+      ? claim(timed.sort((a, b) => a.hours - b.hours).map((t) => t.p))
+      : [];
+
+  const bySource = new Map<number, { name: string; picks: Recommendation[] }>();
+  for (const p of picks) {
+    if (seen.has(p.game.igdbId) || !p.sourceGame) continue;
+    const group = bySource.get(p.sourceGame.igdbId) ?? { name: p.sourceGame.name, picks: [] };
+    group.picks.push(p);
+    bySource.set(p.sourceGame.igdbId, group);
   }
-  return shelves;
+  const because: PickShelf[] = [...bySource]
+    .filter(([, g]) => g.picks.length >= SOURCE_SHELF_MIN)
+    .sort((a, b) => b[1].picks.length - a[1].picks.length)
+    .map(([id, g]) => ({
+      id: `because-${id}`,
+      title: `Because you played ${g.name}`,
+      picks: claim(g.picks),
+    }));
+  const more = claim(picks);
+
+  const shelves: PickShelf[] = [
+    ...because,
+    { id: SHORT_SESSIONS_ID, title: 'Short sessions', picks: short },
+    { id: BACKLOG_ID, title: 'From your backlog', picks: backlog },
+    { id: MORE_PICKS_ID, title: 'More picks', picks: more },
+  ];
+  return shelves.filter((s) => s.picks.length > 0);
+}
+
+/** An option in the device switcher: All, then one per device. */
+export interface DeviceOption {
+  id: string;
+  label: string;
+}
+
+export function deviceOptions(devices: readonly { id: string; name: string }[]): DeviceOption[] {
+  return [{ id: ALL_TAB, label: 'All' }, ...devices.map((d) => ({ id: d.id, label: d.name }))];
 }
 
 export interface FitChip {
@@ -72,8 +103,10 @@ export interface FitChip {
 }
 
 /** One HUD chip per device: its name and a tone from the will-it-run status. */
-export function fitChips(fits: readonly DeviceFit[]): FitChip[] {
-  return fits.map((f) => ({ label: f.deviceName, tone: fitDisplay(f.status).tone }));
+export function fitChips(fits: readonly DeviceFit[], omitDeviceId?: string): FitChip[] {
+  return fits
+    .filter((f) => f.deviceId !== omitDeviceId)
+    .map((f) => ({ label: f.deviceName, tone: fitDisplay(f.status).tone }));
 }
 
 /** A chip on a launcher card; `plain` chips carry no fit tone (no icon, no spoken status). */
@@ -87,14 +120,14 @@ export interface PickChip extends FitChip {
 export const CARD_CHIP_LIMIT = 2;
 
 /**
- * Card chips for a pick: per-device fit, then Backlog and Steam Deck compatibility when set. With a
+ * Card chips for a pick: per-device fit (minus `omitDeviceId`, the selected device), then Backlog and Steam Deck compatibility when set. With a
  * Steam Deck device the fit chip already covers deck status, so the separate Deck chip is dropped.
  */
 export function pickChips(
   rec: Pick<Recommendation, 'fits' | 'backlog' | 'deck'>,
-  { hasDeckDevice = false }: { hasDeckDevice?: boolean } = {},
+  { hasDeckDevice = false, omitDeviceId }: { hasDeckDevice?: boolean; omitDeviceId?: string } = {},
 ): PickChip[] {
-  const chips: PickChip[] = fitChips(rec.fits);
+  const chips: PickChip[] = fitChips(rec.fits, omitDeviceId);
   if (rec.backlog) chips.push({ label: 'Backlog', tone: 'unknown', plain: true });
   if (rec.deck && !hasDeckDevice) {
     const { label, tone } = deckDisplay(rec.deck);

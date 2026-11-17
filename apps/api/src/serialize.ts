@@ -52,6 +52,7 @@ export function recommendationDto(
     score: r.score,
     backlog: r.backlog,
     reason: r.reason,
+    sourceGame: r.sourceGame,
     game: {
       igdbId: r.game.igdbId,
       name: r.game.name,

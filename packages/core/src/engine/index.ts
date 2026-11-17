@@ -1,6 +1,6 @@
 export { buildCandidates, CANDIDATE_CAP } from './candidates.js';
 export type { CandidateDeps, CandidateInput } from './candidates.js';
-export { createNoneProvider } from './explain.js';
+export { closestSource, createNoneProvider } from './explain.js';
 export type { ExplainProvider, ExplainRequest } from './explain.js';
 export { buildProfile, weighGames } from './profile.js';
 export type { ProfileInput } from './profile.js';

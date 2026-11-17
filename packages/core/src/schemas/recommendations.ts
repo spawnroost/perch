@@ -15,6 +15,8 @@ export const recommendationsResponseSchema = z.object({
       score: z.number(),
       backlog: z.boolean(),
       reason: z.string(),
+      /** The library game this pick is closest to (what "Because you played" groups by). */
+      sourceGame: z.object({ igdbId: z.number().int(), name: z.string() }).nullable(),
       game: z.object({
         igdbId: z.number().int(),
         name: z.string(),

@@ -556,6 +556,7 @@ describe.skipIf(!testUrl)('api routes', () => {
         recommendations: {
           rank: number;
           reason: string;
+          sourceGame: { igdbId: number; name: string } | null;
           game: {
             igdbId: number;
             coverUrl: string | null;
@@ -582,6 +583,7 @@ describe.skipIf(!testUrl)('api routes', () => {
         heroUrl: null,
         accent: '#2a6fdb',
       });
+      expect(beta.sourceGame).toEqual({ igdbId: A, name: expect.any(String) });
       expect(beta.deck).toBeNull();
       expect(beta.timeToBeat).toBeNull();
       await ctx.db

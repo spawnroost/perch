@@ -1,5 +1,5 @@
 import { buildCandidates, type CandidateDeps } from './candidates.js';
-import type { ExplainProvider } from './explain.js';
+import { closestSource, type ExplainProvider } from './explain.js';
 import {
   bestFit,
   deviceKind,
@@ -171,6 +171,7 @@ export async function recommend(
     score: t.score,
     backlog: t.backlog,
     reason: reasons[i] ?? '',
+    sourceGame: closestSource(t.game, similarSources, idf),
     ...(fits.has(t.game.igdbId) ? { fit: fits.get(t.game.igdbId) } : {}),
   }));
 }

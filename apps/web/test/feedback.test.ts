@@ -17,6 +17,7 @@ const pick = (igdbId: number): Rec => ({
   score: 1,
   backlog: false,
   reason: 'r',
+  sourceGame: null,
   game: {
     igdbId,
     name: `g${igdbId}`,

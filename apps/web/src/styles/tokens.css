@@ -392,6 +392,13 @@
   inherits: false;
   initial-value: 0px;
 }
+/* Hide the native scrollbar; scrolling still works by swipe, wheel, keys and the arrow buttons. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
 @utility shelf-fade {
   --fade-size: 3rem;
   mask-image: linear-gradient(

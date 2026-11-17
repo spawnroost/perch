@@ -22,6 +22,7 @@ describe('recommend', () => {
     expect(recs).toHaveLength(5);
     expect(recs.map((r) => r.rank)).toEqual([1, 2, 3, 4, 5]);
     expect(recs[0]!.reason).toMatch(/^Similar to /);
+    expect(recs[0]!.reason).toContain(recs[0]!.sourceGame!.name);
     const libIds = new Set(LIBRARY.map((l) => l.game.igdbId));
     expect(recs.every((r) => !libIds.has(r.game.igdbId))).toBe(true);
     expect(recs.map((r) => r.game.igdbId)).toContain(102);

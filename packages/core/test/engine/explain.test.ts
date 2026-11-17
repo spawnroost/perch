@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createNoneProvider } from '../../src/engine/explain.js';
+import { closestSource, createNoneProvider } from '../../src/engine/explain.js';
 import { buildProfile } from '../../src/engine/profile.js';
 import { CANDIDATES, LIBRARY, NOW, game } from './fixtures.js';
 
@@ -79,5 +79,21 @@ describe('none explain provider with idf', () => {
     expect(plain).toMatch(/^Similar to FantasyTwin/);
     const [weighted] = await createNoneProvider({ labels: labels2 }).explain([{ ...base, idf }]);
     expect(weighted).toMatch(/^Similar to RareTwin/);
+  });
+});
+
+describe('closestSource', () => {
+  const g = (igdbId: number, name: string, vocab: Record<string, number>) =>
+    ({ igdbId, name, vocab }) as unknown as import('../../src/engine/types.js').EngineGame;
+
+  it('returns the most similar library game, skipping the game itself', () => {
+    const a = g(1, 'A', { x: 1 });
+    const b = g(2, 'B', { y: 1 });
+    expect(closestSource(g(3, 'C', { y: 1 }), [a, b])).toEqual({ igdbId: 2, name: 'B' });
+    expect(closestSource(g(2, 'B', { y: 1 }), [a, b])).toBeNull();
+  });
+
+  it('is null when nothing is similar', () => {
+    expect(closestSource(g(3, 'C', { z: 1 }), [g(1, 'A', { x: 1 })])).toBeNull();
   });
 });

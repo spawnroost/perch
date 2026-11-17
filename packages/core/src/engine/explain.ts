@@ -20,6 +20,25 @@ export const MAX_SHARED_LABELS = 3;
 /** Fallback reason when no library game is similar to the candidate. */
 export const GENERIC_REASON = 'Matches your overall taste profile';
 
+/** The library game most similar to `game` (never itself); null when none shares any vocab. */
+export function closestSource(
+  game: EngineGame,
+  library: readonly EngineGame[],
+  idf?: Readonly<Record<string, number>>,
+): { igdbId: number; name: string } | null {
+  let closest: EngineGame | undefined;
+  let best = 0;
+  for (const lib of library) {
+    if (lib.igdbId === game.igdbId) continue; // a backlog game is not similar to itself
+    const sim = cosine(game.vocab, lib.vocab, idf);
+    if (sim > best) {
+      best = sim;
+      closest = lib;
+    }
+  }
+  return closest ? { igdbId: closest.igdbId, name: closest.name } : null;
+}
+
 /** Template provider: "Similar to <closest library game>: <shared vocab labels>". */
 export function createNoneProvider(opts: {
   labels: Readonly<Record<string, string>>;
@@ -28,16 +47,8 @@ export function createNoneProvider(opts: {
     name: 'none',
     async explain(requests) {
       return requests.map(({ game, library, idf }) => {
-        let closest: EngineGame | undefined;
-        let best = 0;
-        for (const lib of library) {
-          if (lib.igdbId === game.igdbId) continue; // a backlog game is not similar to itself
-          const sim = cosine(game.vocab, lib.vocab, idf);
-          if (sim > best) {
-            best = sim;
-            closest = lib;
-          }
-        }
+        const source = closestSource(game, library, idf);
+        const closest = source && library.find((l) => l.igdbId === source.igdbId);
         if (!closest) return GENERIC_REASON;
         const shared = Object.entries(game.vocab)
           .map(([id, v]) => [id, v * (closest.vocab[id] ?? 0) * (idf?.[id] ?? 1)] as const)

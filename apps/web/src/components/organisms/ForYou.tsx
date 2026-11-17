@@ -1,7 +1,16 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import type { DeviceView } from '@perch/core';
 import { Button, Notice, Skeleton } from '../atoms';
-import { FeedbackActions, FitChips, GameCard, Hero, LoadError, Shelf } from '../molecules';
+import {
+  DeviceSwitcher,
+  FeedbackActions,
+  FitChips,
+  GameCard,
+  Hero,
+  LoadError,
+  Shelf,
+} from '../molecules';
 import {
   useDeviceRecommendations,
   useDevices,
@@ -13,12 +22,12 @@ import {
   ALL_TAB,
   buildShelves,
   cardKey,
+  deviceOptions,
   FOR_YOU_LIMIT,
   layoutOwners,
   pickChips,
   capChips,
 } from '@/lib/forYou';
-import { hasDeckDevice } from '@/lib/devices';
 
 function LauncherSkeleton() {
   return (
@@ -38,11 +47,13 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
   const { feedback, send, error } = useFeedback();
   const navigate = useNavigate();
   const cardReturn = useCardReturn();
-  const deckDevice = hasDeckDevice(devices);
-  const deviceFeeds = useDeviceRecommendations(
-    devices.map((d) => d.id),
-    FOR_YOU_LIMIT,
-  );
+  const [selected, setSelected] = useState(ALL_TAB);
+  // The hero is the overall top pick; the shelves follow the selected device's own server-ranked feed.
+  const [shelfFeed] = useDeviceRecommendations([selected], FOR_YOU_LIMIT);
+  const selectedDevice = devices.find((d) => d.id === selected);
+  const deckDevice = selectedDevice
+    ? selectedDevice.kind === 'steam-deck'
+    : devices.some((d) => d.kind === 'steam-deck');
 
   if (feed.isPending) return <LauncherSkeleton />;
   if (feed.isError) {
@@ -75,11 +86,7 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
   }
 
   const open = (igdbId: number) => void navigate(`/games/${igdbId}`);
-  // A device shelf appears once its own feed has loaded; a failed or empty feed just has no shelf.
-  const shelves = buildShelves(
-    feed.data,
-    devices.map((d, i) => ({ id: d.id, name: d.name, picks: deviceFeeds[i]?.data ?? [] })),
-  );
+  const shelves = shelfFeed?.data ? buildShelves(shelfFeed.data, top.game.igdbId) : [];
   const owners = layoutOwners(shelves);
 
   return (
@@ -114,6 +121,24 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
         </div>
       )}
       <div className="flex flex-col gap-10 px-gutter">
+        {devices.length > 0 && (
+          <DeviceSwitcher
+            label="Show picks for"
+            options={deviceOptions(devices)}
+            value={selected}
+            onChange={setSelected}
+          />
+        )}
+        {shelfFeed?.isError && (
+          <LoadError message={shelfFeed.error.message} onRetry={() => void shelfFeed.refetch()} />
+        )}
+        {shelfFeed?.isPending && (
+          <div className="flex gap-4" aria-busy>
+            {[0, 1, 2, 3].map((i) => (
+              <GameCard key={i} skeleton title="" />
+            ))}
+          </div>
+        )}
         {shelves.map((shelf) => (
           <Shelf key={shelf.id} title={shelf.title} controls>
             {shelf.picks.map((r) => {
@@ -125,7 +150,12 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
                   coverUrl={r.game.coverUrl}
                   coverUrlSmall={r.game.coverUrlSmall}
                   accent={r.game.accent}
-                  chips={capChips(pickChips(r, { hasDeckDevice: deckDevice }))}
+                  chips={capChips(
+                    pickChips(r, {
+                      hasDeckDevice: deckDevice,
+                      omitDeviceId: selectedDevice?.id,
+                    }),
+                  )}
                   actions={
                     <FeedbackActions value={feedback[id]} onSend={(kind) => send(id, kind)} />
                   }

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   ALL_TAB,
+  BACKLOG_ID,
+  SHORT_SESSIONS_ID,
   SHORT_SESSION_MAX_HOURS,
+  deviceOptions,
   buildShelves,
   capChips,
   fitChips,
@@ -30,63 +33,115 @@ describe('platformNames', () => {
 });
 
 describe('buildShelves', () => {
-  type Fit = {
-    deviceId: string;
-    deviceName: string;
-    status: 'green' | 'yellow' | 'hidden' | 'unknown';
-    reason: string;
-  };
-  const pick = (igdbId: number, fits: Fit[], hours: number | null = null): Recommendation =>
-    ({
+  const pick = (
+    igdbId: number,
+    opts: { source?: number | null; hours?: number | null; backlog?: boolean } = {},
+  ): Recommendation => {
+    const { source = null, hours = null, backlog = false } = opts;
+    return {
       rank: igdbId,
+      backlog,
       game: { igdbId, name: `G${igdbId}` },
-      fits,
+      sourceGame: source === null ? null : { igdbId: source, name: `S${source}` },
+      fits: [],
       timeToBeat:
         hours === null ? null : { hastilyHours: null, normallyHours: hours, completelyHours: null },
-    }) as unknown as Recommendation;
+    } as unknown as Recommendation;
+  };
   const ids = (s: { picks: Recommendation[] }) => s.picks.map((p) => p.game.igdbId);
+  const titles = (picks: Recommendation[], hero?: number) =>
+    buildShelves(picks, hero).map((s) => s.title);
 
-  it('always starts with All picks, in the given order', () => {
-    const shelves = buildShelves([pick(2, []), pick(1, [])], []);
-    expect(shelves).toHaveLength(1);
-    expect(shelves[0]).toMatchObject({ id: ALL_TAB, title: 'All picks' });
-    expect(ids(shelves[0]!)).toEqual([2, 1]);
+  it('groups picks by their source game, in rank order, one shelf per source with 2+ picks', () => {
+    const shelves = buildShelves([
+      pick(1, { source: 10 }),
+      pick(2, { source: 20 }),
+      pick(3, { source: 10 }),
+      pick(4, { source: 20 }),
+      pick(5, { source: 20 }),
+    ]);
+    expect(shelves.map((s) => s.title)).toEqual([
+      'Because you played S20',
+      'Because you played S10',
+    ]);
+    expect(ids(shelves[0]!)).toEqual([2, 4, 5]);
+    expect(ids(shelves[1]!)).toEqual([1, 3]);
+    expect(shelves[1]!.id).toBe('because-10');
   });
 
-  it('adds a "Fits your" shelf per device from its own feed, hiding empty ones', () => {
-    // Device feeds come from the server; they may hold games outside the all-devices picks.
-    const shelves = buildShelves(
-      [pick(1, []), pick(2, [])],
-      [
-        { id: 'pc', name: 'Laptop', picks: [pick(7, []), pick(1, [])] },
-        { id: 'deck', name: 'Steam Deck', picks: [pick(2, [])] },
-        { id: 'ps5', name: 'PS5', picks: [] },
-      ],
-    );
-    expect(shelves.map((s) => s.title)).toEqual([
-      'All picks',
-      'Fits your Laptop',
-      'Fits your Steam Deck',
+  it('puts lone-source and source-less picks on a final More picks shelf', () => {
+    const shelves = buildShelves([
+      pick(1, { source: 10 }),
+      pick(2, { source: 10 }),
+      pick(3, { source: 30 }),
+      pick(4),
     ]);
-    expect(ids(shelves[1]!)).toEqual([7, 1]);
-    expect(ids(shelves[2]!)).toEqual([2]);
+    expect(shelves.map((s) => s.title)).toEqual(['Because you played S10', 'More picks']);
+    expect(ids(shelves[1]!)).toEqual([3, 4]);
   });
 
   it('adds Short sessions sorted by time to beat, only picks within the hour cap', () => {
     const picks = [
-      pick(1, [], SHORT_SESSION_MAX_HOURS + 1),
-      pick(2, [], 5),
-      pick(3, [], null),
-      pick(4, [], 9),
-      pick(5, [], SHORT_SESSION_MAX_HOURS),
+      pick(1, { hours: SHORT_SESSION_MAX_HOURS + 1 }),
+      pick(2, { hours: 5 }),
+      pick(3),
+      pick(4, { hours: 9 }),
+      pick(5, { hours: SHORT_SESSION_MAX_HOURS }),
     ];
-    const short = buildShelves(picks, []).find((s) => s.title === 'Short sessions');
+    const short = buildShelves(picks).find((s) => s.id === SHORT_SESSIONS_ID);
+    expect(short!.title).toBe('Short sessions');
     expect(ids(short!)).toEqual([2, 4, 5]);
   });
 
-  it('hides Short sessions below 3 short games, even with many timed ones', () => {
-    const picks = [pick(1, [], 3), pick(2, [], 4), pick(3, []), pick(4, [], 40), pick(5, [], 60)];
-    expect(buildShelves(picks, []).map((s) => s.title)).toEqual(['All picks']);
+  it('hides Short sessions below 3 short games', () => {
+    const picks = [pick(1, { hours: 3 }), pick(2, { hours: 4 }), pick(3), pick(4, { hours: 40 })];
+    expect(titles(picks)).not.toContain('Short sessions');
+  });
+
+  it('adds From your backlog for owned, not started picks', () => {
+    const shelves = buildShelves([pick(1), pick(2, { backlog: true }), pick(3, { backlog: true })]);
+    const backlog = shelves.find((s) => s.id === BACKLOG_ID);
+    expect(backlog!.title).toBe('From your backlog');
+    expect(ids(backlog!)).toEqual([2, 3]);
+  });
+
+  it('shows each game once: backlog, then short sessions, then source groups', () => {
+    const picks = [
+      pick(1, { source: 10, hours: 4, backlog: true }),
+      pick(2, { source: 10, hours: 4 }),
+      pick(3, { source: 10, hours: 5 }),
+      pick(4, { source: 10, hours: 6 }),
+      pick(5, { source: 10 }),
+      pick(6, { source: 10 }),
+    ];
+    const shelves = buildShelves(picks);
+    expect(Object.fromEntries(shelves.map((s) => [s.id, ids(s)]))).toEqual({
+      'because-10': [5, 6],
+      [SHORT_SESSIONS_ID]: [2, 3, 4],
+      [BACKLOG_ID]: [1],
+    });
+    const all = shelves.flatMap(ids);
+    expect(new Set(all).size).toBe(all.length);
+  });
+
+  it('keeps the hero game off every shelf', () => {
+    const picks = [pick(1, { source: 10 }), pick(2, { source: 10 }), pick(3, { source: 10 })];
+    const shelves = buildShelves(picks, 1);
+    expect(shelves.flatMap(ids)).toEqual([2, 3]);
+  });
+
+  it('returns no shelves when there is nothing to show', () => {
+    expect(buildShelves([])).toEqual([]);
+    expect(buildShelves([pick(1)], 1)).toEqual([]);
+  });
+});
+
+describe('deviceOptions', () => {
+  it('lists All first, then each device', () => {
+    expect(deviceOptions([{ id: 'a', name: 'Laptop' }])).toEqual([
+      { id: ALL_TAB, label: 'All' },
+      { id: 'a', label: 'Laptop' },
+    ]);
   });
 });
 
@@ -102,6 +157,17 @@ describe('fitChips', () => {
       { label: 'Deck', tone: 'low' },
       { label: 'PS5', tone: 'no' },
     ]);
+  });
+});
+
+describe('fitChips omitting a device', () => {
+  it('drops the chip of the selected device', () => {
+    const fits = [
+      { deviceId: 'a', deviceName: 'Laptop', status: 'green', reason: '' },
+      { deviceId: 'b', deviceName: 'Deck', status: 'yellow', reason: '' },
+    ] as const;
+    expect(fitChips(fits, 'a')).toEqual([{ label: 'Deck', tone: 'low' }]);
+    expect(fitChips(fits, ALL_TAB)).toHaveLength(2);
   });
 });
 
@@ -123,6 +189,12 @@ describe('pickChips', () => {
       { label: 'Laptop', tone: 'yes' },
       { label: 'Backlog', tone: 'unknown', plain: true },
       { label: 'Deck: Playable', tone: 'low' },
+    ]);
+  });
+
+  it('omits the selected device chip but keeps the others', () => {
+    expect(pickChips(rec({ backlog: true }), { omitDeviceId: 'a' })).toEqual([
+      { label: 'Backlog', tone: 'unknown', plain: true },
     ]);
   });
 

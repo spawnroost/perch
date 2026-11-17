@@ -1,6 +1,8 @@
 export { ActionForm } from './ActionForm';
 export { ConnectorsComingSoon } from './ConnectorsComingSoon';
 export { DevicePresetCard } from './DevicePresetCard';
+export { DeviceSwitcher } from './DeviceSwitcher';
+export type { DeviceSwitcherProps } from './DeviceSwitcher';
 export { FeedbackActions } from './FeedbackActions';
 export { FitChips } from './FitChips';
 export { FitDetailRow } from './FitDetailRow';

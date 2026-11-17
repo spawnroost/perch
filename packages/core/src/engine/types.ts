@@ -68,6 +68,8 @@ export interface Recommendation {
   score: number;
   backlog: boolean;
   reason: string;
+  /** The library game this pick is closest to (the source of the reason); null when none. */
+  sourceGame: { igdbId: number; name: string } | null;
   /** Set only when devices were given. */
   fit?: { status: 'green' | 'yellow' | 'unknown'; deviceId: string };
 }
