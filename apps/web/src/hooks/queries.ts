@@ -117,7 +117,7 @@ export function useRecommendations(
 /** The For you feed for a device; switching devices keeps the old picks until the new ones land. */
 export const useForYouFeed = (device: string) => useRecommendations(device, FOR_YOU_LIMIT, true);
 
-/** Ranked picks for a play session; idle until `params` is set (no device yet, battery still being read). */
+/** Ranked picks for a play session; idle until `params` is set (no device picked yet). */
 export function useSession(params: SessionQuery | null) {
   return useQuery({
     queryKey: queryKeys.session(params),

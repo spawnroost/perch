@@ -108,7 +108,7 @@ export function QuickSession({ devices }: { devices: readonly DeviceView[] }) {
                 onChange={(id) => setMinutes(Number(id))}
                 className="flex-wrap"
               />
-              <SessionResults device={device} minutes={minutes} />
+              <SessionResults key={device.id} device={device} minutes={minutes} />
             </>
           ) : null}
         </div>
