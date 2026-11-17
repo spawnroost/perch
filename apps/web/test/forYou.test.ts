@@ -333,6 +333,11 @@ describe('platformChips', () => {
     expect(chips.map((c) => c.label)).toEqual(['A', 'B', 'C', 'D', '+2']);
     expect(chips.at(-1)?.srLabel).toBe('and 2 more: E, F');
   });
+
+  it('lists every platform when expanded', () => {
+    const names = ['A', 'B', 'C', 'D', 'E', 'F'];
+    expect(platformChips(names, true).map((c) => c.label)).toEqual(names);
+  });
 });
 
 describe('layoutOwners', () => {

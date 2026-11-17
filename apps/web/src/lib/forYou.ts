@@ -232,12 +232,10 @@ export function cardChips(
 /** Platforms shown on the game detail before the rest collapse into "+N". */
 export const DETAIL_PLATFORM_LIMIT = 4;
 
-/** Plain chips for a game's platform names, capped like card chips. */
-export function platformChips(names: readonly string[]): PickChip[] {
-  return capChips(
-    names.map((label) => ({ label, tone: 'unknown' as const, plain: true as const })),
-    DETAIL_PLATFORM_LIMIT,
-  );
+/** Plain chips for a game's platform names, capped like card chips unless `expanded`. */
+export function platformChips(names: readonly string[], expanded = false): PickChip[] {
+  const chips = names.map((label) => ({ label, tone: 'unknown' as const, plain: true as const }));
+  return expanded ? chips : capChips(chips, DETAIL_PLATFORM_LIMIT);
 }
 
 /** Shelf-scoped key for a card: the same game can sit on several shelves. */

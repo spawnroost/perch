@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { motion } from 'motion/react';
 import { Check, ChevronLeft, Plus } from 'lucide-react';
@@ -65,6 +66,7 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
   const library = useLibrary();
   const add = useAddToLibrary();
   const { feedback, send, error: feedbackError } = useFeedback();
+  const [allPlatforms, setAllPlatforms] = useState(false);
   const reduced = useReduced();
   const layoutId = igdbId === null ? undefined : coverLayoutId(igdbId, reduced);
   const back = <BackLink />;
@@ -104,7 +106,7 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
   const { game, fit, deck, why, timeToBeat } = detail.data;
   const toBeat = timeToBeatLabel(timeToBeat);
   const year = releaseYear(game.firstRelease);
-  const platforms = platformChips(platformNames(game.platforms));
+  const platforms = platformChips(platformNames(game.platforms), allPlatforms);
   const inLibrary = library.data?.some((e) => e.igdbId === game.igdbId) ?? false;
 
   const image = coverImage(game.coverUrl, game.coverUrlSmall);
@@ -135,12 +137,24 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
                 .join(' · ')}
             </p>
             {deck && <DeckBadge category={deck} />}
-            {platforms.map((p) => (
-              <Badge key={p.label} title={p.srLabel ?? p.label}>
-                <span aria-hidden={p.srLabel ? true : undefined}>{p.label}</span>
-                {p.srLabel ? <span className="sr-only">{p.srLabel}</span> : null}
-              </Badge>
-            ))}
+            {platforms.map((p) =>
+              p.srLabel ? (
+                // The "+N" chip: a button that lists the rest.
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => setAllPlatforms(true)}
+                  className="cursor-pointer rounded-md focus-visible:outline-2 focus-visible:outline-accent"
+                >
+                  <Badge title={p.srLabel}>
+                    <span aria-hidden>{p.label}</span>
+                    <span className="sr-only">Show all platforms ({p.srLabel})</span>
+                  </Badge>
+                </button>
+              ) : (
+                <Badge key={p.label}>{p.label}</Badge>
+              ),
+            )}
             <FitChips fits={fit} className="w-full" />
           </>
         }
