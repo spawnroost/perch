@@ -27,9 +27,18 @@ export const LIFT_PX = 6;
 
 export type SpringTransition = ({ type: 'spring' } & SpringConfig) | { type: 'tween'; duration: 0 };
 
+const INSTANT: SpringTransition = { type: 'tween', duration: 0 };
+
+const SPRING_TRANSITIONS: Record<SpringName, SpringTransition> = {
+  expand: { type: 'spring', ...SPRINGS.expand },
+  snap: { type: 'spring', ...SPRINGS.snap },
+  hero: { type: 'spring', ...SPRINGS.hero },
+  tilt: { type: 'spring', ...SPRINGS.tilt },
+};
+
+/** Shared, stable objects: safe to pass as props without re-triggering effects. */
 export function resolveSpring(name: SpringName, reduced: boolean): SpringTransition {
-  if (reduced) return { type: 'tween', duration: 0 };
-  return { type: 'spring', ...SPRINGS[name] };
+  return reduced ? INSTANT : SPRING_TRANSITIONS[name];
 }
 
 export type Tilt = { rotateX: number; rotateY: number };

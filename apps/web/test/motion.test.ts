@@ -13,6 +13,11 @@ describe('resolveSpring', () => {
     expect(resolveSpring('snap', true)).toEqual({ type: 'tween', duration: 0 });
   });
 
+  it('returns the same object on every call', () => {
+    expect(resolveSpring('hero', false)).toBe(resolveSpring('hero', false));
+    expect(resolveSpring('hero', true)).toBe(resolveSpring('snap', true));
+  });
+
   it('keeps every spring critically sane (positive, damped)', () => {
     for (const s of Object.values(SPRINGS)) {
       expect(s.stiffness).toBeGreaterThan(0);

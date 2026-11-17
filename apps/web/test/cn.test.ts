@@ -28,5 +28,7 @@ describe('cn', () => {
     expect(cn('shadow-card', 'shadow-glow')).toBe('shadow-glow');
     expect(cn('bg-accent', 'bg-accent-soft')).toBe('bg-accent-soft');
     expect(cn('duration-base', 'duration-hero')).toBe('duration-hero');
+    expect(cn('font-sans', 'font-title')).toBe('font-title');
+    expect(cn('font-title', 'font-hud')).toBe('font-hud');
   });
 });

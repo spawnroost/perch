@@ -22,7 +22,7 @@
   font-display: swap;
   font-weight: 100 900;
   font-stretch: 62% 125%;
-  src: url('@fontsource-variable/archivo/files/archivo-latin-wdth-normal.woff2')
+  src: url('@fontsource-variable/archivo/files/archivo-latin-standard-normal.woff2')
     format('woff2-variations');
   unicode-range:
     U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
@@ -136,23 +136,8 @@
      spring constants for the motion library live in lib/motion.ts. */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-  /* Damped spring (about 2% overshoot) for CSS-only settles such as the tilt returning to flat. */
-  --ease-spring: linear(
-    0,
-    0.159,
-    0.443,
-    0.693,
-    0.864,
-    0.96,
-    1.005,
-    1.019,
-    1.019,
-    1.014,
-    1.008,
-    1.004,
-    1.001,
-    1
-  );
+  /* Spring settle for CSS-only moves such as the tilt returning to flat (linear() version in base). */
+  --ease-spring: cubic-bezier(0.34, 1.3, 0.64, 1);
   --duration-fast: 120ms;
   --duration-base: 200ms;
   --duration-slow: 320ms;
@@ -208,33 +193,94 @@
 }
 
 /*
- * Accent family. "inline" so each utility resolves var(--accent) where it is used, which lets a
- * component set --accent on a subtree and have every descendant follow. The accent from the API is
- * mid-lightness; these clamp it to a legible range on the dark base (lightness .66-.86) and keep
- * saturation lively, so accent text and fills hold contrast whatever the game's art is.
+ * Accent family. "inline" so utilities read the --accent-* helpers where they are used. The helpers
+ * are declared on every element (see the base layer), so a component that sets --accent on a
+ * subtree makes every descendant follow.
  */
 @theme inline {
-  --color-accent: oklch(from var(--accent) clamp(0.66, l, 0.86) clamp(0.12, c, 0.24) h);
-  --color-accent-hover: oklch(
-    from var(--accent) clamp(0.72, calc(l + 0.06), 0.9) clamp(0.12, c, 0.24) h
-  );
-  --color-accent-press: oklch(
-    from var(--accent) clamp(0.6, calc(l - 0.05), 0.8) clamp(0.12, c, 0.24) h
-  );
-  --color-accent-soft: oklch(from var(--accent) clamp(0.66, l, 0.86) clamp(0.12, c, 0.24) h / 0.16);
-  /* The game's own colour, unclamped: hero tint, glow and ambient wash. Never for text. */
-  --color-accent-tint: oklch(from var(--accent) l c h / 0.5);
-  --color-accent-wash: oklch(from var(--accent) l c h / 0.22);
+  --color-accent: var(--accent-ui);
+  --color-accent-hover: var(--accent-ui-hover);
+  --color-accent-press: var(--accent-ui-press);
+  --color-accent-soft: var(--accent-ui-soft);
+  --color-accent-tint: var(--accent-tint);
+  --color-accent-wash: var(--accent-wash);
 
   /* Glow: offset, soft and tinted by the game. Hover and focus on cards. */
   --shadow-glow:
-    0 0 0 1px oklch(from var(--accent) clamp(0.66, l, 0.86) clamp(0.12, c, 0.24) h / 0.6),
-    0 22px 48px -14px oklch(from var(--accent) l c h / 0.65), 0 8px 16px -6px oklch(0 0 0 / 0.5);
+    0 0 0 1px var(--accent-ring), 0 22px 48px -14px var(--accent-glow),
+    0 8px 16px -6px oklch(0 0 0 / 0.5);
 }
 
 @layer base {
   :root {
     color-scheme: dark;
+  }
+  /*
+   * Accent helpers, resolved per element so they follow a subtree's --accent. First the plain
+   * version (any browser with color-mix), then, where relative colour syntax exists, a clamped one:
+   * lightness .66-.86 so text and fills hold contrast on the dark base, chroma lifted toward .12
+   * only when the source has some (a grey stays grey) and capped at .24.
+   */
+  *,
+  *::before,
+  *::after {
+    --accent-ui: var(--accent);
+    --accent-ui-hover: color-mix(in oklab, var(--accent) 85%, white);
+    --accent-ui-press: color-mix(in oklab, var(--accent) 85%, black);
+    --accent-ui-soft: color-mix(in oklab, var(--accent) 16%, transparent);
+    --accent-tint: color-mix(in oklab, var(--accent) 50%, transparent);
+    --accent-wash: color-mix(in oklab, var(--accent) 22%, transparent);
+    --accent-ring: color-mix(in oklab, var(--accent) 60%, transparent);
+    --accent-glow: color-mix(in oklab, var(--accent) 65%, transparent);
+  }
+  @supports (color: oklch(from red l c h)) {
+    *,
+    *::before,
+    *::after {
+      --accent-ui: oklch(
+        from var(--accent) clamp(0.66, l, 0.86) min(0.24, max(c, calc(0.12 * min(1, c / 0.06)))) h
+      );
+      --accent-ui-hover: oklch(
+        from var(--accent) clamp(0.72, calc(l + 0.06), 0.9)
+          min(0.24, max(c, calc(0.12 * min(1, c / 0.06)))) h
+      );
+      --accent-ui-press: oklch(
+        from var(--accent) clamp(0.6, calc(l - 0.05), 0.8)
+          min(0.24, max(c, calc(0.12 * min(1, c / 0.06)))) h
+      );
+      --accent-ui-soft: oklch(
+        from var(--accent) clamp(0.66, l, 0.86) min(0.24, max(c, calc(0.12 * min(1, c / 0.06)))) h /
+          0.16
+      );
+      --accent-ring: oklch(
+        from var(--accent) clamp(0.66, l, 0.86) min(0.24, max(c, calc(0.12 * min(1, c / 0.06)))) h /
+          0.6
+      );
+      --accent-tint: oklch(from var(--accent) l c h / 0.5);
+      --accent-wash: oklch(from var(--accent) l c h / 0.22);
+      --accent-glow: oklch(from var(--accent) l c h / 0.65);
+    }
+  }
+  /* Spring easing: cubic-bezier fallback, upgraded to linear() where supported. */
+  @supports (transition-timing-function: linear(0, 1)) {
+    :root {
+      --ease-spring: linear(
+        0,
+        0.159,
+        0.443,
+        0.693,
+        0.864,
+        0.96,
+        1.005,
+        1.019,
+        1.019,
+        1.014,
+        1.008,
+        1.004,
+        1.001,
+        1
+      );
+    }
   }
   html {
     background: var(--color-ground);
@@ -250,16 +296,16 @@
   }
   /* Browser surfaces carry the palette too. */
   ::selection {
-    background: oklch(from var(--accent) l c h / 0.4);
+    background: var(--accent-tint);
     color: var(--color-fg);
   }
   * {
-    caret-color: --theme(--color-accent inline);
+    caret-color: var(--accent-ui);
     scrollbar-color: var(--color-surface-4) transparent;
     scrollbar-width: thin;
   }
   :focus-visible {
-    outline: 2px solid --theme(--color-accent inline);
+    outline: 2px solid var(--accent-ui);
     outline-offset: 2px;
   }
   a {

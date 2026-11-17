@@ -1,4 +1,5 @@
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import { accentStyle } from '@/lib/accent';
 import { ArrowRight, Search, Trash2 } from 'lucide-react';
 import type { DeckCategory, FitStatus } from '@perch/core';
 import {
@@ -43,7 +44,7 @@ export function Showcase() {
         {ACCENTS.map((accent) => (
           <div
             key={accent}
-            style={{ '--accent': accent } as CSSProperties}
+            style={accentStyle(accent)}
             className="flex flex-col gap-3 rounded-xl border border-line bg-surface-1 p-4 shadow-card transition-shadow duration-base ease-out hover:shadow-glow"
           >
             <p className="font-title text-display-sm text-fg">Hades II</p>

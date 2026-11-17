@@ -43,6 +43,7 @@ const twMerge = extendTailwindMerge({
     },
     classGroups: {
       duration: [{ duration: ['fast', 'base', 'slow', 'hero'] }],
+      'font-family': [{ font: ['title', 'hud'] }],
     },
   },
 });
