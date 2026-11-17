@@ -20,10 +20,10 @@ export function RecommendationRow({ rank, rec, feedback, onFeedback }: Recommend
       <span className="w-5 pt-0.5 text-sm text-fg-subtle tabular-nums">{rank}</span>
       <Cover src={rec.game.coverUrl} alt={`${rec.game.name} cover`} className="w-12 shrink-0" />
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <Link
             to={`/games/${rec.game.igdbId}`}
-            className="truncate rounded-sm text-base font-medium text-fg hover:text-coral"
+            className="max-w-full truncate rounded-sm text-base font-medium text-fg hover:text-coral"
           >
             {rec.game.name}
           </Link>
