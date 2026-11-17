@@ -33,10 +33,15 @@ export interface IgdbCache {
    * the downloads. `updated` counts rows whose hero or accent actually changed.
    */
   backfillArt(): Promise<{ checked: number; updated: number }>;
-  /** Resolves when all background accent downloads started by this cache have finished. */
+  /** Resolves when all background work (accent downloads, time-to-beat warm-ups) has finished. */
   idle(): Promise<void>;
   /** Same for time-to-beat. A game with no IGDB record is cached as an empty row (returns null). */
   getTimeToBeat(igdbId: number): Promise<TimeToBeat | null>;
+  /**
+   * Fetches time-to-beat for the games with no row or a stale one, without blocking the caller
+   * (the IGDB client rate-limits the calls). Errors are swallowed; `idle` waits for it.
+   */
+  warmTimeToBeat(igdbIds: readonly number[]): void;
 }
 
 function toGame(row: typeof games.$inferSelect): Game {
@@ -251,6 +256,23 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
     return { hastilySeconds, normallySeconds, completelySeconds, count };
   }
 
+  function warmTimeToBeat(igdbIds: readonly number[]): void {
+    if (igdbIds.length === 0) return;
+    const p: Promise<void> = (async () => {
+      const rows = await db
+        .select({ igdbId: timeToBeat.igdbId, checkedAt: timeToBeat.checkedAt })
+        .from(timeToBeat)
+        .where(inArray(timeToBeat.igdbId, [...igdbIds]));
+      const fresh = new Set(rows.filter((r) => isFresh(r.checkedAt)).map((r) => r.igdbId));
+      for (const id of igdbIds) {
+        if (!fresh.has(id)) await getTimeToBeat(id).catch(() => {});
+      }
+    })()
+      .catch(() => {})
+      .finally(() => pending.delete(p));
+    pending.add(p);
+  }
+
   async function refreshAll(): Promise<{ refreshed: number; missing: number[] }> {
     const rows = await db.select({ id: games.igdbId }).from(games).orderBy(games.igdbId);
     // client.getGames batches the ids itself.
@@ -315,5 +337,14 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
     return { checked: ids.length, updated };
   }
 
-  return { getGame, getGames, queryByTags, refreshAll, backfillArt, idle, getTimeToBeat };
+  return {
+    getGame,
+    getGames,
+    queryByTags,
+    refreshAll,
+    backfillArt,
+    idle,
+    getTimeToBeat,
+    warmTimeToBeat,
+  };
 }

@@ -449,6 +449,32 @@ describe.skipIf(!url)('igdb db cache', () => {
       expect(net.apiCalls()).toHaveLength(2);
     });
 
+    it('warmTimeToBeat fetches missing rows in the background and skips fresh ones', async () => {
+      const { net, cache, setNow } = setup();
+      cache.warmTimeToBeat([hades.igdbId]);
+      await cache.idle();
+      const [row] = await db.select().from(timeToBeat).where(eq(timeToBeat.igdbId, hades.igdbId));
+      expect(row?.normallySeconds).toBe(253600);
+      const calls = net.apiCalls().length;
+
+      setNow(new Date(T0.getTime() + DAY));
+      cache.warmTimeToBeat([hades.igdbId]);
+      await cache.idle();
+      expect(net.apiCalls()).toHaveLength(calls);
+
+      // Past the TTL it refetches.
+      setNow(new Date(T0.getTime() + 2 * CACHE_TTL_MS));
+      cache.warmTimeToBeat([hades.igdbId]);
+      await cache.idle();
+      expect(net.apiCalls().at(-1)?.url).toMatch(/game_time_to_beats$/);
+    });
+
+    it('warmTimeToBeat swallows IGDB errors', async () => {
+      const { cache } = setup({ intercept: () => json({ message: 'bad' }, 400) });
+      cache.warmTimeToBeat([hades.igdbId]);
+      await expect(cache.idle()).resolves.toBeUndefined();
+    });
+
     it('returns null for an unknown game without writing a row', async () => {
       const { cache } = setup();
       expect(await cache.getTimeToBeat(424242)).toBeNull();

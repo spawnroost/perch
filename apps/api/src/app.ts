@@ -24,6 +24,7 @@ import { feedbackRoutes, profileRoutes } from './routes/feedback.js';
 import { gamesRoutes } from './routes/games.js';
 import { libraryRoutes } from './routes/library.js';
 import { recommendationsRoutes } from './routes/recommendations.js';
+import { sessionRoutes } from './routes/session.js';
 import { DEFAULT_RATE_LIMITS, rateLimit, type RateLimitConfig } from './rate-limit.js';
 
 export type { RateLimitConfig };
@@ -99,6 +100,7 @@ export function createApp(appDeps: AppDeps) {
   app.route('/api/devices', devicesRoutes(deps));
   app.route('/api/hardware', hardwareRoutes());
   app.route('/api/recommendations', recommendationsRoutes(deps));
+  app.route('/api/session', sessionRoutes(deps));
   app.route('/api/feedback', feedbackRoutes(deps));
   app.route('/api/profile', profileRoutes(deps));
 

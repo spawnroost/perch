@@ -16,7 +16,11 @@ export function recommendationsRoutes(deps: RouteDeps) {
   r.get('/', async (c) => {
     const { device, limit } = parseQuery(c, recommendationsQuerySchema);
     const { cache } = requireIgdb(deps);
-    const recs = await recommendForUser({ ...deps, cache }, c.get('user').id, { device, limit });
+    const recs = await recommendForUser({ ...deps, cache }, c.get('user').id, {
+      device,
+      limit,
+      warmTimeToBeat: true,
+    });
     return c.json({
       recommendations: recs.map(recommendationDto),
     } satisfies RecommendationsResponse);

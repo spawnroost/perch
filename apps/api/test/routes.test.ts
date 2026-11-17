@@ -170,6 +170,7 @@ describe.skipIf(!testUrl)('api routes', () => {
       ['PATCH', `/api/devices/${crypto.randomUUID()}`],
       ['DELETE', `/api/devices/${crypto.randomUUID()}`],
       ['GET', '/api/recommendations'],
+      ['GET', '/api/session?minutes=30'],
       ['GET', '/api/feedback'],
       ['POST', '/api/feedback'],
       ['DELETE', `/api/feedback/${C}/up`],
@@ -589,7 +590,11 @@ describe.skipIf(!testUrl)('api routes', () => {
       await ctx.db
         .insert(schema.timeToBeat)
         .values({ igdbId: B, normallySeconds: 36_000, count: 10 })
-        .onConflictDoNothing();
+        // The background warm-up may already have cached an empty row for B.
+        .onConflictDoUpdate({
+          target: schema.timeToBeat.igdbId,
+          set: { normallySeconds: 36_000, count: 10, checkedAt: new Date() },
+        });
 
       // Beta is on PS5 (platform 167), so the PS5 filter keeps it with a fit.
       const ps5 = await get('/api/recommendations?device=ps5', u.cookie);
@@ -618,6 +623,70 @@ describe.skipIf(!testUrl)('api routes', () => {
       expect((await get('/api/recommendations?limit=0', mine.cookie)).status).toBe(400);
       expect((await get('/api/recommendations?limit=abc', mine.cookie)).status).toBe(400);
       expect((await get(`/api/recommendations?device=${device.id}`, mine.cookie)).status).toBe(404);
+    });
+  });
+
+  describe('time-to-beat warm-up', () => {
+    it('fetches missing time-to-beat for the picks in the background', async () => {
+      await ctx.db.delete(schema.timeToBeat).where(inArray(schema.timeToBeat.igdbId, [B]));
+      const u = await newUser();
+      await call('POST', '/api/library', u.cookie, {
+        igdbId: A,
+        hoursPlayed: 50,
+        status: 'playing',
+        lastPlayed: '2026-11-10',
+      });
+      await get('/api/recommendations?device=none&limit=5', u.cookie);
+      await vi.waitFor(async () => {
+        const rows = await ctx.db
+          .select()
+          .from(schema.timeToBeat)
+          .where(inArray(schema.timeToBeat.igdbId, [B]));
+        expect(rows).toHaveLength(1);
+      });
+    });
+  });
+
+  describe('session', () => {
+    type SessionBody = {
+      recommendations: {
+        rank: number;
+        sessionReason: string;
+        game: { igdbId: number };
+        timeToBeat: unknown;
+      }[];
+    };
+
+    it('ranks picks for a session and explains why', async () => {
+      const u = await newUser();
+      await call('POST', '/api/library', u.cookie, {
+        igdbId: A,
+        hoursPlayed: 50,
+        status: 'playing',
+        lastPlayed: '2026-11-10',
+      });
+      const created = (await (
+        await call('POST', '/api/devices', u.cookie, { preset: 'ps5' })
+      ).json()) as {
+        device: { id: string };
+      };
+      const device = created.device;
+      const res = await get(`/api/session?minutes=40&battery=55&deviceId=${device.id}`, u.cookie);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as SessionBody;
+      expect(body.recommendations.map((r) => r.game.igdbId)).toContain(B);
+      expect(body.recommendations[0]?.rank).toBe(1);
+      expect(body.recommendations.every((r) => r.sessionReason.length > 0)).toBe(true);
+      expect((await get('/api/session?minutes=40', u.cookie)).status).toBe(200);
+    });
+
+    it('400 on bad query, 404 for a device that is not yours, 401 when anonymous', async () => {
+      const mine = await newUser();
+      expect((await get('/api/session', mine.cookie)).status).toBe(400);
+      expect((await get('/api/session?minutes=0', mine.cookie)).status).toBe(400);
+      expect((await get('/api/session?minutes=30&battery=101', mine.cookie)).status).toBe(400);
+      expect((await get('/api/session?minutes=30&deviceId=nope', mine.cookie)).status).toBe(404);
+      expect((await get('/api/session?minutes=30')).status).toBe(401);
     });
   });
 

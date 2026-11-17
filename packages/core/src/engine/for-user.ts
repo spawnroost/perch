@@ -17,12 +17,13 @@ import { createFitFetchers, loadDevices, loadRecommendInput } from './load.js';
 import { buildProfile } from './profile.js';
 import { computeIdf } from './rank.js';
 import { mergeLibrary, recommend, similaritySources } from './recommend.js';
+import { batteryMatters, rankForSession, type SessionRanked } from './session.js';
 import { selectDevices } from '../devices/store.js';
 import type { Recommendation, Vocab } from './types.js';
 
 export interface UserEngineDeps {
   db: Db;
-  cache: Pick<IgdbCache, 'getGames' | 'queryByTags'>;
+  cache: Pick<IgdbCache, 'getGames' | 'queryByTags' | 'warmTimeToBeat'>;
   /** Taste-vocab mapper and labels, injected so core does not depend on taste-vocab. */
   mapVocab: (game: Game & Partial<typeof games.$inferSelect>) => Vocab;
   labels: Readonly<Record<string, string>>;
@@ -41,6 +42,8 @@ export interface DeviceFit {
 export interface GameFit {
   deck: DeckCategory | null;
   fits: DeviceFit[];
+  /** GPU score the game recommends (else its minimum); null when Steam requirements are unknown. */
+  gpuRequirement: number | null;
 }
 
 export type UserRecommendation = Recommendation &
@@ -61,7 +64,13 @@ export type UserRecommendation = Recommendation &
 export async function recommendForUser(
   deps: UserEngineDeps,
   userId: string,
-  opts: { device?: string; limit: number },
+  opts: {
+    device?: string;
+    limit: number;
+    withGpuRequirements?: boolean;
+    /** Fetch missing time-to-beat for the picks in the background (off the request path). */
+    warmTimeToBeat?: boolean;
+  },
 ): Promise<UserRecommendation[]> {
   const { db, cache, mapVocab, labels, steam } = deps;
   const { library, feedback } = await loadRecommendInput(db, userId, mapVocab);
@@ -79,6 +88,7 @@ export async function recommendForUser(
   );
   // The picks are cached by now, so this is one DB read.
   const ids = recs.map((r) => r.game.igdbId);
+  if (opts.warmTimeToBeat) cache.warmTimeToBeat(ids);
   const [full, ttb] = await Promise.all([cache.getGames(ids), loadTimeToBeat(db, ids)]);
   const byId = new Map(full.map((g) => [g.igdbId, g]));
   return Promise.all(
@@ -91,9 +101,31 @@ export async function recommendForUser(
         heroUrl: game?.heroUrl ?? null,
         accent: game?.accent ?? null,
         timeToBeat: ttb.get(rec.game.igdbId) ?? null,
-        ...(await fitsForGame(allDevices, fetchers, game ?? rec.game)),
+        ...(await fitsForGame(allDevices, fetchers, game ?? rec.game, opts.withGpuRequirements)),
       };
     }),
+  );
+}
+
+/** Session picks: the user's recommendations re-ranked for `minutes` of play on one device. */
+export async function sessionForUser(
+  deps: UserEngineDeps,
+  userId: string,
+  q: { minutes: number; battery?: number; deviceId?: string },
+  limit = 20,
+): Promise<SessionRanked<UserRecommendation>[]> {
+  const all = await loadDevices(deps.db, userId);
+  // No device given: the user's default one (loadDevices lists it first).
+  const device = q.deviceId === undefined ? (all[0] ?? null) : selectDevices(all, q.deviceId)[0]!;
+  const recs = await recommendForUser(deps, userId, {
+    device: device?.id ?? 'none',
+    limit: 50,
+    withGpuRequirements: batteryMatters(device, q.battery),
+    warmTimeToBeat: true,
+  });
+  return rankForSession(recs, { minutes: q.minutes, batteryPct: q.battery, device }).slice(
+    0,
+    limit,
   );
 }
 
@@ -128,6 +160,7 @@ async function fitsForGame(
   devices: readonly (FilterDevice & { name: string })[],
   { fetchRequirements, fetchDeck }: FitFetchers,
   game: { igdbId: number; platforms?: readonly number[]; steamAppId?: number | null },
+  withGpuRequirements = false,
 ): Promise<GameFit> {
   const appId = game.steamAppId ?? null;
   const live = devices.filter((d) => platformMatches(game, d));
@@ -135,7 +168,8 @@ async function fitsForGame(
   let requirements: FitRequirements | null | undefined;
   if (appId !== null) {
     const needsDeck = devices.some((d) => deviceKind(d) === 'deck');
-    const needsRequirements = live.some((d) => deviceKind(d) === 'pc');
+    const needsRequirements =
+      live.some((d) => deviceKind(d) === 'pc') || (withGpuRequirements && live.length > 0);
     [deck, requirements] = await Promise.all([
       needsDeck ? fetchDeck(appId).catch(() => null) : Promise.resolve(null),
       needsRequirements ? fetchRequirements(game).catch(() => null) : Promise.resolve(undefined),
@@ -143,6 +177,7 @@ async function fitsForGame(
   }
   return {
     deck,
+    gpuRequirement: requirements?.recGpuScore ?? requirements?.minGpuScore ?? null,
     fits: devices.map((d) => ({
       deviceId: d.id,
       deviceName: d.name,
