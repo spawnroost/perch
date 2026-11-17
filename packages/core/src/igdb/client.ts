@@ -1,3 +1,4 @@
+import { imageUrl } from './image.js';
 import type { z } from 'zod';
 import { RateQueue } from './queue.js';
 import {
@@ -87,9 +88,6 @@ export interface IgdbClient {
 }
 
 type RawGame = z.output<typeof igdbGameSchema>;
-
-const imageUrl = (size: string, imageId: string) =>
-  `https://images.igdb.com/igdb/image/upload/${size}/${imageId}.jpg`;
 
 function toGame(g: RawGame): Game {
   const steam = g.external_games?.find(

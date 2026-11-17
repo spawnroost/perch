@@ -58,3 +58,19 @@ export function tiltFromPointer(x: number, y: number, rect: Rect, reduced: boole
 export function coverLayoutId(igdbId: number, reduced: boolean): string | undefined {
   return reduced ? undefined : `cover-${igdbId}`;
 }
+
+/**
+ * The first item for each game id. A shared-element layoutId must be unique on screen, so only
+ * these items carry it; later repeats (same game on another shelf or platform) open without the expand.
+ */
+export function firstOfEach<T>(items: readonly T[], idOf: (item: T) => number): Set<T> {
+  const seen = new Set<number>();
+  const firsts = new Set<T>();
+  for (const item of items) {
+    const id = idOf(item);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    firsts.add(item);
+  }
+  return firsts;
+}

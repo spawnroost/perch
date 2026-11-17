@@ -1,4 +1,5 @@
 import type { RecommendationsResponse } from '@perch/core';
+import { firstOfEach } from './motion';
 import { deckDisplay, fitDisplay, type Tone } from './fit';
 import { timeToBeatHours } from './timeToBeat';
 
@@ -99,14 +100,8 @@ export const cardKey = (shelfId: string, igdbId: number) => `${shelfId}:${igdbId
  * must be unique on screen, so repeats on later shelves open without the cover expand.
  */
 export function layoutOwners(shelves: readonly PickShelf[]): Set<string> {
-  const seen = new Set<number>();
-  const owners = new Set<string>();
-  for (const shelf of shelves) {
-    for (const { game } of shelf.picks) {
-      if (seen.has(game.igdbId)) continue;
-      seen.add(game.igdbId);
-      owners.add(cardKey(shelf.id, game.igdbId));
-    }
-  }
-  return owners;
+  const cards = shelves.flatMap((shelf) =>
+    shelf.picks.map(({ game }) => ({ igdbId: game.igdbId, key: cardKey(shelf.id, game.igdbId) })),
+  );
+  return new Set([...firstOfEach(cards, (c) => c.igdbId)].map((c) => c.key));
 }

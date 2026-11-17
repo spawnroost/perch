@@ -5,6 +5,7 @@ export {
   IgdbError,
   STEAM_SOURCE_ID,
 } from './client.js';
+export { imageUrl } from './image.js';
 export type { IgdbClient, IgdbClientOptions, TagQuery } from './client.js';
 export { createIgdbCache, CACHE_TTL_MS } from './cache.js';
 export type { IgdbCache, IgdbCacheOptions } from './cache.js';

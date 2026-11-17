@@ -6,12 +6,14 @@ import {
   type PointerEvent,
   type ReactNode,
 } from 'react';
+import { Link } from 'react-router';
 import { motion, useMotionValue, useSpring } from 'motion/react';
 import { Cover } from '@/components/atoms/Cover';
 import { HudChip, type HudChipProps } from '@/components/atoms/HudChip';
 import { Skeleton } from '@/components/atoms/Skeleton';
 import { useLauncherSpring, useReduced } from '@/hooks/useMotionPrefs';
 import { accentStyle } from '@/lib/accent';
+import { withCardWidth } from '@/lib/cardWidth';
 import { cn } from '@/lib/cn';
 import { coverImage } from '@/lib/coverSrcSet';
 import { LIFT_PX, SPRINGS, tiltFromPointer } from '@/lib/motion';
@@ -27,6 +29,8 @@ export type GameCardProps = {
   actions?: ReactNode;
   /** Shared-element id on the cover, matched by the detail view's cover for the expand. */
   layoutId?: string;
+  /** Makes the whole card a link (real anchor semantics); button props are then not applied. */
+  to?: string;
   /** img sizes hint when the caller overrides the default card width. */
   sizes?: string;
   /** Shimmer placeholder while the game loads. */
@@ -44,8 +48,7 @@ export type GameCardProps = {
   | 'onDragEnd'
 >;
 
-/** Default card width (callers may override it); COVER_SIZES must describe the same widths. */
-const CARD_WIDTH = 'w-40 lg:w-56';
+/** The default card width (see lib/cardWidth) applies unless className sets one; COVER_SIZES must describe it. */
 const COVER_SIZES = '(min-width: 1024px) 14rem, 10rem';
 
 /**
@@ -62,6 +65,7 @@ export function GameCard({
   chips,
   actions,
   layoutId,
+  to,
   sizes = COVER_SIZES,
   skeleton,
   className,
@@ -80,7 +84,7 @@ export function GameCard({
 
   if (skeleton) {
     return (
-      <div aria-hidden className={cn('flex flex-col gap-2', CARD_WIDTH, className)}>
+      <div aria-hidden className={cn('flex flex-col gap-2', withCardWidth(className), className)}>
         <Skeleton className="aspect-3/4 w-full rounded-lg" />
         <Skeleton className="h-4 w-3/4" />
       </div>
@@ -125,7 +129,11 @@ export function GameCard({
       }}
       onFocus={handleFocus}
       onBlur={handleBlur}
-      className={cn('group perspective-shelf relative flex flex-col gap-2', CARD_WIDTH, className)}
+      className={cn(
+        'group perspective-shelf relative flex flex-col gap-2',
+        withCardWidth(className),
+        className,
+      )}
     >
       <motion.div layoutId={layoutId} className="w-full">
         <motion.div
@@ -154,13 +162,22 @@ export function GameCard({
           ))}
         </span>
       ) : null}
-      <button
-        type="button"
-        data-shelf-item
-        aria-label={title}
-        className="absolute inset-0 z-10 rounded-lg outline-offset-4"
-        {...props}
-      />
+      {to ? (
+        <Link
+          to={to}
+          data-shelf-item
+          aria-label={title}
+          className="absolute inset-0 z-10 rounded-lg outline-offset-4"
+        />
+      ) : (
+        <button
+          type="button"
+          data-shelf-item
+          aria-label={title}
+          className="absolute inset-0 z-10 rounded-lg outline-offset-4"
+          {...props}
+        />
+      )}
       {actions ? (
         <div className="absolute top-2 right-2 z-20 rounded-md bg-ground/80 opacity-0 transition-opacity duration-base ease-out group-focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
           {actions}

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { SPRINGS, TILT_MAX_DEG, coverLayoutId, resolveSpring, tiltFromPointer } from '@/lib/motion';
+import {
+  SPRINGS,
+  TILT_MAX_DEG,
+  coverLayoutId,
+  firstOfEach,
+  resolveSpring,
+  tiltFromPointer,
+} from '@/lib/motion';
 
 const RECT = { left: 100, top: 200, width: 200, height: 300 };
 
@@ -60,5 +67,16 @@ describe('coverLayoutId', () => {
   it('is stable per game and unset when reduced', () => {
     expect(coverLayoutId(42, false)).toBe('cover-42');
     expect(coverLayoutId(42, true)).toBeUndefined();
+  });
+});
+
+describe('firstOfEach', () => {
+  it('keeps the first item per id so shared-element ids stay unique', () => {
+    const items = [
+      { id: 1, tag: 'pc' },
+      { id: 2, tag: 'pc' },
+      { id: 1, tag: 'ps5' },
+    ];
+    expect(firstOfEach(items, (i) => i.id)).toEqual(new Set([items[0], items[1]]));
   });
 });

@@ -5,7 +5,7 @@ import type { Tone } from './fit';
 import { parseHours } from './onboarding';
 
 export type Status = LibraryEntry['status'];
-export const STATUSES = ['playing', 'finished', 'dropped', 'backlog'] as const satisfies Status[];
+export const STATUSES = ['playing', 'backlog', 'finished', 'dropped'] as const satisfies Status[];
 export const STATUS_LABEL: Record<Status, string> = {
   playing: 'Playing',
   finished: 'Finished',
@@ -13,14 +13,9 @@ export const STATUS_LABEL: Record<Status, string> = {
   backlog: 'Backlog',
 };
 
-/** Filter chip order: everything, then statuses in the order a player thinks of them. */
-export const STATUS_FILTERS = [
-  'all',
-  'playing',
-  'backlog',
-  'finished',
-  'dropped',
-] as const satisfies (Status | 'all')[];
+/** Filter chips: everything, then each status. */
+export const STATUS_FILTERS = ['all', ...STATUSES] as const;
+export type StatusFilter = (typeof STATUS_FILTERS)[number];
 
 export const SORTS = ['recent', 'hours', 'title', 'added'] as const;
 export type LibrarySort = (typeof SORTS)[number];
@@ -33,7 +28,7 @@ export const SORT_LABEL: Record<LibrarySort, string> = {
 
 export interface LibraryFilter {
   query: string;
-  status: Status | 'all';
+  status: StatusFilter;
 }
 
 export function filterLibrary(entries: LibraryEntry[], { query, status }: LibraryFilter) {
@@ -43,17 +38,30 @@ export function filterLibrary(entries: LibraryEntry[], { query, status }: Librar
   );
 }
 
-/** Entry count per status filter, limited to titles matching `query` so chips agree with the grid. */
-export function statusCounts(
+export interface LibraryBrowse {
+  /** Entries per status filter, for the title query only so chips agree with the grid. */
+  counts: Record<StatusFilter, number>;
+  /** Entries matching query and status, sorted. */
+  shown: LibraryEntry[];
+}
+
+/** Counts and the shown list in one pass over the library. */
+export function browseLibrary(
   entries: LibraryEntry[],
-  query = '',
-): Record<(typeof STATUS_FILTERS)[number], number> {
-  const counts = { all: 0, playing: 0, backlog: 0, finished: 0, dropped: 0 };
+  { query, status }: LibraryFilter,
+  sort: LibrarySort,
+): LibraryBrowse {
+  const counts = Object.fromEntries(STATUS_FILTERS.map((f) => [f, 0])) as Record<
+    StatusFilter,
+    number
+  >;
+  const shown: LibraryEntry[] = [];
   for (const e of filterLibrary(entries, { query, status: 'all' })) {
     counts.all += 1;
     counts[e.status] += 1;
+    if (status === 'all' || e.status === status) shown.push(e);
   }
-  return counts;
+  return { counts, shown: sortLibrary(shown, sort) };
 }
 
 const STATUS_TONE: Record<Status, Tone> = {
@@ -63,13 +71,17 @@ const STATUS_TONE: Record<Status, Tone> = {
   dropped: 'no',
 };
 
-/** Plain HUD chips for a library card: status, then hours when known. */
+/** Plain HUD chips for a library card: status, hours and last played when known. */
 export function entryChips(entry: LibraryEntry): Pick<HudChipProps, 'label' | 'tone' | 'plain'>[] {
   const chips: Pick<HudChipProps, 'label' | 'tone' | 'plain'>[] = [
     { label: STATUS_LABEL[entry.status], tone: STATUS_TONE[entry.status], plain: true },
   ];
   if (entry.hoursPlayed !== null) {
     chips.push({ label: formatHours(entry.hoursPlayed), tone: 'unknown', plain: true });
+  }
+  if (entry.lastPlayed || entry.hoursPlayed) {
+    const label = formatLastPlayed(entry.lastPlayed, entry.hoursPlayed);
+    chips.push({ label, tone: 'unknown', plain: true });
   }
   return chips;
 }

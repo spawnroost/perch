@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useMemo, useState } from 'react';
 import { ListPlus, Pencil, Plus } from 'lucide-react';
 import { Button, Notice, Sheet, SheetContent } from '../atoms';
 import { GameCard, LibraryControls, LoadError } from '../molecules';
@@ -9,15 +8,13 @@ import { LibraryEntryEditor } from './LibraryEntryEditor';
 import { useLibrary } from '@/hooks/queries';
 import { useReduced } from '@/hooks/useMotionPrefs';
 import {
+  browseLibrary,
   entryChips,
-  filterLibrary,
   games,
-  sortLibrary,
-  statusCounts,
   type LibraryFilter,
   type LibrarySort,
 } from '@/lib/library';
-import { coverLayoutId } from '@/lib/motion';
+import { coverLayoutId, firstOfEach } from '@/lib/motion';
 
 const GRID = 'grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5';
 const GRID_SIZES =
@@ -27,7 +24,6 @@ type Panel = { kind: 'add' } | { kind: 'import' } | { kind: 'edit'; id: string }
 
 export function LibraryView() {
   const library = useLibrary();
-  const navigate = useNavigate();
   const reduced = useReduced();
   const [filter, setFilter] = useState<LibraryFilter>({ query: '', status: 'all' });
   const [sort, setSort] = useState<LibrarySort>('recent');
@@ -35,7 +31,12 @@ export function LibraryView() {
   const close = () => setPanel(null);
 
   const editing = panel?.kind === 'edit' ? library.data?.find((e) => e.id === panel.id) : undefined;
-  const shown = library.data ? sortLibrary(filterLibrary(library.data, filter), sort) : [];
+  const { counts, shown } = useMemo(
+    () => browseLibrary(library.data ?? [], { query: filter.query, status: filter.status }, sort),
+    [library.data, filter.query, filter.status, sort],
+  );
+  // One game on two platforms is two entries; only the first may carry the shared-element id.
+  const coverOwners = useMemo(() => firstOfEach(shown, (e) => e.igdbId), [shown]);
 
   return (
     <section className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-6">
@@ -76,7 +77,7 @@ export function LibraryView() {
           <LibraryControls
             filter={filter}
             sort={sort}
-            counts={statusCounts(library.data, filter.query)}
+            counts={counts}
             onFilter={setFilter}
             onSort={setSort}
           />
@@ -93,9 +94,9 @@ export function LibraryView() {
                     accent={e.accent}
                     chips={entryChips(e)}
                     sizes={GRID_SIZES}
-                    layoutId={coverLayoutId(e.igdbId, reduced)}
+                    layoutId={coverOwners.has(e) ? coverLayoutId(e.igdbId, reduced) : undefined}
                     className="w-full"
-                    onClick={() => void navigate(`/games/${e.igdbId}`)}
+                    to={`/games/${e.igdbId}`}
                     actions={
                       <Button
                         variant="ghost"

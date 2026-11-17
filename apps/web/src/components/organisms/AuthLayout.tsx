@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Card } from '../atoms';
 import { cn } from '@/lib/cn';
-import { AUTH_COVER_IDS, igdbCoverUrl, mosaicColumns } from '@/lib/authMosaic';
+import { AUTH_COVER_IDS, coverUrl, mosaicColumns } from '@/lib/authMosaic';
 
 export interface AuthLayoutProps {
   title: string;
@@ -28,9 +28,11 @@ function CoverMosaic() {
             {ids.map((id, row) => (
               <img
                 key={row}
-                src={igdbCoverUrl(id, 't_cover_big')}
+                src={coverUrl(id)}
                 alt=""
+                loading="lazy"
                 decoding="async"
+                referrerPolicy="no-referrer"
                 className="aspect-3/4 w-full rounded-lg object-cover"
               />
             ))}

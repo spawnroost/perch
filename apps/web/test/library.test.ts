@@ -7,7 +7,8 @@ import {
   formatHours,
   formatLastPlayed,
   sortLibrary,
-  statusCounts,
+  browseLibrary,
+  STATUSES,
   entryChips,
   STATUS_FILTERS,
   toForm,
@@ -160,16 +161,17 @@ describe('games', () => {
   });
 });
 
-describe('statusCounts', () => {
+describe('browseLibrary', () => {
   const list = [
-    entry({ id: '1', name: 'Alpha', status: 'playing' }),
+    entry({ id: '1', name: 'Alpha', status: 'playing', hoursPlayed: 5 }),
     entry({ id: '2', name: 'Alps', status: 'backlog' }),
     entry({ id: '3', name: 'Beta', status: 'backlog' }),
-    entry({ id: '4', name: 'Gamma', status: 'finished' }),
+    entry({ id: '4', name: 'Gamma', status: 'finished', hoursPlayed: 40 }),
   ];
+  const ids = (es: LibraryEntry[]) => es.map((e) => e.id);
 
-  it('counts every status plus all, zero when absent', () => {
-    expect(statusCounts(list)).toEqual({
+  it('counts every status plus all in one pass, zero when absent', () => {
+    expect(browseLibrary(list, { query: '', status: 'all' }, 'title').counts).toEqual({
       all: 4,
       playing: 1,
       backlog: 2,
@@ -178,33 +180,46 @@ describe('statusCounts', () => {
     });
   });
 
-  it('follows the title query so chips match the grid', () => {
-    expect(statusCounts(list, 'alp')).toEqual({
-      all: 2,
-      playing: 1,
-      backlog: 1,
-      finished: 0,
-      dropped: 0,
-    });
+  it('counts follow the title query but not the status, so chips match the grid', () => {
+    const { counts, shown } = browseLibrary(list, { query: 'alp', status: 'backlog' }, 'title');
+    expect(counts).toEqual({ all: 2, playing: 1, backlog: 1, finished: 0, dropped: 0 });
+    expect(ids(shown)).toEqual(['2']);
+  });
+
+  it('shows the filtered list sorted', () => {
+    expect(ids(browseLibrary(list, { query: '', status: 'all' }, 'hours').shown)[0]).toBe('4');
+    expect(ids(browseLibrary(list, { query: '', status: 'backlog' }, 'title').shown)).toEqual([
+      '2',
+      '3',
+    ]);
   });
 });
 
-describe('STATUS_FILTERS', () => {
-  it('starts with all, then the statuses in play order', () => {
-    expect(STATUS_FILTERS).toEqual(['all', 'playing', 'backlog', 'finished', 'dropped']);
+describe('STATUSES', () => {
+  it('is the single status order: playing, backlog, finished, dropped', () => {
+    expect([...STATUSES]).toEqual(['playing', 'backlog', 'finished', 'dropped']);
+    expect(STATUS_FILTERS).toEqual(['all', ...STATUSES]);
   });
 });
 
 describe('entryChips', () => {
-  it('shows status and hours as plain chips', () => {
-    const chips = entryChips(entry({ status: 'playing', hoursPlayed: 12 }));
-    expect(chips.map((c) => c.label)).toEqual(['Playing', '12 h']);
+  it('shows status, hours and last played as plain chips', () => {
+    const chips = entryChips(
+      entry({ status: 'playing', hoursPlayed: 12, lastPlayed: '2026-03-01T00:00:00.000Z' }),
+    );
+    expect(chips.map((c) => c.label)).toEqual(['Playing', '12 h', '1 Mar 2026']);
     expect(chips.every((c) => c.plain)).toBe(true);
   });
 
-  it('omits the hours chip without hours', () => {
-    expect(entryChips(entry({ status: 'dropped', hoursPlayed: null })).map((c) => c.label)).toEqual(
-      ['Dropped'],
-    );
+  it('says last played is unknown when there are hours but no date', () => {
+    expect(entryChips(entry({ hoursPlayed: 3 })).map((c) => c.label)).toEqual([
+      'Backlog',
+      '3 h',
+      'Last played unknown',
+    ]);
+  });
+
+  it('shows only the status for a game never played', () => {
+    expect(entryChips(entry({ status: 'dropped' })).map((c) => c.label)).toEqual(['Dropped']);
   });
 });

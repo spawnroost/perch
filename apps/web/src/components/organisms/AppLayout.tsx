@@ -10,7 +10,12 @@ export function AppLayout() {
   return (
     <div className="min-h-dvh bg-ground">
       <header className="sticky top-0 z-10 border-b border-line bg-ground">
-        <div className="mx-auto flex h-12 w-full max-w-3xl items-center justify-between gap-4 px-6">
+        <div
+          className={cn(
+            'mx-auto flex h-12 w-full items-center justify-between gap-4 px-6',
+            fullBleed ? 'max-w-6xl' : 'max-w-3xl',
+          )}
+        >
           <div className="flex items-center gap-4">
             <Link to="/" className="rounded-sm text-lg font-semibold tracking-display text-fg">
               Perch

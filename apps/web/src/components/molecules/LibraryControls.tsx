@@ -8,13 +8,14 @@ import {
   STATUS_LABEL,
   type LibraryFilter,
   type LibrarySort,
+  type StatusFilter,
 } from '@/lib/library';
 
 export interface LibraryControlsProps {
   filter: LibraryFilter;
   sort: LibrarySort;
   /** Entries per status filter (see statusCounts). */
-  counts: Record<(typeof STATUS_FILTERS)[number], number>;
+  counts: Record<StatusFilter, number>;
   onFilter: (filter: LibraryFilter) => void;
   onSort: (sort: LibrarySort) => void;
 }

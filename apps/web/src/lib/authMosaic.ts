@@ -1,3 +1,5 @@
+import { imageUrl } from '@perch/core/igdb-image';
+
 /** Auth backdrop: a fixed set of public IGDB cover ids, so the screens need no session or API call. */
 export const AUTH_COVER_IDS = [
   'co1wyy',
@@ -14,10 +16,12 @@ export const AUTH_COVER_IDS = [
   'co2r6g',
 ] as const;
 
-export const igdbCoverUrl = (id: string, size: 't_cover_big' | 't_cover_small') =>
-  `https://images.igdb.com/igdb/image/upload/${size}/${id}.jpg`;
+export const coverUrl = (id: string) => imageUrl('t_cover_big', id);
 
-/** Deals ids round-robin into `columns` columns of `perColumn` tiles each (ids repeat to fill). */
+/**
+ * `columns` columns of `perColumn` tiles. Each column takes consecutive ids, offset by one more per
+ * column, so a cover never repeats within a column or sits beside itself in the next one.
+ */
 export function mosaicColumns(
   ids: readonly string[],
   columns: number,
@@ -28,7 +32,7 @@ export function mosaicColumns(
       ? []
       : Array.from(
           { length: perColumn },
-          (_, row) => ids[(row * columns + col) % ids.length] as string,
+          (_, row) => ids[(col * (perColumn + 1) + row) % ids.length] as string,
         ),
   );
 }
