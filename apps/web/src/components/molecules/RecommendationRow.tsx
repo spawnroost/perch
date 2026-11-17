@@ -23,7 +23,7 @@ export function RecommendationRow({ rank, rec, feedback, onFeedback }: Recommend
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <Link
             to={`/games/${rec.game.igdbId}`}
-            className="max-w-full truncate rounded-sm text-base font-medium text-fg hover:text-coral"
+            className="max-w-full truncate rounded-sm text-base font-medium text-fg hover:text-accent"
           >
             {rec.game.name}
           </Link>

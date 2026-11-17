@@ -15,47 +15,68 @@
     U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
     U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
+/* Display face: Archivo with its width axis (62-125%), so titles can run heavy and condensed. */
+@font-face {
+  font-family: 'Archivo Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  src: url('@fontsource-variable/archivo/files/archivo-latin-wdth-normal.woff2')
+    format('woff2-variations');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/*
+ * Per-game accent. Components set it on a subtree: style={{ '--accent': game.accent }}.
+ * A registered <color> property: a missing or invalid value falls back to initial-value, and the
+ * colour can be transitioned when the focused game changes.
+ */
+@property --accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: oklch(0.7 0.17 262);
+}
 
 @theme {
   /* Reset Tailwind's palette so only Perch colours exist. */
   --color-*: initial;
 
-  /* Midnight ground and three cool surfaces (each step = one elevation). */
-  --color-ground: oklch(0.155 0.012 265);
-  --color-surface-1: oklch(0.19 0.014 265);
-  --color-surface-2: oklch(0.225 0.016 265);
-  --color-surface-3: oklch(0.265 0.018 265);
-  --color-scrim: oklch(0.1 0.01 265 / 0.72);
+  /* Dark launcher base: ink-violet ground and four steps up (each step = one elevation). */
+  --color-ground: oklch(0.13 0.018 285);
+  --color-surface-1: oklch(0.17 0.02 285);
+  --color-surface-2: oklch(0.21 0.022 285);
+  --color-surface-3: oklch(0.26 0.024 285);
+  --color-surface-4: oklch(0.31 0.026 285);
+  --color-scrim: oklch(0.09 0.015 285 / 0.78);
 
   /* Hairlines: base border plus a brighter top edge (light from above). */
   --color-line: oklch(1 0 0 / 0.08);
-  --color-line-strong: oklch(1 0 0 / 0.14);
+  --color-line-strong: oklch(1 0 0 / 0.16);
   --color-edge: oklch(1 0 0 / 0.1);
 
-  /* Text. muted ≥ 7:1 and subtle ≥ 4.5:1 on ground and surface-2. */
-  --color-fg: oklch(0.96 0.005 265);
-  --color-fg-muted: oklch(0.76 0.012 265);
-  --color-fg-subtle: oklch(0.64 0.014 265);
+  /* Text. muted >= 7:1 and subtle >= 4.5:1 on ground and surface-2. */
+  --color-fg: oklch(0.97 0.005 285);
+  --color-fg-muted: oklch(0.78 0.012 285);
+  --color-fg-subtle: oklch(0.66 0.014 285);
+  /* Text on an accent fill. The accent is clamped light (see the inline block), so this stays dark. */
+  --color-on-accent: oklch(0.16 0.03 285);
 
-  /* The one accent: primary action, selection, focus. Nothing decorative. */
-  --color-coral: oklch(0.72 0.165 32);
-  --color-coral-hover: oklch(0.77 0.15 34);
-  --color-coral-press: oklch(0.67 0.17 30);
-  --color-coral-soft: oklch(0.72 0.165 32 / 0.14);
-  --color-on-coral: oklch(0.2 0.04 30);
-
-  /* Fit states (will-it-run, Deck). Always paired with an icon and a label. */
+  /* Fit states (will-it-run, Deck): the HUD chip hues. Always paired with an icon and a label. */
   --color-fit-yes: oklch(0.8 0.15 155);
-  --color-fit-yes-soft: oklch(0.8 0.15 155 / 0.12);
+  --color-fit-yes-soft: oklch(0.8 0.15 155 / 0.14);
   --color-fit-low: oklch(0.84 0.14 85);
-  --color-fit-low-soft: oklch(0.84 0.14 85 / 0.12);
+  --color-fit-low-soft: oklch(0.84 0.14 85 / 0.14);
   --color-fit-no: oklch(0.72 0.17 355);
-  --color-fit-no-soft: oklch(0.72 0.17 355 / 0.12);
-  --color-fit-unknown: oklch(0.7 0.012 265);
-  --color-fit-unknown-soft: oklch(1 0 0 / 0.06);
+  --color-fit-no-soft: oklch(0.72 0.17 355 / 0.14);
+  --color-fit-unknown: oklch(0.7 0.012 285);
+  --color-fit-unknown-soft: oklch(1 0 0 / 0.07);
 
-  /* Type: Inter, dense UI scale (base 14px). */
+  /* Type: Inter for UI, Archivo (wide width axis) for titles. Dense UI scale, base 14px. */
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Archivo Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', monospace;
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
@@ -73,8 +94,19 @@
   --text-2xl--line-height: 2rem;
   --text-3xl: 2rem;
   --text-3xl--line-height: 2.375rem;
+  /* Display sizes for titles and the hero (never above 6rem). */
+  --text-display-sm: 1.75rem;
+  --text-display-sm--line-height: 1.05;
+  --text-display-md: 2.5rem;
+  --text-display-md--line-height: 1;
+  --text-display-lg: 3.75rem;
+  --text-display-lg--line-height: 0.95;
+  --text-display-xl: 5.5rem;
+  --text-display-xl--line-height: 0.92;
   --tracking-tight: -0.015em;
   --tracking-display: -0.025em;
+  /* Positive tracking for uppercase HUD labels. */
+  --tracking-hud: 0.08em;
 
   /* Spacing: 4px grid (Tailwind multiplies this). */
   --spacing: 0.25rem;
@@ -84,16 +116,47 @@
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
 
   /* Depth: offset + soft blur, plus the top-edge highlight. */
   --shadow-raised: inset 0 1px 0 0 var(--color-edge), 0 1px 2px 0 oklch(0 0 0 / 0.4);
+  --shadow-card:
+    inset 0 1px 0 0 var(--color-edge), 0 8px 20px -6px oklch(0 0 0 / 0.55),
+    0 2px 4px 0 oklch(0 0 0 / 0.35);
+  --shadow-lift:
+    inset 0 1px 0 0 var(--color-edge), 0 28px 48px -14px oklch(0 0 0 / 0.75),
+    0 8px 16px -6px oklch(0 0 0 / 0.5);
   --shadow-overlay: inset 0 1px 0 0 var(--color-edge), 0 16px 40px -8px oklch(0 0 0 / 0.6);
 
-  /* Motion: exponential ease-out from a visible default. */
+  /* Hero and shelf geometry. */
+  --blur-hero: 3rem;
+  --perspective-shelf: 900px;
+
+  /* Motion: exponential ease-out from a visible default. Durations for CSS transitions;
+     spring constants for the motion library live in lib/motion.ts. */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  /* Damped spring (about 2% overshoot) for CSS-only settles such as the tilt returning to flat. */
+  --ease-spring: linear(
+    0,
+    0.159,
+    0.443,
+    0.693,
+    0.864,
+    0.96,
+    1.005,
+    1.019,
+    1.019,
+    1.014,
+    1.008,
+    1.004,
+    1.001,
+    1
+  );
   --duration-fast: 120ms;
   --duration-base: 200ms;
   --duration-slow: 320ms;
+  --duration-hero: 640ms;
 
   /* Sheet / overlay enter + exit (Radix waits for animationend before unmounting). */
   --animate-sheet-in-right: sheet-in-right var(--duration-slow) var(--ease-out);
@@ -144,6 +207,31 @@
   }
 }
 
+/*
+ * Accent family. "inline" so each utility resolves var(--accent) where it is used, which lets a
+ * component set --accent on a subtree and have every descendant follow. The accent from the API is
+ * mid-lightness; these clamp it to a legible range on the dark base (lightness .66-.86) and keep
+ * saturation lively, so accent text and fills hold contrast whatever the game's art is.
+ */
+@theme inline {
+  --color-accent: oklch(from var(--accent) clamp(0.66, l, 0.86) clamp(0.12, c, 0.24) h);
+  --color-accent-hover: oklch(
+    from var(--accent) clamp(0.72, calc(l + 0.06), 0.9) clamp(0.12, c, 0.24) h
+  );
+  --color-accent-press: oklch(
+    from var(--accent) clamp(0.6, calc(l - 0.05), 0.8) clamp(0.12, c, 0.24) h
+  );
+  --color-accent-soft: oklch(from var(--accent) clamp(0.66, l, 0.86) clamp(0.12, c, 0.24) h / 0.16);
+  /* The game's own colour, unclamped: hero tint, glow and ambient wash. Never for text. */
+  --color-accent-tint: oklch(from var(--accent) l c h / 0.5);
+  --color-accent-wash: oklch(from var(--accent) l c h / 0.22);
+
+  /* Glow: offset, soft and tinted by the game. Hover and focus on cards. */
+  --shadow-glow:
+    0 0 0 1px oklch(from var(--accent) clamp(0.66, l, 0.86) clamp(0.12, c, 0.24) h / 0.6),
+    0 22px 48px -14px oklch(from var(--accent) l c h / 0.65), 0 8px 16px -6px oklch(0 0 0 / 0.5);
+}
+
 @layer base {
   :root {
     color-scheme: dark;
@@ -162,16 +250,16 @@
   }
   /* Browser surfaces carry the palette too. */
   ::selection {
-    background: oklch(0.72 0.165 32 / 0.35);
+    background: oklch(from var(--accent) l c h / 0.4);
     color: var(--color-fg);
   }
   * {
-    caret-color: var(--color-coral);
-    scrollbar-color: var(--color-surface-3) transparent;
+    caret-color: --theme(--color-accent inline);
+    scrollbar-color: var(--color-surface-4) transparent;
     scrollbar-width: thin;
   }
   :focus-visible {
-    outline: 2px solid var(--color-coral);
+    outline: 2px solid --theme(--color-accent inline);
     outline-offset: 2px;
   }
   a {
@@ -183,7 +271,41 @@
     *::before,
     *::after {
       animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
     }
   }
+}
+
+/* Titles: heavy, slightly condensed box-art lettering. */
+@utility font-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 92%;
+  letter-spacing: var(--tracking-display);
+  text-wrap: balance;
+}
+
+/* HUD labels: small, wide, uppercase (chips, shelf headings). */
+@utility font-hud {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-stretch: 110%;
+  letter-spacing: var(--tracking-hud);
+  text-transform: uppercase;
+}
+
+/* Tailwind has no duration theme namespace, so the duration tokens get their own utilities. */
+@utility duration-fast {
+  transition-duration: var(--duration-fast);
+}
+@utility duration-base {
+  transition-duration: var(--duration-base);
+}
+@utility duration-slow {
+  transition-duration: var(--duration-slow);
+}
+@utility duration-hero {
+  transition-duration: var(--duration-hero);
 }

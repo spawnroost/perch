@@ -11,7 +11,7 @@ export const badgeVariants = cva(
     variants: {
       tone: {
         neutral: 'border border-line bg-surface-2 text-fg-muted',
-        coral: 'bg-coral-soft text-coral',
+        accent: 'bg-accent-soft text-accent',
         yes: 'bg-fit-yes-soft text-fit-yes',
         low: 'bg-fit-low-soft text-fit-low',
         no: 'bg-fit-no-soft text-fit-no',

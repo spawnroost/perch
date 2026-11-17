@@ -16,7 +16,7 @@ export function DeviceRow({ device, actions }: { device: DeviceView; actions: Re
         <p className="flex items-center gap-2 text-base font-medium text-fg">
           <span className="truncate">{device.name}</span>
           <Badge>{type}</Badge>
-          {device.isDefault && <Badge tone="coral">Default</Badge>}
+          {device.isDefault && <Badge tone="accent">Default</Badge>}
         </p>
         <p className="truncate text-sm text-fg-muted">{deviceSummary(device)}</p>
       </div>

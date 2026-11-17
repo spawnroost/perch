@@ -44,6 +44,12 @@ Taste built from real playtime and recency, combined with a per-device will-it-r
 ## Brand Commitments
 
 - Name: Perch. Domain: perch.spawnroost.com.
+- Look: a console launcher. Full-bleed hero of the top pick's key art, shelves of tall box-art cards,
+  per-game accent colour, device fit as HUD chips, a bold display face for titles, dark base.
+  Gamy and alive, but an original look: never copy a real console's UI, layout, icons or sounds.
+  Replaces the earlier Raycast-style list look (rejected 2026-11-17 as bland).
+- Motion is part of the product (tilt, glow, spring expand from card to detail) and always respects
+  prefers-reduced-motion.
 
 ## Evidence on Hand
 
@@ -56,7 +62,7 @@ Taste built from real playtime and recency, combined with a per-device will-it-r
 1. Never recommend what you can't play: device and hardware fit are part of every pick.
 2. Every pick explains itself in one line.
 3. Your own playtime is the signal; few questions, quick input.
-4. Fast to scan, fast to act: keyboard-first.
+4. Fast to scan, fast to act: keyboard-first (arrows move across shelves, Enter opens).
 
 ## Accessibility & Inclusion
 

@@ -11,7 +11,7 @@ export function LibraryRow({ entry, onEdit }: { entry: LibraryEntry; onEdit: () 
       <div className="min-w-0 flex-1">
         <Link
           to={`/games/${entry.igdbId}`}
-          className="block truncate rounded-sm text-base font-medium text-fg hover:text-coral"
+          className="block truncate rounded-sm text-base font-medium text-fg hover:text-accent"
         >
           {entry.name}
         </Link>
@@ -19,7 +19,7 @@ export function LibraryRow({ entry, onEdit }: { entry: LibraryEntry; onEdit: () 
           {formatHours(entry.hoursPlayed)} · {formatLastPlayed(entry.lastPlayed, entry.hoursPlayed)}
         </p>
       </div>
-      <Badge tone={entry.status === 'playing' ? 'coral' : 'neutral'}>
+      <Badge tone={entry.status === 'playing' ? 'accent' : 'neutral'}>
         {STATUS_LABEL[entry.status]}
       </Badge>
       <Button variant="ghost" size="icon" aria-label={`Edit ${entry.name}`} onClick={onEdit}>

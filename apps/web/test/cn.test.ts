@@ -18,6 +18,15 @@ describe('cn', () => {
   it('keeps custom colour and shadow utilities together', () => {
     expect(cn('text-fg', 'text-fg-muted')).toBe('text-fg-muted');
     expect(cn('text-sm', 'text-fg')).toBe('text-sm text-fg');
-    expect(cn('shadow-raised', 'shadow-coral')).toBe('shadow-raised shadow-coral');
+    expect(cn('shadow-raised', 'shadow-accent')).toBe('shadow-raised shadow-accent');
+  });
+
+  it('keeps the new display sizes, faces and accent colours apart from their neighbours', () => {
+    expect(cn('text-display-md', 'text-display-lg')).toBe('text-display-lg');
+    expect(cn('text-display-lg', 'text-accent')).toBe('text-display-lg text-accent');
+    expect(cn('font-display', 'font-semibold')).toBe('font-display font-semibold');
+    expect(cn('shadow-card', 'shadow-glow')).toBe('shadow-glow');
+    expect(cn('bg-accent', 'bg-accent-soft')).toBe('bg-accent-soft');
+    expect(cn('duration-base', 'duration-hero')).toBe('duration-hero');
   });
 });

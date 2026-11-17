@@ -23,7 +23,7 @@ export function DevicePresetCard({ name, icon, added, disabled, onSelect }: Devi
         {icon}
       </span>
       <span className="flex-1">{name}</span>
-      {added && <Check size={14} strokeWidth={1.75} className="text-coral" aria-label="Added" />}
+      {added && <Check size={14} strokeWidth={1.75} className="text-accent" aria-label="Added" />}
     </Card>
   );
 }

@@ -24,8 +24,8 @@ export function StepIndicator({ current }: { current: Step }) {
           <span
             className={cn(
               'flex size-5 items-center justify-center rounded-sm text-2xs font-medium tabular-nums',
-              i === active && 'bg-coral text-on-coral',
-              i < active && 'bg-coral-soft text-coral',
+              i === active && 'bg-accent text-on-accent',
+              i < active && 'bg-accent-soft text-accent',
               i > active && 'border border-line',
             )}
           >

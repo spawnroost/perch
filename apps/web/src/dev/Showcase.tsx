@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { ArrowRight, Search, Trash2 } from 'lucide-react';
 import type { DeckCategory, FitStatus } from '@perch/core';
 import {
@@ -19,13 +19,15 @@ import {
   TabsTrigger,
 } from '@/components/atoms';
 
+// Stand-ins for the accent hex the API returns per game.
+const ACCENTS = ['#8a3b2c', '#2c6f8a', '#6b8a2c'];
 const FIT: FitStatus[] = ['green', 'yellow', 'hidden', 'unknown'];
 const DECK: DeckCategory[] = ['verified', 'playable', 'unsupported', 'unknown'];
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-xs font-medium uppercase tracking-tight text-fg-subtle">{title}</h2>
+      <h2 className="font-hud text-2xs text-fg-subtle">{title}</h2>
       <div className="flex flex-wrap items-center gap-3">{children}</div>
     </section>
   );
@@ -35,7 +37,25 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 export function Showcase() {
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-8 p-8">
-      <h1 className="text-2xl font-semibold tracking-display">Perch atoms</h1>
+      <h1 className="font-title text-display-md">Perch atoms</h1>
+
+      <Section title="Per-game accent (set --accent on a subtree)">
+        {ACCENTS.map((accent) => (
+          <div
+            key={accent}
+            style={{ '--accent': accent } as CSSProperties}
+            className="flex flex-col gap-3 rounded-xl border border-line bg-surface-1 p-4 shadow-card transition-shadow duration-base ease-out hover:shadow-glow"
+          >
+            <p className="font-title text-display-sm text-fg">Hades II</p>
+            <div className="flex items-center gap-2">
+              <Button variant="primary">Play</Button>
+              <Badge tone="accent">Playing</Badge>
+              <span className="size-3 rounded-full bg-accent-tint" aria-hidden />
+            </div>
+          </div>
+        ))}
+        <Card className="p-4 text-sm text-fg-muted">Fallback accent (no --accent set)</Card>
+      </Section>
 
       <Section title="Button variants">
         <Button variant="primary" kbd="↵">
@@ -92,7 +112,7 @@ export function Showcase() {
 
       <Section title="Badge">
         <Badge>Neutral</Badge>
-        <Badge tone="coral">Coral</Badge>
+        <Badge tone="accent">Accent</Badge>
       </Section>
 
       <Section title="Fit badges">

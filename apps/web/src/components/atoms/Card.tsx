@@ -5,7 +5,7 @@ import { cn } from '@/lib/cn';
 export const cardVariants = cva('rounded-lg border border-line bg-surface-1 shadow-raised', {
   variants: {
     interactive: {
-      true: 'cursor-pointer text-left transition-colors duration-fast ease-out hover:bg-surface-2 aria-pressed:border-coral aria-pressed:bg-coral-soft aria-pressed:ring-1 aria-pressed:ring-inset aria-pressed:ring-coral',
+      true: 'cursor-pointer text-left transition-colors duration-fast ease-out hover:bg-surface-2 aria-pressed:border-accent aria-pressed:bg-accent-soft aria-pressed:ring-1 aria-pressed:ring-inset aria-pressed:ring-accent',
       false: '',
     },
   },
