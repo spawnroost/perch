@@ -1,28 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
   ALL_TAB,
+  SHORT_SESSION_MAX_HOURS,
   buildShelves,
-  buildTabs,
   fitChips,
+  cardKey,
+  layoutOwners,
   parseGameId,
+  pickChips,
   type Recommendation,
 } from '../src/lib/forYou.js';
 import { platformNames } from '../src/lib/platforms.js';
-
-const devices = [
-  { id: 'pc-1', name: 'Desktop' },
-  { id: 'deck-1', name: 'Steam Deck' },
-];
-
-describe('tabs', () => {
-  it('puts All first, then one tab per device', () => {
-    expect(buildTabs(devices)).toEqual([
-      { value: ALL_TAB, label: 'All' },
-      { value: 'pc-1', label: 'Desktop' },
-      { value: 'deck-1', label: 'Steam Deck' },
-    ]);
-  });
-});
 
 describe('parseGameId', () => {
   it('accepts positive integers only', () => {
@@ -40,17 +28,13 @@ describe('platformNames', () => {
 });
 
 describe('buildShelves', () => {
-  const fit = (deviceId: string, status: 'green' | 'yellow' | 'hidden' | 'unknown') => ({
-    deviceId,
-    deviceName: deviceId,
-    status,
-    reason: '',
-  });
-  const pick = (
-    igdbId: number,
-    fits: ReturnType<typeof fit>[],
-    hours: number | null = null,
-  ): Recommendation =>
+  type Fit = {
+    deviceId: string;
+    deviceName: string;
+    status: 'green' | 'yellow' | 'hidden' | 'unknown';
+    reason: string;
+  };
+  const pick = (igdbId: number, fits: Fit[], hours: number | null = null): Recommendation =>
     ({
       rank: igdbId,
       game: { igdbId, name: `G${igdbId}` },
@@ -67,33 +51,40 @@ describe('buildShelves', () => {
     expect(ids(shelves[0]!)).toEqual([2, 1]);
   });
 
-  it('adds a "Fits your" shelf per device holding only green fits, hiding empty ones', () => {
-    const picks = [
-      pick(1, [fit('pc', 'green'), fit('deck', 'yellow')]),
-      pick(2, [fit('pc', 'yellow'), fit('deck', 'green')]),
-      pick(3, [fit('pc', 'green'), fit('deck', 'unknown')]),
-    ];
-    const shelves = buildShelves(picks, [
-      { id: 'pc', name: 'Laptop' },
-      { id: 'deck', name: 'Steam Deck' },
-      { id: 'ps5', name: 'PS5' },
-    ]);
+  it('adds a "Fits your" shelf per device from its own feed, hiding empty ones', () => {
+    // Device feeds come from the server; they may hold games outside the all-devices picks.
+    const shelves = buildShelves(
+      [pick(1, []), pick(2, [])],
+      [
+        { id: 'pc', name: 'Laptop', picks: [pick(7, []), pick(1, [])] },
+        { id: 'deck', name: 'Steam Deck', picks: [pick(2, [])] },
+        { id: 'ps5', name: 'PS5', picks: [] },
+      ],
+    );
     expect(shelves.map((s) => s.title)).toEqual([
       'All picks',
       'Fits your Laptop',
       'Fits your Steam Deck',
     ]);
-    expect(ids(shelves[1]!)).toEqual([1, 3]);
+    expect(ids(shelves[1]!)).toEqual([7, 1]);
     expect(ids(shelves[2]!)).toEqual([2]);
   });
 
-  it('adds Short sessions sorted by time to beat, only with at least 3 timed games', () => {
-    const picks = [pick(1, [], 20), pick(2, [], 5), pick(3, [], null), pick(4, [], 9)];
+  it('adds Short sessions sorted by time to beat, only picks within the hour cap', () => {
+    const picks = [
+      pick(1, [], SHORT_SESSION_MAX_HOURS + 1),
+      pick(2, [], 5),
+      pick(3, [], null),
+      pick(4, [], 9),
+      pick(5, [], SHORT_SESSION_MAX_HOURS),
+    ];
     const short = buildShelves(picks, []).find((s) => s.title === 'Short sessions');
-    expect(ids(short!)).toEqual([2, 4, 1]);
-    expect(
-      buildShelves([pick(1, [], 3), pick(2, [], 4), pick(3, [])], []).map((s) => s.title),
-    ).toEqual(['All picks']);
+    expect(ids(short!)).toEqual([2, 4, 5]);
+  });
+
+  it('hides Short sessions below 3 short games, even with many timed ones', () => {
+    const picks = [pick(1, [], 3), pick(2, [], 4), pick(3, []), pick(4, [], 40), pick(5, [], 60)];
+    expect(buildShelves(picks, []).map((s) => s.title)).toEqual(['All picks']);
   });
 });
 
@@ -109,5 +100,39 @@ describe('fitChips', () => {
       { label: 'Deck', tone: 'low' },
       { label: 'PS5', tone: 'no' },
     ]);
+  });
+});
+
+describe('pickChips', () => {
+  const rec = (extra: object) =>
+    ({
+      fits: [{ deviceId: 'a', deviceName: 'Laptop', status: 'green', reason: '' }],
+      backlog: false,
+      deck: null,
+      ...extra,
+    }) as unknown as Recommendation;
+
+  it('lists fit chips only when the pick is neither backlog nor on Deck', () => {
+    expect(pickChips(rec({}))).toEqual([{ label: 'Laptop', tone: 'yes' }]);
+  });
+
+  it('adds a plain Backlog chip and a toned Deck chip after the fits', () => {
+    expect(pickChips(rec({ backlog: true, deck: 'playable' }))).toEqual([
+      { label: 'Laptop', tone: 'yes' },
+      { label: 'Backlog', tone: 'unknown', plain: true },
+      { label: 'Deck: Playable', tone: 'low' },
+    ]);
+  });
+});
+
+describe('layoutOwners', () => {
+  const p = (igdbId: number) => ({ game: { igdbId } }) as unknown as Recommendation;
+
+  it('gives each game one shared-element owner: its first card in shelf order', () => {
+    const owners = layoutOwners([
+      { id: 'all', title: 'All', picks: [p(1), p(2)] },
+      { id: 'pc', title: 'PC', picks: [p(2), p(3)] },
+    ]);
+    expect([...owners]).toEqual([cardKey('all', 1), cardKey('all', 2), cardKey('pc', 3)]);
   });
 });

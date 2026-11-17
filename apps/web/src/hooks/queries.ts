@@ -1,6 +1,7 @@
 import {
   keepPreviousData,
   useMutation,
+  useQueries,
   useQuery,
   useQueryClient,
   type QueryClient,
@@ -93,6 +94,21 @@ export function useRecommendations(device: string, limit = 5) {
         signal,
       }),
     select: (data) => data.recommendations,
+  });
+}
+
+/** One server-ranked feed per device (same cache keys as useRecommendations), in the given order. */
+export function useDeviceRecommendations(deviceIds: readonly string[], limit = 5) {
+  return useQueries({
+    queries: deviceIds.map((device) => ({
+      queryKey: queryKeys.recommendations(device, limit),
+      queryFn: ({ signal }: { signal: AbortSignal }) =>
+        api.get<RecommendationsResponse>('/api/recommendations', {
+          query: { device, limit },
+          signal,
+        }),
+      select: (data: RecommendationsResponse) => data.recommendations,
+    })),
   });
 }
 

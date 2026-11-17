@@ -1,12 +1,22 @@
-import { useState } from 'react';
-import { flushSync } from 'react-dom';
 import { Link, useNavigate } from 'react-router';
 import type { DeviceView } from '@perch/core';
-import { Button, HudChip, Notice, Skeleton } from '../atoms';
-import { FeedbackActions, GameCard, Hero, LoadError, Shelf } from '../molecules';
-import { useDevices, useFeedback, useRecommendations } from '@/hooks/queries';
+import { Button, Notice, Skeleton } from '../atoms';
+import { FeedbackActions, FitChips, GameCard, Hero, LoadError, Shelf } from '../molecules';
+import {
+  useDeviceRecommendations,
+  useDevices,
+  useFeedback,
+  useRecommendations,
+} from '@/hooks/queries';
 import { useReduced } from '@/hooks/useMotionPrefs';
-import { ALL_TAB, buildShelves, fitChips, FOR_YOU_LIMIT } from '@/lib/forYou';
+import {
+  ALL_TAB,
+  buildShelves,
+  cardKey,
+  FOR_YOU_LIMIT,
+  layoutOwners,
+  pickChips,
+} from '@/lib/forYou';
 import { coverLayoutId } from '@/lib/motion';
 
 function LauncherSkeleton() {
@@ -27,8 +37,10 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
   const { feedback, send, error } = useFeedback();
   const navigate = useNavigate();
   const reduced = useReduced();
-  // Only the clicked card carries the shared layoutId: the same game sits on several shelves.
-  const [expanding, setExpanding] = useState<string | null>(null);
+  const deviceFeeds = useDeviceRecommendations(
+    devices.map((d) => d.id),
+    FOR_YOU_LIMIT,
+  );
 
   if (feed.isPending) return <LauncherSkeleton />;
   if (feed.isError) {
@@ -60,36 +72,30 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
     );
   }
 
-  const open = (igdbId: number, key: string) => {
-    flushSync(() => setExpanding(key));
-    void navigate(`/games/${igdbId}`);
-  };
-  const shelves = buildShelves(feed.data, devices);
+  const open = (igdbId: number) => void navigate(`/games/${igdbId}`);
+  // A device shelf appears once its own feed has loaded; a failed or empty feed just has no shelf.
+  const shelves = buildShelves(
+    feed.data,
+    devices.map((d, i) => ({ id: d.id, name: d.name, picks: deviceFeeds[i]?.data ?? [] })),
+  );
+  const owners = layoutOwners(shelves);
 
   return (
     <div className="flex flex-col gap-8 pb-12">
       <Hero
         title={top.game.name}
+        titleAs="h2"
         heroUrl={top.game.heroUrl}
         accent={top.game.accent}
         meta={
           <>
             <p className="max-w-prose text-lg text-fg">{top.reason}</p>
-            <ul aria-label="Will it run" className="flex flex-wrap gap-1.5">
-              {fitChips(top.fits).map((chip) => (
-                <li key={chip.label}>
-                  <HudChip {...chip} />
-                </li>
-              ))}
-            </ul>
+            <FitChips fits={top.fits} />
           </>
         }
         actions={
           <>
-            <Button
-              variant="primary"
-              onClick={() => open(top.game.igdbId, `hero:${top.game.igdbId}`)}
-            >
+            <Button variant="primary" onClick={() => open(top.game.igdbId)}>
               View details
             </Button>
             <FeedbackActions
@@ -109,17 +115,22 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
         {shelves.map((shelf) => (
           <Shelf key={shelf.id} title={shelf.title} controls>
             {shelf.picks.map((r) => {
-              const key = `${shelf.id}:${r.game.igdbId}`;
+              const id = r.game.igdbId;
               return (
                 <GameCard
-                  key={r.game.igdbId}
+                  key={id}
                   title={r.game.name}
                   coverUrl={r.game.coverUrl}
                   coverUrlSmall={r.game.coverUrlSmall}
                   accent={r.game.accent}
-                  chips={fitChips(r.fits)}
-                  layoutId={expanding === key ? coverLayoutId(r.game.igdbId, reduced) : undefined}
-                  onClick={() => open(r.game.igdbId, key)}
+                  chips={pickChips(r)}
+                  actions={
+                    <FeedbackActions value={feedback[id]} onSend={(kind) => send(id, kind)} />
+                  }
+                  layoutId={
+                    owners.has(cardKey(shelf.id, id)) ? coverLayoutId(id, reduced) : undefined
+                  }
+                  onClick={() => open(id)}
                 />
               );
             })}
@@ -132,13 +143,18 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
 
 export function ForYou() {
   const devices = useDevices();
-  if (devices.isPending) return <LauncherSkeleton />;
-  if (devices.isError) {
-    return (
-      <div className="px-6">
-        <LoadError message={devices.error.message} onRetry={() => void devices.refetch()} />
-      </div>
-    );
-  }
-  return <Launcher devices={devices.data} />;
+  return (
+    <>
+      <h1 className="sr-only">For you</h1>
+      {devices.isPending ? (
+        <LauncherSkeleton />
+      ) : devices.isError ? (
+        <div className="px-6">
+          <LoadError message={devices.error.message} onRetry={() => void devices.refetch()} />
+        </div>
+      ) : (
+        <Launcher devices={devices.data} />
+      )}
+    </>
+  );
 }

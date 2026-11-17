@@ -6,6 +6,8 @@ import { cn } from '@/lib/cn';
 
 export type HeroProps = {
   title: string;
+  /** Heading level of the title; h2 when the page already has its own h1. */
+  titleAs?: 'h1' | 'h2';
   /** Wide art for the backdrop; a plain accent wash is used when absent. */
   heroUrl?: string | null;
   accent?: string | null;
@@ -19,7 +21,16 @@ export type HeroProps = {
 };
 
 /** Full-bleed backdrop (blurred, accent-tinted, fading to the ground) with the title over it. */
-export function Hero({ title, heroUrl, accent, meta, cover, actions, className }: HeroProps) {
+export function Hero({
+  title,
+  titleAs: Title = 'h1',
+  heroUrl,
+  accent,
+  meta,
+  cover,
+  actions,
+  className,
+}: HeroProps) {
   const transition = useLauncherSpring('hero');
   return (
     <header
@@ -49,7 +60,7 @@ export function Hero({ title, heroUrl, accent, meta, cover, actions, className }
       <div className="flex items-end gap-6 px-8 pt-24 pb-8">
         {cover}
         <div className="flex min-w-0 flex-col gap-4">
-          <h1 className="font-title text-display-lg text-fg">{title}</h1>
+          <Title className="font-title text-display-lg text-fg">{title}</Title>
           {meta ? (
             <div className="flex flex-wrap items-center gap-2 text-fg-muted">{meta}</div>
           ) : null}

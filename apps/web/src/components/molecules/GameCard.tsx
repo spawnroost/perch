@@ -1,4 +1,11 @@
-import { useRef, useState, type ComponentProps, type PointerEvent } from 'react';
+import {
+  useRef,
+  useState,
+  type ComponentProps,
+  type FocusEvent,
+  type PointerEvent,
+  type ReactNode,
+} from 'react';
 import { motion, useMotionValue, useSpring } from 'motion/react';
 import { Cover } from '@/components/atoms/Cover';
 import { HudChip, type HudChipProps } from '@/components/atoms/HudChip';
@@ -15,7 +22,9 @@ export type GameCardProps = {
   coverUrlSmall?: string | null;
   /** Per-game hex accent; unset falls back to the default accent. */
   accent?: string | null;
-  chips?: Pick<HudChipProps, 'label' | 'tone'>[];
+  chips?: Pick<HudChipProps, 'label' | 'tone' | 'plain'>[];
+  /** Controls (e.g. feedback) over the cover corner: shown on hover and focus, always on touch. */
+  actions?: ReactNode;
   /** Shared-element id on the cover, matched by the detail view's cover for the expand. */
   layoutId?: string;
   /** Shimmer placeholder while the game loads. */
@@ -37,26 +46,27 @@ export type GameCardProps = {
 const CARD_WIDTH = 'w-40 lg:w-56';
 const COVER_SIZES = '(min-width: 1024px) 14rem, 10rem';
 
-/** Tall box-art card: tilts toward the pointer, lifts and glows in the game's accent on hover/focus. */
+/**
+ * Tall box-art card: the cover tilts toward the pointer, lifts and glows in the game's accent on
+ * hover/focus. The shared-element wrapper stays flat (untransformed) so the expand measures true
+ * boxes; the tilt and lift live on a child. The click target is an overlay button (named by the
+ * title) so the optional `actions` can sit beside it without nesting interactive elements.
+ */
 export function GameCard({
   title,
   coverUrl,
   coverUrlSmall,
   accent,
   chips,
+  actions,
   layoutId,
   skeleton,
   className,
-  onPointerEnter,
-  onPointerMove,
-  onPointerLeave,
-  onFocus,
-  onBlur,
   ...props
 }: GameCardProps) {
   const reduced = useReduced();
   const transition = useLauncherSpring('tilt');
-  const ref = useRef<HTMLButtonElement>(null);
+  const faceRef = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   // Tilt is driven by motion values so pointer moves cause no React renders.
@@ -82,45 +92,45 @@ export function GameCard({
     tiltY.set(0);
   };
 
-  const handlePointerMove = (e: PointerEvent<HTMLButtonElement>) => {
-    onPointerMove?.(e);
-    if (reduced || e.pointerType === 'touch' || !ref.current) return;
-    const tilt = tiltFromPointer(e.clientX, e.clientY, ref.current.getBoundingClientRect(), false);
+  const handlePointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (reduced || e.pointerType === 'touch' || !faceRef.current) return;
+    const tilt = tiltFromPointer(
+      e.clientX,
+      e.clientY,
+      faceRef.current.getBoundingClientRect(),
+      false,
+    );
     tiltX.set(tilt.rotateX);
     tiltY.set(tilt.rotateY);
   };
 
+  const handleFocus = (e: FocusEvent<HTMLDivElement>) => {
+    if (e.target.matches(':focus-visible')) setFocused(true);
+  };
+  const handleBlur = (e: FocusEvent<HTMLDivElement>) => {
+    if (!e.currentTarget.contains(e.relatedTarget)) setFocused(false);
+  };
+
   return (
-    <div style={accentStyle(accent)} className={cn('perspective-shelf', CARD_WIDTH, className)}>
-      <motion.button
-        ref={ref}
-        type="button"
-        data-shelf-item
-        animate={{ y: lit && !reduced ? -LIFT_PX : 0 }}
-        transition={transition}
-        style={{ transformStyle: 'preserve-3d', rotateX, rotateY }}
-        onPointerEnter={(e) => {
-          setHovered(true);
-          onPointerEnter?.(e);
-        }}
-        onPointerMove={handlePointerMove}
-        onPointerLeave={(e) => {
-          setHovered(false);
-          resetTilt();
-          onPointerLeave?.(e);
-        }}
-        onFocus={(e) => {
-          if (e.currentTarget.matches(':focus-visible')) setFocused(true);
-          onFocus?.(e);
-        }}
-        onBlur={(e) => {
-          setFocused(false);
-          onBlur?.(e);
-        }}
-        className={cn('flex w-full flex-col gap-2 rounded-lg text-left outline-offset-4')}
-        {...props}
-      >
-        <motion.div layoutId={layoutId} className="w-full">
+    <div
+      style={accentStyle(accent)}
+      onPointerEnter={() => setHovered(true)}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={() => {
+        setHovered(false);
+        resetTilt();
+      }}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      className={cn('group perspective-shelf relative flex flex-col gap-2', CARD_WIDTH, className)}
+    >
+      <motion.div layoutId={layoutId} className="w-full">
+        <motion.div
+          ref={faceRef}
+          animate={{ y: lit && !reduced ? -LIFT_PX : 0 }}
+          transition={transition}
+          style={{ transformStyle: 'preserve-3d', rotateX, rotateY }}
+        >
           <Cover
             src={image?.src ?? null}
             srcSet={image?.srcSet}
@@ -132,15 +142,27 @@ export function GameCard({
             )}
           />
         </motion.div>
-        <span className="font-title text-lg leading-tight text-fg">{title}</span>
-        {chips && chips.length > 0 ? (
-          <span className="flex flex-wrap gap-1">
-            {chips.map((chip) => (
-              <HudChip key={chip.label} {...chip} />
-            ))}
-          </span>
-        ) : null}
-      </motion.button>
+      </motion.div>
+      <span className="font-title text-lg leading-tight text-fg">{title}</span>
+      {chips && chips.length > 0 ? (
+        <span className="flex flex-wrap gap-1">
+          {chips.map((chip) => (
+            <HudChip key={chip.label} {...chip} />
+          ))}
+        </span>
+      ) : null}
+      <button
+        type="button"
+        data-shelf-item
+        aria-label={title}
+        className="absolute inset-0 z-10 rounded-lg outline-offset-4"
+        {...props}
+      />
+      {actions ? (
+        <div className="absolute top-2 right-2 z-20 rounded-md bg-ground/80 opacity-0 transition-opacity duration-base ease-out group-focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
+          {actions}
+        </div>
+      ) : null}
     </div>
   );
 }

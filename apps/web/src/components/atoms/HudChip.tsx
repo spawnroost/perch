@@ -26,16 +26,21 @@ const TONE_TEXT: Record<Tone, string> = {
   unknown: 'unknown',
 };
 
-export type HudChipProps = { label: string; tone: Tone } & Omit<ComponentProps<'span'>, 'children'>;
+export type HudChipProps = {
+  label: string;
+  tone: Tone;
+  /** A plain tag (e.g. Backlog): no tone icon and no spoken status. */
+  plain?: boolean;
+} & Omit<ComponentProps<'span'>, 'children'>;
 
 /** Small HUD-style device-fit chip: device label plus a tone icon, never colour alone. */
-export function HudChip({ label, tone, className, ...props }: HudChipProps) {
+export function HudChip({ label, tone, plain, className, ...props }: HudChipProps) {
   const Icon = TONE_ICON[tone];
   return (
     <span className={cn('font-hud', chipVariants({ tone }), className)} {...props}>
-      <Icon size={12} strokeWidth={2} aria-hidden />
+      {plain ? null : <Icon size={12} strokeWidth={2} aria-hidden />}
       {label}
-      <span className="sr-only">: {TONE_TEXT[tone]}</span>
+      {plain ? null : <span className="sr-only">: {TONE_TEXT[tone]}</span>}
     </span>
   );
 }

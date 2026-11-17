@@ -1,13 +1,12 @@
 import { Link, useLocation, useNavigate } from 'react-router';
 import { motion } from 'motion/react';
 import { Check, ChevronLeft, Plus } from 'lucide-react';
-import { Badge, Button, Cover, DeckBadge, HudChip, Notice, Skeleton } from '../atoms';
-import { FeedbackActions, FitDetailRow, Hero, LoadError } from '../molecules';
+import { Badge, Button, Cover, DeckBadge, Notice, Skeleton } from '../atoms';
+import { FeedbackActions, FitChips, FitDetailRow, Hero, LoadError } from '../molecules';
 import { useAddToLibrary, useFeedback, useGameDetail, useLibrary } from '@/hooks/queries';
 import { useReduced } from '@/hooks/useMotionPrefs';
 import { ApiError } from '@/lib/api';
 import { coverImage } from '@/lib/coverSrcSet';
-import { fitChips } from '@/lib/forYou';
 import { coverLayoutId } from '@/lib/motion';
 import { releaseYear } from '@/lib/onboarding';
 import { platformNames } from '@/lib/platforms';
@@ -91,7 +90,6 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
   const inLibrary = library.data?.some((e) => e.igdbId === game.igdbId) ?? false;
 
   const image = coverImage(game.coverUrl, game.coverUrlSmall);
-  const chips = fitChips(fit);
 
   return (
     <div className="flex flex-col gap-6 pb-12">
@@ -122,15 +120,7 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
             {platforms.map((p) => (
               <Badge key={p}>{p}</Badge>
             ))}
-            {chips.length > 0 && (
-              <ul aria-label="Will it run" className="flex w-full flex-wrap gap-1.5">
-                {chips.map((chip) => (
-                  <li key={chip.label}>
-                    <HudChip {...chip} />
-                  </li>
-                ))}
-              </ul>
-            )}
+            <FitChips fits={fit} className="w-full" />
           </>
         }
         actions={

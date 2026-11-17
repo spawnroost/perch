@@ -2,6 +2,7 @@ export { ActionForm } from './ActionForm';
 export { ConnectorsComingSoon } from './ConnectorsComingSoon';
 export { DevicePresetCard } from './DevicePresetCard';
 export { FeedbackActions } from './FeedbackActions';
+export { FitChips } from './FitChips';
 export { FitDetailRow } from './FitDetailRow';
 export { FitRow } from './FitRow';
 export { FormField } from './FormField';

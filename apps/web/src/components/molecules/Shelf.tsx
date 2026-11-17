@@ -29,6 +29,8 @@ export function Shelf({ title, children, controls, className }: ShelfProps) {
     if (!root) return;
     const items = Array.from(root.querySelectorAll<HTMLElement>(ITEM));
     const current = items.findIndex((el) => el === e.target || el.contains(e.target as Node));
+    // Keys inside a card's own controls (e.g. feedback buttons) are not shelf navigation.
+    if (current === -1) return;
     const next = nextFocusIndex(current, e.key, items.length);
     if (next === null) return;
     e.preventDefault();
