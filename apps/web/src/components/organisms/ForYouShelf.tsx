@@ -5,7 +5,7 @@ import { FeedbackActions, GameCard, LoadError } from '../molecules';
 import { useDevices, useFeedback, useRecommendations } from '@/hooks/queries';
 import { useCardReturn } from '@/hooks/useCardReturn';
 import { CARD_GRID, CARD_GRID_SIZES } from '@/lib/cardWidth';
-import { ALL_TAB, cardChips, SEE_ALL_LIMIT, shelfPicks } from '@/lib/forYou';
+import { ALL_TAB, cardChips, deviceSearch, FOR_YOU_LIMIT, shelfPicks } from '@/lib/forYou';
 
 export type ForYouShelfProps = {
   /** A key from parseShelfKey. */
@@ -14,21 +14,26 @@ export type ForYouShelfProps = {
   device: string;
 };
 
-/** Every pick on one For you shelf as a cover grid, from a limit-100 feed with the shelf's device filter. */
+/** Every pick on one For you shelf as a cover grid: the launcher's feeds and hero exclusion, minus the card cap. */
 export function ForYouShelf({ shelfKey, device }: ForYouShelfProps) {
   const devices = useDevices();
+  // Only a device other than All has to wait for the device list (to check it still exists).
+  const resolved = device === ALL_TAB || devices.isSuccess;
   const deviceId = devices.data?.some((d) => d.id === device) ? device : ALL_TAB;
-  const feed = useRecommendations(deviceId, SEE_ALL_LIMIT, false, devices.isSuccess);
+  const hero = useRecommendations(ALL_TAB, FOR_YOU_LIMIT);
+  const feed = useRecommendations(deviceId, FOR_YOU_LIMIT, false, resolved);
   const { feedback, send, error } = useFeedback();
   const cardReturn = useCardReturn();
-  const shelf = feed.data ? shelfPicks(feed.data, shelfKey) : null;
-  const failure = devices.isError ? devices : feed.isError ? feed : null;
+  const ready = resolved && hero.isSuccess && feed.isSuccess;
+  const heroId = hero.data?.[0]?.game.igdbId ?? null;
+  const shelf = ready ? shelfPicks(feed.data, shelfKey, heroId) : null;
+  const failure = devices.isError ? devices : hero.isError ? hero : feed.isError ? feed : null;
 
   return (
     <section className="flex w-full flex-col gap-6 px-gutter py-6">
       <div className="flex flex-col gap-2">
         <Link
-          to="/"
+          to={`/${deviceSearch(device)}`}
           className="inline-flex w-fit items-center gap-1 rounded-sm text-sm text-fg-muted hover:text-fg"
         >
           <ArrowLeft size={14} strokeWidth={1.75} aria-hidden />
@@ -43,7 +48,7 @@ export function ForYouShelf({ shelfKey, device }: ForYouShelfProps) {
           </>
         ) : (
           <h1 className="font-title text-3xl text-fg">
-            {feed.isSuccess ? 'For you' : <Skeleton className="h-9 w-64" />}
+            {failure || ready ? 'For you' : <Skeleton className="h-9 w-64" />}
           </h1>
         )}
       </div>
@@ -51,14 +56,14 @@ export function ForYouShelf({ shelfKey, device }: ForYouShelfProps) {
       {failure && (
         <LoadError message={failure.error.message} onRetry={() => void failure.refetch()} />
       )}
-      {!failure && !feed.isSuccess && (
+      {!failure && !ready && (
         <div aria-busy className={CARD_GRID}>
           {Array.from({ length: 12 }, (_, i) => (
             <GameCard key={i} skeleton title="" className="w-full" />
           ))}
         </div>
       )}
-      {feed.isSuccess && !shelf && <Notice>Nothing on this shelf right now.</Notice>}
+      {ready && !shelf && <Notice>Nothing on this shelf right now.</Notice>}
       {devices.data && shelf && (
         <ul className={CARD_GRID}>
           {shelf.picks.map((r) => {

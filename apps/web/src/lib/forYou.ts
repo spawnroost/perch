@@ -5,12 +5,8 @@ import { timeToBeatHours } from './timeToBeat';
 import { hasDeckDevice } from './devices';
 
 export const ALL_TAB = 'all';
-/** Picks per feed (the all-devices feed and each device's feed) on For you. */
-export const FOR_YOU_LIMIT = 20;
-/** The fuller feed fetched in the background once the first FOR_YOU_LIMIT picks are on screen. */
-export const FOR_YOU_FULL_LIMIT = 60;
-/** The feed behind a See all grid. */
-export const SEE_ALL_LIMIT = 100;
+/** Picks per feed (the all-devices feed and each device's feed) on For you; its See all grids reuse them. */
+export const FOR_YOU_LIMIT = 60;
 
 export type Recommendation = RecommendationsResponse['recommendations'][number];
 /** One device's will-it-run result for a pick. */
@@ -52,14 +48,19 @@ export const sourceShelfKey = (igdbId: number) => `source-${igdbId}`;
 /** The shelf key from a route param; null unless it is one buildShelves can make. */
 export function parseShelfKey(param: string | undefined): string | null {
   if (param === BACKLOG_ID || param === SHORT_SESSIONS_ID || param === MORE_PICKS_ID) return param;
-  const m = param?.match(/^source-(\d+)$/);
-  return m && Number(m[1]) > 0 ? (param as string) : null;
+  return param && /^source-([1-9]\d*)$/.test(param) ? param : null;
 }
 
+/** The `?device=` query for a switcher selection; empty for All. */
+export const deviceSearch = (device: string): string =>
+  device === ALL_TAB ? '' : `?device=${encodeURIComponent(device)}`;
+
+/** The switcher selection from a `device` query value; missing or empty means All. */
+export const parseDevice = (value: string | null | undefined): string => value || ALL_TAB;
+
 /** Route of a shelf's See all grid; the device rides along unless it is All. */
-export function shelfPath(key: string, device: string): string {
-  return `/for-you/${key}${device === ALL_TAB ? '' : `?device=${encodeURIComponent(device)}`}`;
-}
+export const shelfPath = (key: string, device: string): string =>
+  `/for-you/${key}${deviceSearch(device)}`;
 
 /**
  * Shelves for the launcher, grouped by reason. Each game appears once and the hero game never.
@@ -124,28 +125,14 @@ export function buildShelves(
     }));
 }
 
-/** A shelf's full pick list from a feed (no cap, no hero): what its See all grid shows. */
+/** A shelf's full pick list from a feed (the launcher's shelf without the cap): what its See all grid shows. */
 export function shelfPicks(
   picks: readonly Recommendation[],
   key: string,
+  heroId: number | null = null,
 ): { title: string; picks: Recommendation[] } | null {
-  const shelf = buildShelves(picks, null, Infinity).find((s) => s.id === key);
+  const shelf = buildShelves(picks, heroId, Infinity).find((s) => s.id === key);
   return shelf ? { title: shelf.title, picks: shelf.picks } : null;
-}
-
-/**
- * The fuller feed laid over the one already on screen: the shown picks keep their place (with fresh
- * data), picks the full feed no longer has drop out, and the new ones follow in the full feed's
- * order. Shelves built from the result grow at their ends instead of reshuffling.
- */
-export function mergeFeeds(
-  shown: readonly Recommendation[],
-  full: readonly Recommendation[],
-): Recommendation[] {
-  const fresh = new Map(full.map((r) => [r.game.igdbId, r]));
-  const kept = shown.flatMap((r) => fresh.get(r.game.igdbId) ?? []);
-  const keptIds = new Set(kept.map((r) => r.game.igdbId));
-  return [...kept, ...full.filter((r) => !keptIds.has(r.game.igdbId))];
 }
 
 /** An option in the device switcher: All, then one per device. */
@@ -233,7 +220,7 @@ export function cardChips(
   const selected = devices.find((d) => d.id === selectedId);
   return capChips(
     pickChips(rec, {
-      hasDeckDevice: selected ? selected.kind === 'steam-deck' : hasDeckDevice([...devices]),
+      hasDeckDevice: selected ? selected.kind === 'steam-deck' : hasDeckDevice(devices),
       omitDeviceId: selected?.id,
     }),
   );

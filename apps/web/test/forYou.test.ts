@@ -7,7 +7,8 @@ import {
   SHORT_SESSIONS_ID,
   SHORT_SESSION_MAX_HOURS,
   SOURCE_SHELF_MIN,
-  mergeFeeds,
+  deviceSearch,
+  parseDevice,
   parseShelfKey,
   shelfPath,
   shelfPicks,
@@ -354,6 +355,8 @@ describe('shelf keys', () => {
       '',
       'source-',
       'source-0',
+      'source-01',
+      'source-007',
       'source-x',
       'because-10',
       'all',
@@ -366,6 +369,15 @@ describe('shelf keys', () => {
   it('builds the See all path, carrying the device unless it is All', () => {
     expect(shelfPath('source-10', ALL_TAB)).toBe('/for-you/source-10');
     expect(shelfPath('short', 'dev 1')).toBe('/for-you/short?device=dev%201');
+  });
+
+  it('serialises and parses the device param, empty meaning All', () => {
+    expect(deviceSearch(ALL_TAB)).toBe('');
+    expect(deviceSearch('dev 1')).toBe('?device=dev%201');
+    expect(parseDevice(null)).toBe(ALL_TAB);
+    expect(parseDevice('')).toBe(ALL_TAB);
+    expect(parseDevice('dev 1')).toBe('dev 1');
+    expect(parseDevice(new URLSearchParams(deviceSearch('a&b=c')).get('device'))).toBe('a&b=c');
   });
 });
 
@@ -386,31 +398,14 @@ describe('shelfPicks', () => {
     expect(shelf!.picks).toHaveLength(SHELF_CAP + 8);
   });
 
+  it('leaves the hero out, like the launcher shelf', () => {
+    const feed = [pick(1, 10), pick(2, 10), pick(3, 10), pick(4, 10), pick(5, 10)];
+    expect(shelfPicks(feed, 'source-10', 1)!.picks.map((r) => r.game.igdbId)).toEqual([2, 3, 4, 5]);
+  });
+
   it('is null when the feed has nothing for the key', () => {
     expect(shelfPicks([pick(1)], 'backlog')).toBeNull();
     expect(shelfPicks([], 'more')).toBeNull();
-  });
-});
-
-describe('mergeFeeds', () => {
-  const rec = (igdbId: number, rank = igdbId) =>
-    ({ rank, game: { igdbId } }) as unknown as Recommendation;
-  const ids = (list: Recommendation[]) => list.map((r) => r.game.igdbId);
-
-  it('keeps the shown picks first and in order, then appends the new ones', () => {
-    const shown = [rec(3), rec(1), rec(2)];
-    const full = [rec(1), rec(2), rec(4), rec(3), rec(5)];
-    expect(ids(mergeFeeds(shown, full))).toEqual([3, 1, 2, 4, 5]);
-  });
-
-  it('takes the fresh data for a pick in both, and drops shown picks the full feed lacks', () => {
-    const merged = mergeFeeds([rec(1, 1), rec(2, 2)], [rec(1, 9), rec(3, 3)]);
-    expect(ids(merged)).toEqual([1, 3]);
-    expect(merged[0]!.rank).toBe(9);
-  });
-
-  it('is the full feed when nothing is shown yet', () => {
-    expect(ids(mergeFeeds([], [rec(1), rec(2)]))).toEqual([1, 2]);
   });
 });
 

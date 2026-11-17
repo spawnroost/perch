@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import {
   keepPreviousData,
   useMutation,
@@ -35,7 +34,7 @@ import {
   revertFeedback,
   type FeedbackMap,
 } from '@/lib/feedback';
-import { FOR_YOU_FULL_LIMIT, FOR_YOU_LIMIT, mergeFeeds } from '@/lib/forYou';
+import { FOR_YOU_LIMIT } from '@/lib/forYou';
 import { seedGameDetail } from '@/lib/gameSeed';
 import { devicesAffected, libraryAffected } from '@/lib/invalidation';
 import { queryKeys } from '@/lib/queryKeys';
@@ -115,21 +114,8 @@ export function useRecommendations(
   });
 }
 
-/**
- * The For you shelf feed: the quick FOR_YOU_LIMIT picks paint first, then the fuller feed loads in
- * the background and is merged in with the shown picks staying put. A failed fuller load leaves the
- * quick picks as they are.
- */
-export function useShelfFeed(device: string) {
-  const quick = useRecommendations(device, FOR_YOU_LIMIT, true);
-  const settled = quick.isSuccess && !quick.isPlaceholderData;
-  const full = useRecommendations(device, FOR_YOU_FULL_LIMIT, false, settled);
-  const data = useMemo(
-    () => (quick.data && full.data ? mergeFeeds(quick.data, full.data) : quick.data),
-    [quick.data, full.data],
-  );
-  return { ...quick, data };
-}
+/** The For you feed for a device; switching devices keeps the old picks until the new ones land. */
+export const useForYouFeed = (device: string) => useRecommendations(device, FOR_YOU_LIMIT, true);
 
 /** Ranked picks for a play session; idle until `params` is set (no device yet, battery still being read). */
 export function useSession(params: SessionQuery | null) {

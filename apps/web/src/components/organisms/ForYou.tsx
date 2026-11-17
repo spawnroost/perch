@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import type { DeviceView } from '@perch/core';
 import { Button, Notice, Skeleton } from '../atoms';
 import {
@@ -13,16 +12,17 @@ import {
   Shelf,
 } from '../molecules';
 import { QuickSession } from './QuickSession';
-import { useDevices, useFeedback, useRecommendations, useShelfFeed } from '@/hooks/queries';
+import { useDevices, useFeedback, useForYouFeed } from '@/hooks/queries';
 import { useCardReturn } from '@/hooks/useCardReturn';
 import {
   ALL_TAB,
   buildShelves,
   cardKey,
   deviceOptions,
-  FOR_YOU_LIMIT,
   cardChips,
+  deviceSearch,
   layoutOwners,
+  parseDevice,
   shelfPath,
 } from '@/lib/forYou';
 
@@ -40,16 +40,19 @@ function LauncherSkeleton() {
 }
 
 function Launcher({ devices }: { devices: DeviceView[] }) {
-  const feed = useRecommendations(ALL_TAB, FOR_YOU_LIMIT);
+  const feed = useForYouFeed(ALL_TAB);
   const { feedback, send, error } = useFeedback();
   const navigate = useNavigate();
   const cardReturn = useCardReturn();
-  const [picked, setPicked] = useState(ALL_TAB);
+  const [params] = useSearchParams();
+  const picked = parseDevice(params.get('device'));
   // A selection whose device was removed falls back to All.
   const selectedDevice = devices.find((d) => d.id === picked);
   const selected = selectedDevice ? picked : ALL_TAB;
   // The hero is the overall top pick; the shelves follow the selected device's own server-ranked feed.
-  const shelfFeed = useShelfFeed(selected);
+  const shelfFeed = useForYouFeed(selected);
+  // The selection lives in the URL so Back from a See all grid restores it.
+  const select = (id: string) => void navigate({ search: deviceSearch(id) }, { replace: true });
 
   if (feed.isPending) return <LauncherSkeleton />;
   if (feed.isError) {
@@ -123,7 +126,7 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
               label="Show picks for"
               options={deviceOptions(devices)}
               value={selected}
-              onChange={setPicked}
+              onChange={select}
               className="min-w-0"
             />
             <QuickSession devices={devices} pickedId={selected} />

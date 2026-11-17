@@ -5,7 +5,7 @@ import { deckCategorySchema, deviceFitSchema, fitStatusSchema, timeToBeatSchema 
 export const recommendationsQuerySchema = z.object({
   /** A device id or preset id, 'all' (default) or 'none' (no device filtering). */
   device: z.string().trim().min(1).max(64).optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  limit: z.coerce.number().int().min(1).max(60).default(20),
 });
 
 export const recommendationSchema = z.object({

@@ -615,9 +615,8 @@ describe.skipIf(!testUrl)('api routes', () => {
       expect((await get('/api/recommendations?device=all', u.cookie)).status).toBe(200);
     });
 
-    it('accepts a limit up to 100', async () => {
+    it('accepts a limit up to 60', async () => {
       const u = await newUser();
-      expect((await get('/api/recommendations?device=none&limit=100', u.cookie)).status).toBe(200);
       expect((await get('/api/recommendations?device=none&limit=60', u.cookie)).status).toBe(200);
     });
 
@@ -628,7 +627,7 @@ describe.skipIf(!testUrl)('api routes', () => {
       const { device } = (await added.json()) as { device: { id: string } };
       expect((await get('/api/recommendations?limit=0', mine.cookie)).status).toBe(400);
       expect((await get('/api/recommendations?limit=abc', mine.cookie)).status).toBe(400);
-      expect((await get('/api/recommendations?limit=101', mine.cookie)).status).toBe(400);
+      expect((await get('/api/recommendations?limit=61', mine.cookie)).status).toBe(400);
       expect((await get(`/api/recommendations?device=${device.id}`, mine.cookie)).status).toBe(404);
     });
   });
