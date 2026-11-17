@@ -1,7 +1,19 @@
 {
   "name": "Perch",
   "source": "apps/web/src/styles/tokens.css",
-  "accent": { "property": "--accent", "default": "oklch(0.7 0.17 262)", "runtime": "src/lib/accent.ts", "derived": ["accent", "accent-hover", "accent-press", "accent-soft", "accent-tint", "accent-wash"] },
+  "accent": {
+    "property": "--accent",
+    "default": "oklch(0.7 0.17 262)",
+    "runtime": "src/lib/accent.ts",
+    "derived": [
+      "accent",
+      "accent-hover",
+      "accent-press",
+      "accent-soft",
+      "accent-tint",
+      "accent-wash"
+    ]
+  },
   "shadows": {
     "raised": "inset 0 1px 0 0 var(--color-edge), 0 1px 2px 0 oklch(0 0 0 / 0.4)",
     "card": "inset 0 1px 0 0 var(--color-edge), 0 8px 20px -6px oklch(0 0 0 / 0.55), 0 2px 4px 0 oklch(0 0 0 / 0.35)",
@@ -11,11 +23,23 @@
     "cover-glow": "0 0 0 1px var(--accent-ring), 0 24px 64px -12px var(--accent-glow), 0 0 96px -24px var(--accent-glow)"
   },
   "motion": {
-    "springs": { "expand": [260, 30, 1], "snap": [520, 38, 1], "hero": [120, 22, 1], "tilt": [300, 30, 1] },
+    "springs": {
+      "expand": [260, 30, 1],
+      "snap": [520, 38, 1],
+      "hero": [120, 22, 1],
+      "tilt": [300, 30, 1]
+    },
     "durationsMs": { "fast": 120, "base": 200, "slow": 320, "hero": 640 },
     "ease": { "out": "cubic-bezier(0.16, 1, 0.3, 1)", "inOut": "cubic-bezier(0.65, 0, 0.35, 1)" },
-    "tiltMaxDeg": 8, "liftPx": 6,
+    "tiltMaxDeg": 8,
+    "liftPx": 6,
     "reduced": "springs instant, no tilt, no layoutId, opacity-only 120ms fades, CSS durations 0.01ms"
   },
-  "layout": { "edgeRoutes": ["/", "/games/:id", "/library", "/devices"], "narrowMaxWidth": "48rem", "gutter": "2rem", "rail": "26rem", "cardWidth": "w-40 lg:w-56" }
+  "layout": {
+    "edgeRoutes": ["/", "/games/:id", "/library", "/devices"],
+    "narrowMaxWidth": "48rem",
+    "gutter": "2rem",
+    "rail": "26rem",
+    "cardWidth": "w-40 lg:w-56"
+  }
 }

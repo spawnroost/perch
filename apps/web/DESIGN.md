@@ -2,54 +2,127 @@
 name: Perch
 description: A console-launcher game recommender. Dark ink-violet base, box-art covers, a per-game accent that tints each subtree, and device fit shown as HUD chips.
 colors:
-  ground: "oklch(0.13 0.018 285)"
-  surface-1: "oklch(0.17 0.02 285)"
-  surface-2: "oklch(0.21 0.022 285)"
-  surface-3: "oklch(0.26 0.024 285)"
-  surface-4: "oklch(0.31 0.026 285)"
-  scrim: "oklch(0.09 0.015 285 / 0.78)"
-  line: "oklch(1 0 0 / 0.08)"
-  line-strong: "oklch(1 0 0 / 0.16)"
-  edge: "oklch(1 0 0 / 0.1)"
-  fg: "oklch(0.97 0.005 285)"
-  fg-muted: "oklch(0.78 0.012 285)"
-  fg-subtle: "oklch(0.66 0.014 285)"
-  on-accent: "oklch(0.16 0.03 285)"
-  accent-default: "oklch(0.7 0.17 262)"
-  fit-yes: "oklch(0.8 0.15 155)"
-  fit-low: "oklch(0.84 0.14 85)"
-  fit-no: "oklch(0.72 0.17 355)"
-  fit-unknown: "oklch(0.7 0.012 285)"
-  device-pc: "oklch(0.42 0.14 262)"
-  device-mac: "oklch(0.45 0.05 285)"
-  device-handheld: "oklch(0.45 0.14 200)"
-  device-console: "oklch(0.45 0.17 330)"
+  ground: 'oklch(0.13 0.018 285)'
+  surface-1: 'oklch(0.17 0.02 285)'
+  surface-2: 'oklch(0.21 0.022 285)'
+  surface-3: 'oklch(0.26 0.024 285)'
+  surface-4: 'oklch(0.31 0.026 285)'
+  scrim: 'oklch(0.09 0.015 285 / 0.78)'
+  line: 'oklch(1 0 0 / 0.08)'
+  line-strong: 'oklch(1 0 0 / 0.16)'
+  edge: 'oklch(1 0 0 / 0.1)'
+  fg: 'oklch(0.97 0.005 285)'
+  fg-muted: 'oklch(0.78 0.012 285)'
+  fg-subtle: 'oklch(0.66 0.014 285)'
+  on-accent: 'oklch(0.16 0.03 285)'
+  accent-default: 'oklch(0.7 0.17 262)'
+  fit-yes: 'oklch(0.8 0.15 155)'
+  fit-low: 'oklch(0.84 0.14 85)'
+  fit-no: 'oklch(0.72 0.17 355)'
+  fit-unknown: 'oklch(0.7 0.012 285)'
+  device-pc: 'oklch(0.42 0.14 262)'
+  device-mac: 'oklch(0.45 0.05 285)'
+  device-handheld: 'oklch(0.45 0.14 200)'
+  device-console: 'oklch(0.45 0.17 330)'
 typography:
-  display-xl: { fontFamily: "Archivo Variable, Inter Variable, sans-serif", fontSize: "5.5rem", fontWeight: 800, lineHeight: 0.92, letterSpacing: "-0.025em" }
-  display-lg: { fontFamily: "Archivo Variable, Inter Variable, sans-serif", fontSize: "3.75rem", fontWeight: 800, lineHeight: 0.95, letterSpacing: "-0.025em" }
-  display-md: { fontFamily: "Archivo Variable, Inter Variable, sans-serif", fontSize: "2.5rem", fontWeight: 800, lineHeight: 1, letterSpacing: "-0.025em" }
-  display-sm: { fontFamily: "Archivo Variable, Inter Variable, sans-serif", fontSize: "1.75rem", fontWeight: 800, lineHeight: 1.05, letterSpacing: "-0.025em" }
-  headline: { fontFamily: "Inter Variable, system-ui, sans-serif", fontSize: "1.5rem", fontWeight: 600, lineHeight: "2rem" }
-  title: { fontFamily: "Inter Variable, system-ui, sans-serif", fontSize: "1rem", fontWeight: 600, lineHeight: "1.5rem" }
-  body: { fontFamily: "Inter Variable, system-ui, sans-serif", fontSize: "0.875rem", fontWeight: 400, lineHeight: "1.375rem" }
-  label: { fontFamily: "Inter Variable, system-ui, sans-serif", fontSize: "0.8125rem", fontWeight: 500, lineHeight: "1.25rem" }
-  hud: { fontFamily: "Archivo Variable, sans-serif", fontSize: "0.6875rem", fontWeight: 700, lineHeight: "1rem", letterSpacing: "0.08em" }
+  display-xl:
+    {
+      fontFamily: 'Archivo Variable, Inter Variable, sans-serif',
+      fontSize: '5.5rem',
+      fontWeight: 800,
+      lineHeight: 0.92,
+      letterSpacing: '-0.025em',
+    }
+  display-lg:
+    {
+      fontFamily: 'Archivo Variable, Inter Variable, sans-serif',
+      fontSize: '3.75rem',
+      fontWeight: 800,
+      lineHeight: 0.95,
+      letterSpacing: '-0.025em',
+    }
+  display-md:
+    {
+      fontFamily: 'Archivo Variable, Inter Variable, sans-serif',
+      fontSize: '2.5rem',
+      fontWeight: 800,
+      lineHeight: 1,
+      letterSpacing: '-0.025em',
+    }
+  display-sm:
+    {
+      fontFamily: 'Archivo Variable, Inter Variable, sans-serif',
+      fontSize: '1.75rem',
+      fontWeight: 800,
+      lineHeight: 1.05,
+      letterSpacing: '-0.025em',
+    }
+  headline:
+    {
+      fontFamily: 'Inter Variable, system-ui, sans-serif',
+      fontSize: '1.5rem',
+      fontWeight: 600,
+      lineHeight: '2rem',
+    }
+  title:
+    {
+      fontFamily: 'Inter Variable, system-ui, sans-serif',
+      fontSize: '1rem',
+      fontWeight: 600,
+      lineHeight: '1.5rem',
+    }
+  body:
+    {
+      fontFamily: 'Inter Variable, system-ui, sans-serif',
+      fontSize: '0.875rem',
+      fontWeight: 400,
+      lineHeight: '1.375rem',
+    }
+  label:
+    {
+      fontFamily: 'Inter Variable, system-ui, sans-serif',
+      fontSize: '0.8125rem',
+      fontWeight: 500,
+      lineHeight: '1.25rem',
+    }
+  hud:
+    {
+      fontFamily: 'Archivo Variable, sans-serif',
+      fontSize: '0.6875rem',
+      fontWeight: 700,
+      lineHeight: '1rem',
+      letterSpacing: '0.08em',
+    }
 rounded:
-  sm: "0.375rem"
-  md: "0.5rem"
-  lg: "0.75rem"
-  xl: "1rem"
-  2xl: "1.5rem"
+  sm: '0.375rem'
+  md: '0.5rem'
+  lg: '0.75rem'
+  xl: '1rem'
+  2xl: '1.5rem'
 spacing:
-  unit: "0.25rem"
-  gutter: "2rem"
-  rail: "26rem"
+  unit: '0.25rem'
+  gutter: '2rem'
+  rail: '26rem'
 components:
-  button-primary: { backgroundColor: "{colors.accent-default}", textColor: "{colors.on-accent}", rounded: "{rounded.md}", height: "2rem", padding: "0 0.75rem" }
-  button-secondary: { backgroundColor: "{colors.surface-2}", textColor: "{colors.fg}", rounded: "{rounded.md}", height: "2rem", padding: "0 0.75rem" }
-  card: { backgroundColor: "{colors.surface-1}", rounded: "{rounded.lg}" }
-  cover: { backgroundColor: "{colors.surface-2}", rounded: "{rounded.md}" }
-  hud-chip: { rounded: "{rounded.sm}", height: "1.25rem", padding: "0 0.375rem" }
+  button-primary:
+    {
+      backgroundColor: '{colors.accent-default}',
+      textColor: '{colors.on-accent}',
+      rounded: '{rounded.md}',
+      height: '2rem',
+      padding: '0 0.75rem',
+    }
+  button-secondary:
+    {
+      backgroundColor: '{colors.surface-2}',
+      textColor: '{colors.fg}',
+      rounded: '{rounded.md}',
+      height: '2rem',
+      padding: '0 0.75rem',
+    }
+  card: { backgroundColor: '{colors.surface-1}', rounded: '{rounded.lg}' }
+  cover: { backgroundColor: '{colors.surface-2}', rounded: '{rounded.md}' }
+  hud-chip: { rounded: '{rounded.sm}', height: '1.25rem', padding: '0 0.375rem' }
 ---
 
 # Design System: Perch
@@ -61,6 +134,7 @@ components:
 A dark ink-violet stage where box art is the light source. A full-bleed hero of the top pick, shelves of tall 3:4 covers, and a per-game accent that recolours buttons, rings, glows and selection inside whatever subtree sets it. Titles are heavy, slightly condensed Archivo; everything else is dense Inter at a 14px base. Gamy and alive, but original: no real console's UI, icons or sounds.
 
 **Key Characteristics:**
+
 - Dark only (`color-scheme: dark`); depth comes from five tonal steps plus a top-edge highlight, not borders alone.
 - Colour is carried by the game (runtime `--accent`) and by fit states; chrome stays neutral.
 - Motion is part of the product (tilt, glow, card-to-detail expand) and always degrades under reduced motion.
@@ -94,6 +168,7 @@ All values are in `src/styles/tokens.css` (`@theme`; Tailwind palette is reset, 
 ## Elevation & Depth
 
 Tonal layering plus a lit top edge. Every shadow starts with `inset 0 1px 0 var(--edge)`.
+
 - `shadow-raised` (cards, secondary buttons, covers), `shadow-card`, `shadow-lift` (hover lift), `shadow-overlay` (sheets, menus).
 - `shadow-glow` and `shadow-cover-glow` are tinted by the game's accent (hover/focus on cards; detail hero cover halo).
 - Shadows are soft blurred offsets; no hard offset shadows.
@@ -118,6 +193,7 @@ Organisms: `AppLayout`, `AuthLayout`, `OnboardingLayout`, `ForYou` (hero + shelv
 ## Do's and Don'ts
 
 **Do**
+
 - Use tokens through Tailwind utilities (`bg-surface-2`, `text-fg-muted`, `rounded-md`, `px-gutter`); raw values live only in `tokens.css`.
 - Set `--accent` on the subtree that belongs to a game; use `accent-*` utilities so children follow.
 - Pair every fit colour with an icon and a label.
@@ -125,6 +201,7 @@ Organisms: `AppLayout`, `AuthLayout`, `OnboardingLayout`, `ForYou` (hero + shelv
 - Gate every transform animation behind `useReduced`.
 
 **Don't**
+
 - Don't add a second accent hue or hard-code a game colour in chrome.
 - Don't use hard offset shadows, pure black/white surfaces, or borders as the only depth.
 - Don't exceed `text-display-xl` or use display faces for body copy.
