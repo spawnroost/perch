@@ -1,11 +1,13 @@
 import { Hono } from 'hono';
 import {
+  recommendationCacheKey,
   recommendationsQuerySchema,
   recommendForUser,
   type RecommendationsResponse,
 } from '@perch/core';
 import type { AppVars, RouteDeps } from '../app.js';
 import { parseQuery } from '../http.js';
+import { cachedRecommendations } from '../recommendation-cache.js';
 import { requireAuth, requireIgdb } from '../middleware.js';
 import { recommendationDto } from '../serialize.js';
 
@@ -16,14 +18,21 @@ export function recommendationsRoutes(deps: RouteDeps) {
   r.get('/', async (c) => {
     const { device, limit } = parseQuery(c, recommendationsQuerySchema);
     const { cache } = requireIgdb(deps);
-    const recs = await recommendForUser({ ...deps, cache }, c.get('user').id, {
-      device,
-      limit,
-      warmTimeToBeat: true,
-    });
-    return c.json({
-      recommendations: recs.map(recommendationDto),
-    } satisfies RecommendationsResponse);
+    const userId = c.get('user').id;
+    const body = await cachedRecommendations(
+      deps.db,
+      userId,
+      recommendationCacheKey({ device, limit }),
+      async () => {
+        const recs = await recommendForUser({ ...deps, cache }, userId, {
+          device,
+          limit,
+          warmTimeToBeat: true,
+        });
+        return { recommendations: recs.map(recommendationDto) } satisfies RecommendationsResponse;
+      },
+    );
+    return c.json(body);
   });
 
   return r;

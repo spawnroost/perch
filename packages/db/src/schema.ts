@@ -293,27 +293,20 @@ export const tasteProfiles = pgTable('taste_profiles', {
   builtAt: ts('built_at').defaultNow().notNull(),
 });
 
+/**
+ * Per-user cached API responses for For you, one row per normalised request (device + limit).
+ * Dropped whenever the user's library, feedback or devices change.
+ */
 export const recommendationCache = pgTable(
   'recommendation_cache',
   {
-    id: uuid('id').primaryKey().defaultRandom(),
     userId: text('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    /** Null = recommendations not tied to a device. */
-    deviceId: uuid('device_id').references(() => devices.id, { onDelete: 'cascade' }),
-    items: jsonb('items').notNull().default([]),
-    reasons: jsonb('reasons').notNull().default({}),
-    builtAt: ts('built_at').defaultNow().notNull(),
+    key: text('key').notNull(),
+    /** The JSON response body (dates are already ISO strings). */
+    payload: jsonb('payload').notNull(),
+    computedAt: ts('computed_at').defaultNow().notNull(),
   },
-  (t) => [
-    index('recommendation_cache_user_idx').on(t.userId),
-    // One cache row per (user, device), and one for the device-less case.
-    uniqueIndex('recommendation_cache_user_device_idx')
-      .on(t.userId, t.deviceId)
-      .where(sql`${t.deviceId} is not null`),
-    uniqueIndex('recommendation_cache_user_nodevice_idx')
-      .on(t.userId)
-      .where(sql`${t.deviceId} is null`),
-  ],
+  (t) => [primaryKey({ columns: [t.userId, t.key] })],
 );

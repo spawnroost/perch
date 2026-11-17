@@ -800,6 +800,174 @@ describe.skipIf(!testUrl)('api routes', () => {
     });
   });
 
+  describe('recommendation cache', () => {
+    const cacheRows = (userId: string) =>
+      ctx.db
+        .select()
+        .from(schema.recommendationCache)
+        .where(eq(schema.recommendationCache.userId, userId));
+    type Recs = { recommendations: { game: { igdbId: number } }[] };
+    const ids = async (res: Response) =>
+      ((await res.json()) as Recs).recommendations.map((r) => r.game.igdbId);
+    type U = { cookie: string; id: string };
+    const firstEntry = async (u: U) => {
+      const [e] = await ctx.db
+        .select()
+        .from(schema.libraryEntries)
+        .where(eq(schema.libraryEntries.userId, u.id));
+      return e!;
+    };
+    const addDevice = async (u: U) => {
+      const res = await call('POST', '/api/devices', u.cookie, { preset: 'ps5' });
+      return ((await res.json()) as { device: { id: string } }).device.id;
+    };
+
+    async function seeded() {
+      const u = await newUser();
+      await call('POST', '/api/library', u.cookie, {
+        igdbId: A,
+        hoursPlayed: 5,
+        status: 'playing',
+      });
+      return u;
+    }
+
+    it('serves the stored payload on a hit and keeps separate entries per params', async () => {
+      const u = await seeded();
+      const first = await ids(await get('/api/recommendations?device=none&limit=5', u.cookie));
+      expect(first).toContain(B);
+      expect(await cacheRows(u.id)).toHaveLength(1);
+
+      // A write that bypasses the API cannot invalidate: only a cache hit still returns B.
+      await ctx.db.delete(schema.libraryEntries).where(eq(schema.libraryEntries.userId, u.id));
+      const [before] = await cacheRows(u.id);
+      await ctx.db
+        .update(schema.recommendationCache)
+        .set({ computedAt: new Date() })
+        .where(eq(schema.recommendationCache.userId, u.id));
+      const hit = await get('/api/recommendations?device=none&limit=5', u.cookie);
+      expect(await ids(hit)).toEqual(first);
+      expect((await cacheRows(u.id))[0]?.payload).toEqual(before?.payload);
+
+      // Different limit / device are different keys, computed from the (now empty) library.
+      expect(await ids(await get('/api/recommendations?device=none&limit=6', u.cookie))).toEqual(
+        [],
+      );
+      await get('/api/recommendations?limit=5', u.cookie);
+      expect(await cacheRows(u.id)).toHaveLength(3);
+    });
+
+    it('treats a missing device and device=all as one entry', async () => {
+      const u = await seeded();
+      await get('/api/recommendations?limit=5', u.cookie);
+      await get('/api/recommendations?device=ALL&limit=5', u.cookie);
+      expect(await cacheRows(u.id)).toHaveLength(1);
+    });
+
+    it('stores a payload that survives the JSON round trip', async () => {
+      const u = await seeded();
+      const live = await (await get('/api/recommendations?device=none', u.cookie)).json();
+      const [row] = await cacheRows(u.id);
+      expect(row?.payload).toEqual(JSON.parse(JSON.stringify(live)));
+    });
+
+    it('serves a stale entry at once and recomputes it in the background', async () => {
+      const u = await seeded();
+      await get('/api/recommendations?device=none&limit=5', u.cookie);
+      await ctx.db.delete(schema.libraryEntries).where(eq(schema.libraryEntries.userId, u.id));
+      const old = new Date(Date.now() - 7 * 3600_000);
+      await ctx.db
+        .update(schema.recommendationCache)
+        .set({ computedAt: old })
+        .where(eq(schema.recommendationCache.userId, u.id));
+
+      expect(await ids(await get('/api/recommendations?device=none&limit=5', u.cookie))).toContain(
+        B,
+      );
+      await vi.waitFor(async () => {
+        const [row] = await cacheRows(u.id);
+        expect(row?.computedAt.getTime()).toBeGreaterThan(old.getTime() + 3600_000);
+        expect((row?.payload as Recs).recommendations).toEqual([]);
+      });
+    });
+
+    it('shares one compute between concurrent requests on a miss', async () => {
+      const u = await seeded();
+      const path = '/api/recommendations?device=none&limit=7';
+      const results = await Promise.all([1, 2, 3].map(() => get(path, u.cookie)));
+      const bodies = await Promise.all(results.map((r) => r.json()));
+      expect(bodies[1]).toEqual(bodies[0]);
+      expect(bodies[2]).toEqual(bodies[0]);
+      expect(await cacheRows(u.id)).toHaveLength(1);
+    });
+
+    const writes: [string, (u: U) => Promise<Response> | Response][] = [
+      ['library add', (u) => call('POST', '/api/library', u.cookie, { igdbId: B })],
+      [
+        'library import confirm',
+        (u) => call('POST', '/api/library/import/confirm', u.cookie, { items: [{ igdbId: C }] }),
+      ],
+      [
+        'library update',
+        async (u) =>
+          call('PATCH', `/api/library/${(await firstEntry(u)).id}`, u.cookie, { hoursPlayed: 9 }),
+      ],
+      [
+        'library delete',
+        async (u) => call('DELETE', `/api/library/${(await firstEntry(u)).id}`, u.cookie),
+      ],
+      [
+        'feedback add',
+        (u) => call('POST', '/api/feedback', u.cookie, { igdbId: B, kind: 'not_interested' }),
+      ],
+      [
+        'feedback remove',
+        async (u) => {
+          await call('POST', '/api/feedback', u.cookie, { igdbId: B, kind: 'up' });
+          await get('/api/recommendations?device=none', u.cookie);
+          return call('DELETE', `/api/feedback/${B}/up`, u.cookie);
+        },
+      ],
+      ['device add', (u) => call('POST', '/api/devices', u.cookie, { preset: 'ps5' })],
+      [
+        'device update (default change)',
+        async (u) => {
+          const id = await addDevice(u);
+          await get('/api/recommendations?device=none', u.cookie);
+          return call('PATCH', `/api/devices/${id}`, u.cookie, { isDefault: true });
+        },
+      ],
+      [
+        'device delete',
+        async (u) => {
+          const id = await addDevice(u);
+          await get('/api/recommendations?device=none', u.cookie);
+          return call('DELETE', `/api/devices/${id}`, u.cookie);
+        },
+      ],
+      ['profile rebuild', (u) => call('POST', '/api/profile/rebuild', u.cookie)],
+    ];
+    it.each(writes)('is cleared by %s', async (_name, write) => {
+      const u = await seeded();
+      await get('/api/recommendations?device=none', u.cookie);
+      await get('/api/recommendations?limit=3', u.cookie);
+      expect((await cacheRows(u.id)).length).toBeGreaterThan(0);
+      const res = await write(u);
+      expect(res.status).toBeLessThan(300);
+      expect(await cacheRows(u.id)).toHaveLength(0);
+    });
+
+    it("never clears another user's entries", async () => {
+      const mine = await seeded();
+      const theirs = await seeded();
+      await get('/api/recommendations?device=none', mine.cookie);
+      await get('/api/recommendations?device=none', theirs.cookie);
+      await call('POST', '/api/devices', mine.cookie, { preset: 'ps5' });
+      expect(await cacheRows(mine.id)).toHaveLength(0);
+      expect(await cacheRows(theirs.id)).toHaveLength(1);
+    });
+  });
+
   describe('feedback and profile', () => {
     const kinds = async (userId: string, igdbId: number) =>
       (

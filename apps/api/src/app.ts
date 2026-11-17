@@ -28,6 +28,7 @@ import { sessionRoutes } from './routes/session.js';
 import { accountRoutes, steamAuthRoutes } from './routes/steam.js';
 import type { SteamOpenIdVerifier } from './steam-openid.js';
 import { DEFAULT_RATE_LIMITS, rateLimit, type RateLimitConfig } from './rate-limit.js';
+import { invalidatesRecommendations } from './recommendation-cache.js';
 
 export type { RateLimitConfig };
 
@@ -101,6 +102,11 @@ export function createApp(appDeps: AppDeps) {
     return c.json({ id, email, name });
   });
 
+  // Writes to anything the recommendations are computed from drop the user's cached picks.
+  for (const path of ['library', 'devices', 'feedback', 'profile']) {
+    app.use(`/api/${path}/*`, invalidatesRecommendations(db));
+    app.use(`/api/${path}`, invalidatesRecommendations(db));
+  }
   app.route('/api/account', accountRoutes(deps));
   app.route('/api/games', gamesRoutes(deps));
   app.route('/api/library', libraryRoutes(deps));
