@@ -53,3 +53,8 @@ export function tiltFromPointer(x: number, y: number, rect: Rect, reduced: boole
   const dy = clamp(((y - rect.top) / rect.height) * 2 - 1);
   return { rotateX: -dy * TILT_MAX_DEG || 0, rotateY: dx * TILT_MAX_DEG || 0 };
 }
+
+/** Shared-element id linking a card's cover to the detail cover; unset when reduced (no layout animation). */
+export function coverLayoutId(igdbId: number, reduced: boolean): string | undefined {
+  return reduced ? undefined : `cover-${igdbId}`;
+}

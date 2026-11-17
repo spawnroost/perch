@@ -1,9 +1,14 @@
 import { Link, useLocation, useNavigate } from 'react-router';
+import { motion } from 'motion/react';
 import { Check, ChevronLeft, Plus } from 'lucide-react';
-import { Badge, Button, Cover, DeckBadge, Notice, Skeleton } from '../atoms';
-import { FeedbackActions, FitDetailRow, LoadError } from '../molecules';
+import { Badge, Button, Cover, DeckBadge, HudChip, Notice, Skeleton } from '../atoms';
+import { FeedbackActions, FitDetailRow, Hero, LoadError } from '../molecules';
 import { useAddToLibrary, useFeedback, useGameDetail, useLibrary } from '@/hooks/queries';
+import { useReduced } from '@/hooks/useMotionPrefs';
 import { ApiError } from '@/lib/api';
+import { coverImage } from '@/lib/coverSrcSet';
+import { fitChips } from '@/lib/forYou';
+import { coverLayoutId } from '@/lib/motion';
 import { releaseYear } from '@/lib/onboarding';
 import { platformNames } from '@/lib/platforms';
 import { timeToBeatLabel } from '@/lib/timeToBeat';
@@ -43,15 +48,23 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
   const library = useLibrary();
   const add = useAddToLibrary();
   const { feedback, send, error: feedbackError } = useFeedback();
-  const back = <BackLink />;
+  const reduced = useReduced();
+  const layoutId = igdbId === null ? undefined : coverLayoutId(igdbId, reduced);
+  const back = (
+    <div className="px-6 pt-1">
+      <BackLink />
+    </div>
+  );
 
   if (igdbId === null) return <NotFound back={back} />;
   if (detail.isPending) {
     return (
       <>
         {back}
-        <div className="flex gap-4" aria-busy>
-          <Skeleton className="aspect-3/4 w-32 shrink-0" />
+        <div className="flex gap-4 px-8" aria-busy>
+          <motion.div layoutId={layoutId} className="w-40 shrink-0">
+            <Skeleton className="aspect-3/4 w-full" />
+          </motion.div>
           <Skeleton className="h-32 flex-1" />
         </div>
       </>
@@ -64,7 +77,9 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
     return (
       <>
         {back}
-        <LoadError message={detail.error.message} onRetry={() => void detail.refetch()} />
+        <div className="px-6">
+          <LoadError message={detail.error.message} onRetry={() => void detail.refetch()} />
+        </div>
       </>
     );
   }
@@ -75,25 +90,51 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
   const platforms = platformNames(game.platforms);
   const inLibrary = library.data?.some((e) => e.igdbId === game.igdbId) ?? false;
 
+  const image = coverImage(game.coverUrl, game.coverUrlSmall);
+  const chips = fitChips(fit);
+
   return (
-    <>
+    <div className="flex flex-col gap-6 pb-12">
       {back}
-      <header className="flex gap-4">
-        <Cover src={game.coverUrl} alt={`${game.name} cover`} className="w-32 shrink-0" />
-        <div className="flex min-w-0 flex-col items-start gap-2">
-          <h1 className="text-2xl font-semibold tracking-display text-fg">{game.name}</h1>
-          <p className="text-sm text-fg-muted tabular-nums">
-            {[year, game.rating !== null && `Rated ${Math.round(game.rating)}`, toBeat]
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
-          <div className="flex flex-wrap items-center gap-1.5">
+      <Hero
+        title={game.name}
+        heroUrl={game.heroUrl}
+        accent={game.accent}
+        cover={
+          <motion.div layoutId={layoutId} className="w-32 shrink-0 sm:w-40">
+            <Cover
+              src={image?.src ?? null}
+              srcSet={image?.srcSet}
+              sizes="10rem"
+              alt={`${game.name} cover`}
+              className="w-full rounded-lg"
+            />
+          </motion.div>
+        }
+        meta={
+          <>
+            <p className="w-full text-sm tabular-nums">
+              {[year, game.rating !== null && `Rated ${Math.round(game.rating)}`, toBeat]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
             {deck && <DeckBadge category={deck} />}
             {platforms.map((p) => (
               <Badge key={p}>{p}</Badge>
             ))}
-          </div>
-          <div className="mt-auto flex flex-wrap items-center gap-3">
+            {chips.length > 0 && (
+              <ul aria-label="Will it run" className="flex w-full flex-wrap gap-1.5">
+                {chips.map((chip) => (
+                  <li key={chip.label}>
+                    <HudChip {...chip} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        }
+        actions={
+          <>
             {inLibrary ? (
               <span className="flex items-center gap-1.5 text-sm text-fit-yes">
                 <Check size={14} strokeWidth={1.75} aria-hidden />
@@ -115,56 +156,57 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
               value={feedback[game.igdbId]}
               onSend={(kind) => send(game.igdbId, kind)}
             />
-          </div>
-        </div>
-      </header>
-      {add.isError && <Notice tone="error">{add.error.message}</Notice>}
-      {feedbackError && <Notice tone="error">{feedbackError.message}</Notice>}
+          </>
+        }
+      />
+      <div className="flex max-w-3xl flex-col gap-6 px-8">
+        {add.isError && <Notice tone="error">{add.error.message}</Notice>}
+        {feedbackError && <Notice tone="error">{feedbackError.message}</Notice>}
+        {game.summary && (
+          <Section title="About">
+            <p className="text-base text-fg">{game.summary}</p>
+          </Section>
+        )}
 
-      {game.summary && (
-        <Section title="About">
-          <p className="text-base text-fg">{game.summary}</p>
+        <Section title="Why it's recommended">
+          {why.length > 0 ? (
+            <ul className="flex flex-col gap-1">
+              {why.map((line) => (
+                <li key={line} className="text-base text-fg">
+                  {line}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-base text-fg-muted">
+              Nothing in your library points to this game yet. Add more games with hours played.
+            </p>
+          )}
         </Section>
-      )}
 
-      <Section title="Why it's recommended">
-        {why.length > 0 ? (
-          <ul className="flex flex-col gap-1">
-            {why.map((line) => (
-              <li key={line} className="text-base text-fg">
-                {line}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-base text-fg-muted">
-            Nothing in your library points to this game yet. Add more games with hours played.
-          </p>
-        )}
-      </Section>
-
-      <Section title="Will it run">
-        {fit.length > 0 ? (
-          <ul className="overflow-hidden rounded-lg border border-line bg-surface-1">
-            {fit.map((f) => (
-              <FitDetailRow
-                key={f.deviceId}
-                deviceName={f.deviceName}
-                status={f.status}
-                reason={f.reason}
-              />
-            ))}
-          </ul>
-        ) : (
-          <Notice>
-            <Link to="/devices" className="text-fg underline underline-offset-4">
-              Add a device
-            </Link>{' '}
-            to see whether it runs.
-          </Notice>
-        )}
-      </Section>
-    </>
+        <Section title="Will it run">
+          {fit.length > 0 ? (
+            <ul className="overflow-hidden rounded-lg border border-line bg-surface-1">
+              {fit.map((f) => (
+                <FitDetailRow
+                  key={f.deviceId}
+                  deviceName={f.deviceName}
+                  status={f.status}
+                  reason={f.reason}
+                />
+              ))}
+            </ul>
+          ) : (
+            <Notice>
+              <Link to="/devices" className="text-fg underline underline-offset-4">
+                Add a device
+              </Link>{' '}
+              to see whether it runs.
+            </Notice>
+          )}
+        </Section>
+      </div>
+    </div>
   );
 }
 
@@ -172,7 +214,9 @@ function NotFound({ back }: { back: React.ReactNode }) {
   return (
     <>
       {back}
-      <Notice>We could not find that game.</Notice>
+      <div className="px-6">
+        <Notice>We could not find that game.</Notice>
+      </div>
     </>
   );
 }

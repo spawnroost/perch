@@ -1,107 +1,144 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
+import { flushSync } from 'react-dom';
+import { Link, useNavigate } from 'react-router';
 import type { DeviceView } from '@perch/core';
-import { Notice, Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from '../atoms';
-import { LoadError, RecommendationRow } from '../molecules';
+import { Button, HudChip, Notice, Skeleton } from '../atoms';
+import { FeedbackActions, GameCard, Hero, LoadError, Shelf } from '../molecules';
 import { useDevices, useFeedback, useRecommendations } from '@/hooks/queries';
-import { ALL_TAB, buildTabs, FOR_YOU_LIMIT } from '@/lib/forYou';
+import { useReduced } from '@/hooks/useMotionPrefs';
+import { ALL_TAB, buildShelves, fitChips, FOR_YOU_LIMIT } from '@/lib/forYou';
+import { coverLayoutId } from '@/lib/motion';
 
-interface FeedListProps {
-  tab: string;
-  hasDevices: boolean;
-}
-
-function FeedList({ tab, hasDevices }: FeedListProps) {
-  const feed = useRecommendations(tab, FOR_YOU_LIMIT);
-  const { feedback, send, error } = useFeedback();
-
-  if (feed.isPending) {
-    return (
-      <div className="flex flex-col gap-2" aria-busy>
+function LauncherSkeleton() {
+  return (
+    <div className="flex flex-col gap-8 pb-12" aria-busy>
+      <Skeleton className="h-80 rounded-none" />
+      <div className="flex gap-4 px-6">
         {[0, 1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-16" />
+          <GameCard key={i} skeleton title="" />
         ))}
       </div>
-    );
-  }
-  if (feed.isError) {
-    return <LoadError message={feed.error.message} onRetry={() => void feed.refetch()} />;
-  }
-
-  if (feed.data.length === 0) {
-    return (
-      <Notice>
-        {hasDevices ? (
-          'No picks for this view. Add more games with hours played to sharpen them.'
-        ) : (
-          <>
-            No picks yet.{' '}
-            <Link to="/devices" className="text-fg underline underline-offset-4">
-              Add a device
-            </Link>{' '}
-            to see what it can run.
-          </>
-        )}
-      </Notice>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      {error && <Notice tone="error">{error.message}</Notice>}
-      <ul className="overflow-hidden rounded-lg border border-line bg-surface-1">
-        {feed.data.map((r, i) => (
-          <RecommendationRow
-            key={r.game.igdbId}
-            rank={i + 1}
-            rec={r}
-            feedback={feedback[r.game.igdbId]}
-            onFeedback={(kind) => send(r.game.igdbId, kind)}
-          />
-        ))}
-      </ul>
     </div>
   );
 }
 
-function Feeds({ devices }: { devices: DeviceView[] }) {
-  const tabs = buildTabs(devices);
-  const [selected, setSelected] = useState(ALL_TAB);
-  // A tab whose device was removed falls back to All.
-  const tab = tabs.some((t) => t.value === selected) ? selected : ALL_TAB;
+function Launcher({ devices }: { devices: DeviceView[] }) {
+  const feed = useRecommendations(ALL_TAB, FOR_YOU_LIMIT);
+  const { feedback, send, error } = useFeedback();
+  const navigate = useNavigate();
+  const reduced = useReduced();
+  // Only the clicked card carries the shared layoutId: the same game sits on several shelves.
+  const [expanding, setExpanding] = useState<string | null>(null);
+
+  if (feed.isPending) return <LauncherSkeleton />;
+  if (feed.isError) {
+    return (
+      <div className="px-6">
+        <LoadError message={feed.error.message} onRetry={() => void feed.refetch()} />
+      </div>
+    );
+  }
+
+  const top = feed.data[0];
+  if (!top) {
+    return (
+      <div className="px-6">
+        <Notice>
+          {devices.length > 0 ? (
+            'No picks yet. Add more games with hours played to sharpen them.'
+          ) : (
+            <>
+              No picks yet.{' '}
+              <Link to="/devices" className="text-fg underline underline-offset-4">
+                Add a device
+              </Link>{' '}
+              to see what it can run.
+            </>
+          )}
+        </Notice>
+      </div>
+    );
+  }
+
+  const open = (igdbId: number, key: string) => {
+    flushSync(() => setExpanding(key));
+    void navigate(`/games/${igdbId}`);
+  };
+  const shelves = buildShelves(feed.data, devices);
 
   return (
-    <Tabs value={tab} onValueChange={setSelected}>
-      {tabs.length > 1 && (
-        <TabsList className="max-w-full overflow-x-auto">
-          {tabs.map((t) => (
-            <TabsTrigger key={t.value} value={t.value}>
-              {t.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+    <div className="flex flex-col gap-8 pb-12">
+      <Hero
+        title={top.game.name}
+        heroUrl={top.game.heroUrl}
+        accent={top.game.accent}
+        meta={
+          <>
+            <p className="max-w-prose text-lg text-fg">{top.reason}</p>
+            <ul aria-label="Will it run" className="flex flex-wrap gap-1.5">
+              {fitChips(top.fits).map((chip) => (
+                <li key={chip.label}>
+                  <HudChip {...chip} />
+                </li>
+              ))}
+            </ul>
+          </>
+        }
+        actions={
+          <>
+            <Button
+              variant="primary"
+              onClick={() => open(top.game.igdbId, `hero:${top.game.igdbId}`)}
+            >
+              View details
+            </Button>
+            <FeedbackActions
+              labels
+              value={feedback[top.game.igdbId]}
+              onSend={(kind) => send(top.game.igdbId, kind)}
+            />
+          </>
+        }
+      />
+      {error && (
+        <div className="px-6">
+          <Notice tone="error">{error.message}</Notice>
+        </div>
       )}
-      {tabs.map((t) => (
-        <TabsContent key={t.value} value={t.value}>
-          <FeedList tab={t.value} hasDevices={devices.length > 0} />
-        </TabsContent>
-      ))}
-    </Tabs>
+      <div className="flex flex-col gap-10 px-6">
+        {shelves.map((shelf) => (
+          <Shelf key={shelf.id} title={shelf.title} controls>
+            {shelf.picks.map((r) => {
+              const key = `${shelf.id}:${r.game.igdbId}`;
+              return (
+                <GameCard
+                  key={r.game.igdbId}
+                  title={r.game.name}
+                  coverUrl={r.game.coverUrl}
+                  coverUrlSmall={r.game.coverUrlSmall}
+                  accent={r.game.accent}
+                  chips={fitChips(r.fits)}
+                  layoutId={expanding === key ? coverLayoutId(r.game.igdbId, reduced) : undefined}
+                  onClick={() => open(r.game.igdbId, key)}
+                />
+              );
+            })}
+          </Shelf>
+        ))}
+      </div>
+    </div>
   );
 }
 
 export function ForYou() {
   const devices = useDevices();
-  return (
-    <>
-      <h1 className="text-2xl font-semibold tracking-display text-fg">For you</h1>
-      {devices.isPending ? (
-        <Skeleton className="h-40" />
-      ) : devices.isError ? (
+  if (devices.isPending) return <LauncherSkeleton />;
+  if (devices.isError) {
+    return (
+      <div className="px-6">
         <LoadError message={devices.error.message} onRetry={() => void devices.refetch()} />
-      ) : (
-        <Feeds devices={devices.data} />
-      )}
-    </>
-  );
+      </div>
+    );
+  }
+  return <Launcher devices={devices.data} />;
 }

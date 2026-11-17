@@ -11,13 +11,15 @@ export type HeroProps = {
   accent?: string | null;
   /** Under the title: platform, year, genres, fit chips. */
   meta?: ReactNode;
+  /** Box art beside the title (e.g. a shared-element cover on the detail view). */
+  cover?: ReactNode;
   /** Buttons row. */
   actions?: ReactNode;
   className?: string;
 };
 
 /** Full-bleed backdrop (blurred, accent-tinted, fading to the ground) with the title over it. */
-export function Hero({ title, heroUrl, accent, meta, actions, className }: HeroProps) {
+export function Hero({ title, heroUrl, accent, meta, cover, actions, className }: HeroProps) {
   const transition = useLauncherSpring('hero');
   return (
     <header
@@ -44,12 +46,15 @@ export function Hero({ title, heroUrl, accent, meta, actions, className }: HeroP
         <div className="absolute inset-0 bg-linear-to-t from-ground via-ground/70 to-transparent" />
         <div className="absolute inset-0 bg-linear-to-r from-ground/80 to-transparent" />
       </div>
-      <div className="flex flex-col gap-4 px-8 pt-24 pb-8">
-        <h1 className="font-title text-display-lg text-fg">{title}</h1>
-        {meta ? (
-          <div className="flex flex-wrap items-center gap-2 text-fg-muted">{meta}</div>
-        ) : null}
-        {actions ? <div className="flex flex-wrap items-center gap-3">{actions}</div> : null}
+      <div className="flex items-end gap-6 px-8 pt-24 pb-8">
+        {cover}
+        <div className="flex min-w-0 flex-col gap-4">
+          <h1 className="font-title text-display-lg text-fg">{title}</h1>
+          {meta ? (
+            <div className="flex flex-wrap items-center gap-2 text-fg-muted">{meta}</div>
+          ) : null}
+          {actions ? <div className="flex flex-wrap items-center gap-3">{actions}</div> : null}
+        </div>
       </div>
     </header>
   );

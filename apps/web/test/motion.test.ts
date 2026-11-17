@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SPRINGS, TILT_MAX_DEG, resolveSpring, tiltFromPointer } from '@/lib/motion';
+import { SPRINGS, TILT_MAX_DEG, coverLayoutId, resolveSpring, tiltFromPointer } from '@/lib/motion';
 
 const RECT = { left: 100, top: 200, width: 200, height: 300 };
 
@@ -53,5 +53,12 @@ describe('tiltFromPointer', () => {
       rotateX: 0,
       rotateY: 0,
     });
+  });
+});
+
+describe('coverLayoutId', () => {
+  it('is stable per game and unset when reduced', () => {
+    expect(coverLayoutId(42, false)).toBe('cover-42');
+    expect(coverLayoutId(42, true)).toBeUndefined();
   });
 });

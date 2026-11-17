@@ -16,7 +16,7 @@ export type GameCardProps = {
   /** Per-game hex accent; unset falls back to the default accent. */
   accent?: string | null;
   chips?: Pick<HudChipProps, 'label' | 'tone'>[];
-  /** For a later shared-element expand into the detail view. */
+  /** Shared-element id on the cover, matched by the detail view's cover for the expand. */
   layoutId?: string;
   /** Shimmer placeholder while the game loads. */
   skeleton?: boolean;
@@ -96,7 +96,6 @@ export function GameCard({
         ref={ref}
         type="button"
         data-shelf-item
-        layoutId={layoutId}
         animate={{ y: lit && !reduced ? -LIFT_PX : 0 }}
         transition={transition}
         style={{ transformStyle: 'preserve-3d', rotateX, rotateY }}
@@ -121,16 +120,18 @@ export function GameCard({
         className={cn('flex w-full flex-col gap-2 rounded-lg text-left outline-offset-4')}
         {...props}
       >
-        <Cover
-          src={image?.src ?? null}
-          srcSet={image?.srcSet}
-          sizes={COVER_SIZES}
-          alt=""
-          className={cn(
-            'w-full rounded-lg transition-shadow duration-base ease-out',
-            lit && 'shadow-glow',
-          )}
-        />
+        <motion.div layoutId={layoutId} className="w-full">
+          <Cover
+            src={image?.src ?? null}
+            srcSet={image?.srcSet}
+            sizes={COVER_SIZES}
+            alt=""
+            className={cn(
+              'w-full rounded-lg transition-shadow duration-base ease-out',
+              lit && 'shadow-glow',
+            )}
+          />
+        </motion.div>
         <span className="font-title text-lg leading-tight text-fg">{title}</span>
         {chips && chips.length > 0 ? (
           <span className="flex flex-wrap gap-1">

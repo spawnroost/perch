@@ -13,7 +13,6 @@ export type { HeroProps } from './Hero';
 export { LoadError } from './LoadError';
 export { NavBar } from './NavBar';
 export { PickRow } from './PickRow';
-export { RecommendationRow } from './RecommendationRow';
 export { Shelf } from './Shelf';
 export type { ShelfProps } from './Shelf';
 export { StepFooter } from './StepFooter';

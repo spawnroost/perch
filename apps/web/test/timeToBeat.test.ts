@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { timeToBeatLabel } from '../src/lib/timeToBeat.js';
+import { timeToBeatHours, timeToBeatLabel } from '../src/lib/timeToBeat.js';
 
 describe('timeToBeatLabel', () => {
   it('prefers the main-story time and falls back to the other figures', () => {
@@ -15,5 +15,18 @@ describe('timeToBeatLabel', () => {
     expect(
       timeToBeatLabel({ hastilyHours: null, normallyHours: null, completelyHours: null }),
     ).toBeNull();
+  });
+});
+
+describe('timeToBeatHours', () => {
+  it('uses the same figure as the label, null with no data', () => {
+    expect(timeToBeatHours({ hastilyHours: 8, normallyHours: 15, completelyHours: 40 })).toBe(15);
+    expect(timeToBeatHours({ hastilyHours: null, normallyHours: null, completelyHours: 40 })).toBe(
+      40,
+    );
+    expect(
+      timeToBeatHours({ hastilyHours: null, normallyHours: null, completelyHours: null }),
+    ).toBeNull();
+    expect(timeToBeatHours(null)).toBeNull();
   });
 });

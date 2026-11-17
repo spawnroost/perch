@@ -1,9 +1,12 @@
-import { Link, Outlet } from 'react-router';
+import { Link, Outlet, useLocation } from 'react-router';
 import { NavBar } from '../molecules';
 import { AccountMenu } from './AccountMenu';
+import { cn } from '@/lib/cn';
+import { isFullBleedPath } from '@/lib/layout';
 
 /** Shell for signed-in pages: top bar with navigation and the account menu. */
 export function AppLayout() {
+  const fullBleed = isFullBleedPath(useLocation().pathname);
   return (
     <div className="min-h-dvh bg-ground">
       <header className="sticky top-0 z-10 border-b border-line bg-ground">
@@ -17,7 +20,12 @@ export function AppLayout() {
           <AccountMenu />
         </div>
       </header>
-      <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-6">
+      <main
+        className={cn(
+          'mx-auto flex w-full flex-col gap-4',
+          fullBleed ? 'max-w-none' : 'max-w-3xl p-6',
+        )}
+      >
         <Outlet />
       </main>
     </div>
