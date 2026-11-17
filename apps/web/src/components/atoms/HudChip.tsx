@@ -1,6 +1,6 @@
 import type { ComponentProps } from 'react';
-import { CircleAlert, CircleCheck, CircleHelp, CircleX } from 'lucide-react';
 import { cva } from 'class-variance-authority';
+import { TONE_ICON } from '@/components/atoms/Badge';
 import { cn } from '@/lib/cn';
 import type { Tone } from '@/lib/fit';
 
@@ -18,13 +18,6 @@ const chipVariants = cva(
     defaultVariants: { tone: 'unknown' },
   },
 );
-
-const TONE_ICON = {
-  yes: CircleCheck,
-  low: CircleAlert,
-  no: CircleX,
-  unknown: CircleHelp,
-} satisfies Record<Tone, typeof CircleCheck>;
 
 const TONE_TEXT: Record<Tone, string> = {
   yes: 'runs well',

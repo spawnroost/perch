@@ -44,7 +44,7 @@ export function Shelf({ title, children, controls, className }: ShelfProps) {
 
   return (
     <section aria-label={title} className={cn('flex flex-col gap-3', className)}>
-      <header className="flex items-center justify-between gap-3">
+      <header className="relative z-10 flex items-center justify-between gap-3">
         <h2 className="font-hud text-sm text-fg-muted">{title}</h2>
         {controls ? (
           <div className="flex gap-1">
@@ -52,8 +52,8 @@ export function Shelf({ title, children, controls, className }: ShelfProps) {
               size="icon"
               variant="ghost"
               aria-label={`Scroll ${title} back`}
-              disabled={!edges.start}
-              onClick={() => scrollBy('prev')}
+              aria-disabled={!edges.start}
+              onClick={() => edges.start && scrollBy('prev')}
             >
               <ChevronLeft size={16} strokeWidth={1.75} aria-hidden />
             </Button>
@@ -61,8 +61,8 @@ export function Shelf({ title, children, controls, className }: ShelfProps) {
               size="icon"
               variant="ghost"
               aria-label={`Scroll ${title} forward`}
-              disabled={!edges.end}
-              onClick={() => scrollBy('next')}
+              aria-disabled={!edges.end}
+              onClick={() => edges.end && scrollBy('next')}
             >
               <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
             </Button>
@@ -70,11 +70,12 @@ export function Shelf({ title, children, controls, className }: ShelfProps) {
         ) : null}
       </header>
       <div className="relative">
-        {/* Vertical padding (offset by negative margin) leaves room for lift, tilt and glow. */}
+        {/* Vertical padding (offset by negative margin) leaves room for lift, tilt and glow; the header
+            sits above it. scroll-px-12 keeps snapped cards clear of the edge fade (w-12). */}
         <div
           ref={scroller}
           onKeyDown={onKeyDown}
-          className="-my-8 flex snap-x snap-proximity gap-4 overflow-x-auto px-2 py-8 [&>*]:shrink-0 [&>*]:snap-start"
+          className="-my-8 flex snap-x snap-proximity scroll-px-12 gap-4 overflow-x-auto px-2 py-8 [&>*]:shrink-0 [&>*]:snap-start"
         >
           {children}
         </div>

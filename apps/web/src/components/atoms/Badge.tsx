@@ -28,7 +28,7 @@ export function Badge({ className, tone, ...props }: BadgeProps) {
   return <span className={cn(badgeVariants({ tone }), className)} {...props} />;
 }
 
-const TONE_ICON = {
+export const TONE_ICON = {
   yes: CircleCheck,
   low: CircleAlert,
   no: CircleX,

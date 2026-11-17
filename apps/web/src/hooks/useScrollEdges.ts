@@ -19,12 +19,18 @@ export function useScrollEdges(ref: RefObject<HTMLElement | null>): EdgeFades {
     el.addEventListener('scroll', measure, { passive: true });
     const observer = new ResizeObserver(measure);
     observer.observe(el);
-    const observeChildren = () => {
-      for (const child of Array.from(el.children)) observer.observe(child);
+    for (const child of Array.from(el.children)) observer.observe(child);
+    const mutations = new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of Array.from(record.removedNodes)) {
+          if (node instanceof Element) observer.unobserve(node);
+        }
+        for (const node of Array.from(record.addedNodes)) {
+          if (node instanceof Element) observer.observe(node);
+        }
+      }
       measure();
-    };
-    observeChildren();
-    const mutations = new MutationObserver(observeChildren);
+    });
     mutations.observe(el, { childList: true });
     return () => {
       el.removeEventListener('scroll', measure);

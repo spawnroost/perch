@@ -9,7 +9,7 @@ export type CoverProps = {
   sizes?: string;
 } & Omit<ComponentProps<'div'>, 'children'>;
 
-/** Game cover at the 3:4 box art ratio; width comes from the caller. */
+/** Game cover at the 3:4 box art ratio; width comes from the caller. An empty alt makes it decorative. */
 export function Cover({ src, alt, srcSet, sizes, className, ...props }: CoverProps) {
   return (
     <div
@@ -30,7 +30,10 @@ export function Cover({ src, alt, srcSet, sizes, className, ...props }: CoverPro
           className="size-full object-cover"
         />
       ) : (
-        <div role="img" aria-label={alt} className="flex size-full items-center justify-center">
+        <div
+          {...(alt ? { role: 'img', 'aria-label': alt } : { 'aria-hidden': true })}
+          className="flex size-full items-center justify-center"
+        >
           <Gamepad2 size={20} strokeWidth={1.5} className="text-fg-subtle" aria-hidden />
         </div>
       )}

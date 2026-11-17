@@ -1,5 +1,5 @@
 import { useRef, useState, type ComponentProps, type PointerEvent } from 'react';
-import { motion } from 'motion/react';
+import { motion, useMotionValue, useSpring } from 'motion/react';
 import { Cover } from '@/components/atoms/Cover';
 import { HudChip, type HudChipProps } from '@/components/atoms/HudChip';
 import { Skeleton } from '@/components/atoms/Skeleton';
@@ -7,7 +7,7 @@ import { useLauncherSpring, useReduced } from '@/hooks/useMotionPrefs';
 import { accentStyle } from '@/lib/accent';
 import { cn } from '@/lib/cn';
 import { coverImage } from '@/lib/coverSrcSet';
-import { LIFT_PX, tiltFromPointer } from '@/lib/motion';
+import { LIFT_PX, SPRINGS, tiltFromPointer } from '@/lib/motion';
 
 export type GameCardProps = {
   title: string;
@@ -33,7 +33,8 @@ export type GameCardProps = {
   | 'onDragEnd'
 >;
 
-const FLAT = { rotateX: 0, rotateY: 0, y: 0 };
+/** Default card width (callers may override it); COVER_SIZES must describe the same widths. */
+const CARD_WIDTH = 'w-40 lg:w-56';
 const COVER_SIZES = '(min-width: 1024px) 14rem, 10rem';
 
 /** Tall box-art card: tilts toward the pointer, lifts and glows in the game's accent on hover/focus. */
@@ -46,17 +47,27 @@ export function GameCard({
   layoutId,
   skeleton,
   className,
+  onPointerEnter,
+  onPointerMove,
+  onPointerLeave,
+  onFocus,
+  onBlur,
   ...props
 }: GameCardProps) {
   const reduced = useReduced();
   const transition = useLauncherSpring('tilt');
   const ref = useRef<HTMLButtonElement>(null);
-  const [pose, setPose] = useState(FLAT);
-  const [lit, setLit] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  // Tilt is driven by motion values so pointer moves cause no React renders.
+  const tiltX = useMotionValue(0);
+  const tiltY = useMotionValue(0);
+  const rotateX = useSpring(tiltX, SPRINGS.tilt);
+  const rotateY = useSpring(tiltY, SPRINGS.tilt);
 
   if (skeleton) {
     return (
-      <div aria-hidden className={cn('flex flex-col gap-2', className)}>
+      <div aria-hidden className={cn('flex flex-col gap-2', CARD_WIDTH, className)}>
         <Skeleton className="aspect-3/4 w-full rounded-lg" />
         <Skeleton className="h-4 w-3/4" />
       </div>
@@ -64,41 +75,48 @@ export function GameCard({
   }
 
   const image = coverImage(coverUrl, coverUrlSmall);
-  const lift = reduced ? 0 : -LIFT_PX;
+  const lit = hovered || focused;
 
-  const onPointerMove = (e: PointerEvent<HTMLButtonElement>) => {
+  const resetTilt = () => {
+    tiltX.set(0);
+    tiltY.set(0);
+  };
+
+  const handlePointerMove = (e: PointerEvent<HTMLButtonElement>) => {
+    onPointerMove?.(e);
     if (reduced || e.pointerType === 'touch' || !ref.current) return;
     const tilt = tiltFromPointer(e.clientX, e.clientY, ref.current.getBoundingClientRect(), false);
-    setPose({ ...tilt, y: lift });
+    tiltX.set(tilt.rotateX);
+    tiltY.set(tilt.rotateY);
   };
 
   return (
-    <div style={accentStyle(accent)} className={cn('perspective-shelf', className)}>
+    <div style={accentStyle(accent)} className={cn('perspective-shelf', CARD_WIDTH, className)}>
       <motion.button
         ref={ref}
         type="button"
         data-shelf-item
         layoutId={layoutId}
-        animate={pose}
+        animate={{ y: lit && !reduced ? -LIFT_PX : 0 }}
         transition={transition}
-        style={{ transformStyle: 'preserve-3d' }}
-        onPointerEnter={() => {
-          setLit(true);
-          setPose((p) => ({ ...p, y: lift }));
+        style={{ transformStyle: 'preserve-3d', rotateX, rotateY }}
+        onPointerEnter={(e) => {
+          setHovered(true);
+          onPointerEnter?.(e);
         }}
-        onPointerMove={onPointerMove}
-        onPointerLeave={() => {
-          setLit(false);
-          setPose(FLAT);
+        onPointerMove={handlePointerMove}
+        onPointerLeave={(e) => {
+          setHovered(false);
+          resetTilt();
+          onPointerLeave?.(e);
         }}
         onFocus={(e) => {
-          if (!e.currentTarget.matches(':focus-visible')) return;
-          setLit(true);
-          setPose((p) => ({ ...p, y: lift }));
+          if (e.currentTarget.matches(':focus-visible')) setFocused(true);
+          onFocus?.(e);
         }}
-        onBlur={() => {
-          setLit(false);
-          setPose(FLAT);
+        onBlur={(e) => {
+          setFocused(false);
+          onBlur?.(e);
         }}
         className={cn('flex w-full flex-col gap-2 rounded-lg text-left outline-offset-4')}
         {...props}
@@ -107,7 +125,7 @@ export function GameCard({
           src={image?.src ?? null}
           srcSet={image?.srcSet}
           sizes={COVER_SIZES}
-          alt={image ? `${title} cover` : title}
+          alt=""
           className={cn(
             'w-full rounded-lg transition-shadow duration-base ease-out',
             lit && 'shadow-glow',
