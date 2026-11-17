@@ -10,6 +10,9 @@ import {
   linkedSocialProviders,
   enabledProviderList,
   providerButtonLabel,
+  placeholderEmailUpgrade,
+  createVerifiedEmailStash,
+  socialAccountKey,
 } from '../../src/social-auth/index.js';
 
 describe('socialProviderConfig', () => {
@@ -92,7 +95,15 @@ describe('web helpers', () => {
   it('explains social sign-in errors', () => {
     expect(socialErrorMessage(null)).toBeNull();
     expect(socialErrorMessage('email_not_found')).toMatch(/verified email/);
-    expect(socialErrorMessage('whatever')).toBe('Sign-in failed. Try again.');
+    expect(socialErrorMessage('account_not_linked')).toMatch(/sign in with your password/i);
+    expect(socialErrorMessage('email_does_not_match')).toMatch(/email/);
+    expect(socialErrorMessage("email_doesn't_match")).toMatch(/email/);
+    expect(socialErrorMessage('unable_to_link_account')).toMatch(/link/i);
+  });
+  it('shows unknown error codes generically, with the code, or nothing', () => {
+    expect(socialErrorMessage('weird_code')).toBe('Sign-in failed (weird_code). Try again.');
+    expect(socialErrorMessage('<script>alert(1)</script>')).toBeNull();
+    expect(socialErrorMessage('a'.repeat(80))).toBeNull();
   });
   it('keeps only linked social providers', () => {
     expect(linkedSocialProviders(['credential', 'discord', 'github', 'google'])).toEqual([
@@ -120,5 +131,41 @@ describe('provider buttons', () => {
     expect(providerButtonLabel('discord', 'link')).toBe('Link Discord');
     expect(providerButtonLabel('steam', 'login')).toBe('Sign in with Steam');
     expect(providerButtonLabel('steam', 'link')).toBe('Link Steam');
+  });
+});
+
+describe('placeholderEmailUpgrade', () => {
+  const PH = '76561198000000001@steam.perch.invalid';
+  it('replaces a placeholder with a free provider email', () => {
+    expect(placeholderEmailUpgrade(PH, 'Me@Mail.dev', false)).toBe('me@mail.dev');
+  });
+  it('leaves real emails alone', () => {
+    expect(placeholderEmailUpgrade('real@mail.dev', 'me@mail.dev', false)).toBeNull();
+  });
+  it('does nothing when the email belongs to another user or is unusable', () => {
+    expect(placeholderEmailUpgrade(PH, 'me@mail.dev', true)).toBeNull();
+    expect(placeholderEmailUpgrade(PH, undefined, false)).toBeNull();
+    expect(placeholderEmailUpgrade(PH, 'x@steam.perch.invalid', false)).toBeNull();
+  });
+});
+
+describe('createVerifiedEmailStash', () => {
+  it('hands back a remembered email once', () => {
+    const stash = createVerifiedEmailStash();
+    stash.remember('discord:1', 'a@b.dev');
+    expect(stash.take('discord:1')).toBe('a@b.dev');
+    expect(stash.take('discord:1')).toBeUndefined();
+  });
+  it('forgets entries after the ttl', () => {
+    let now = 0;
+    const stash = createVerifiedEmailStash(1000, () => now);
+    stash.remember('google:1', 'a@b.dev');
+    now = 1001;
+    expect(stash.take('google:1')).toBeUndefined();
+  });
+  it('keys accounts by provider and the profile subject', () => {
+    expect(socialAccountKey('discord', { id: '42' })).toBe('discord:42');
+    expect(socialAccountKey('google', { sub: 'abc' })).toBe('google:abc');
+    expect(socialAccountKey('google', {})).toBeNull();
   });
 });

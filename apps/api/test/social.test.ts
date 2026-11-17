@@ -1,6 +1,9 @@
 import { afterAll, describe, expect, it } from 'vitest';
+import { eq, inArray } from 'drizzle-orm';
+import { schema } from '@perch/db';
+import { createAuth } from '../src/auth.js';
 import { parseEnv, parseServerEnv } from '../src/env.js';
-import { setupApi, testEnv, testUrl } from './harness.js';
+import { cookieFrom, setupApi, testEnv, testUrl } from './harness.js';
 
 const BASE = {
   BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
@@ -107,6 +110,154 @@ describe.skipIf(!testUrl)('oauth identity gate', () => {
       expect(ctx2.socialProviders).toHaveLength(0);
     } finally {
       await t.cleanup();
+    }
+  });
+});
+
+const DISCORD_ENV = { DISCORD_CLIENT_ID: 'd', DISCORD_CLIENT_SECRET: 'd' };
+const GOOGLE_ENV = { GOOGLE_CLIENT_ID: 'g', GOOGLE_CLIENT_SECRET: 'g' };
+
+describe.skipIf(!testUrl)('linking a provider to a Steam-only user', () => {
+  it('allows linking with a different email', async () => {
+    const t = await setupApi();
+    try {
+      const ctx = await createAuth(t.db, { ...testEnv, ...DISCORD_ENV }, t.mailer).$context;
+      expect(ctx.options.account?.accountLinking?.allowDifferentEmails).toBe(true);
+      expect(ctx.options.account?.accountLinking?.trustedProviders).toEqual(['google', 'discord']);
+    } finally {
+      await t.cleanup();
+    }
+  });
+
+  async function steamUser(
+    t: Awaited<ReturnType<typeof setupApi>>,
+    auth: ReturnType<typeof createAuth>,
+  ) {
+    const steamId = String(76561198000000000n + BigInt(Math.floor(Math.random() * 1e9)));
+    const ctx = await auth.$context;
+    const user = await ctx.internalAdapter.createUser(
+      { email: `${steamId}@steam.perch.invalid`, emailVerified: true, name: 'Steam user', steamId },
+      { method: 'steam-openid' },
+    );
+    return { ctx, userId: user.id };
+  }
+
+  async function linkDiscord(
+    ctx: Awaited<ReturnType<ReturnType<typeof createAuth>['$context']>>,
+    userId: string,
+    email: string,
+    accountId: string,
+  ) {
+    const map = (
+      ctx.socialProviders.find((p) => p.id === 'discord')?.options as {
+        mapProfileToUser: (p: object) => unknown;
+      }
+    ).mapProfileToUser;
+    map({ id: accountId, email, verified: true });
+    await ctx.internalAdapter.createAccount({ userId, providerId: 'discord', accountId });
+  }
+
+  const emailOf = async (t: Awaited<ReturnType<typeof setupApi>>, id: string) =>
+    (await t.db.select().from(schema.users).where(eq(schema.users.id, id)))[0];
+
+  it('replaces the .invalid placeholder with the verified provider email', async () => {
+    const t = await setupApi();
+    const ids: string[] = [];
+    try {
+      const auth = createAuth(t.db, { ...testEnv, ...DISCORD_ENV }, t.mailer);
+      const { ctx, userId } = await steamUser(t, auth);
+      ids.push(userId);
+      const email = t.newEmail();
+      await linkDiscord(ctx, userId, email, `d-${crypto.randomUUID()}`);
+      const user = await emailOf(t, userId);
+      expect(user?.email).toBe(email);
+      expect(user?.emailVerified).toBe(true);
+    } finally {
+      await t.db.delete(schema.users).where(inArray(schema.users.id, ids));
+      await t.cleanup();
+    }
+  });
+
+  it('keeps the placeholder when another user already owns the email', async () => {
+    const t = await setupApi();
+    const ids: string[] = [];
+    try {
+      const auth = createAuth(t.db, { ...testEnv, ...DISCORD_ENV }, t.mailer);
+      const { ctx, userId } = await steamUser(t, auth);
+      ids.push(userId);
+      const owned = t.newEmail();
+      await ctx.internalAdapter.createUser({ email: owned, emailVerified: true, name: 'Owner' });
+      await linkDiscord(ctx, userId, owned, `d-${crypto.randomUUID()}`);
+      expect((await emailOf(t, userId))?.email).toMatch(/\.invalid$/);
+    } finally {
+      await t.db.delete(schema.users).where(inArray(schema.users.id, ids));
+      await t.cleanup();
+    }
+  });
+
+  it('does not touch a real email', async () => {
+    const t = await setupApi();
+    try {
+      const auth = createAuth(t.db, { ...testEnv, ...DISCORD_ENV }, t.mailer);
+      const ctx = await auth.$context;
+      const mine = t.newEmail();
+      const user = await ctx.internalAdapter.createUser({
+        email: mine,
+        emailVerified: true,
+        name: 'Me',
+      });
+      await linkDiscord(ctx, user.id, t.newEmail(), `d-${crypto.randomUUID()}`);
+      expect((await emailOf(t, user.id))?.email).toBe(mine);
+    } finally {
+      await t.cleanup();
+    }
+  });
+});
+
+describe.skipIf(!testUrl)('unlinking Steam counts only enabled social logins', () => {
+  it('needs a currently configured provider, and /api/account lists only those', async () => {
+    const big = { limit: 100_000, windowMs: 60_000 };
+    const steamOpenId = { verify: async () => true };
+    const on = await setupApi({ api: big, auth: big }, GOOGLE_ENV, { steamOpenId });
+    const off = await setupApi({ api: big, auth: big }, {}, { steamOpenId });
+    const steamId = String(76561198000000000n + BigInt(Math.floor(Math.random() * 1e9)));
+    try {
+      const start = await on.app.request('/api/auth/steam/start?mode=login');
+      const returnTo = new URL(start.headers.get('location')!).searchParams.get(
+        'openid.return_to',
+      )!;
+      const q = new URLSearchParams({
+        'openid.mode': 'id_res',
+        'openid.op_endpoint': 'https://steamcommunity.com/openid/login',
+        'openid.claimed_id': `https://steamcommunity.com/openid/id/${steamId}`,
+        'openid.return_to': returnTo,
+      });
+      const cb = new URL(returnTo);
+      const login = await on.app.request(`${cb.pathname}?${cb.searchParams}&${q}`, {
+        headers: { cookie: cookieFrom(start) },
+      });
+      const cookie = cookieFrom(login);
+      const [user] = await on.db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.steamId, steamId));
+      await on.db.insert(schema.accounts).values({
+        id: crypto.randomUUID(),
+        accountId: 'g-1',
+        providerId: 'google',
+        userId: user!.id,
+      });
+      const get = (a: typeof on) => a.app.request('/api/account', { headers: { cookie } });
+      expect(await (await get(on)).json()).toMatchObject({ linkedProviders: ['google'] });
+      expect(await (await get(off)).json()).toMatchObject({ linkedProviders: [] });
+      const unlink = (a: typeof on) =>
+        a.app.request('/api/account/steam/unlink', { method: 'POST', headers: { cookie } });
+      expect((await unlink(off)).status).toBe(409);
+      expect((await unlink(on)).status).toBe(200);
+    } finally {
+      await on.db.delete(schema.users).where(eq(schema.users.steamId, steamId));
+      await on.cleanup();
+      await off.cleanup();
     }
   });
 });

@@ -301,14 +301,14 @@ export function useDeleteDevice() {
 
 const STEAM_ONLY: AuthProviders = { google: false, discord: false, steam: true };
 
-/** Which sign-in providers the API has enabled; Steam only until it answers. */
-export function useAuthProviders(): AuthProviders {
-  const { data } = useQuery({
+/** Which sign-in providers the API has enabled. Steam only until it answers; `failed` if it can't. */
+export function useAuthProviders(): { providers: AuthProviders; failed: boolean } {
+  const { data, isError } = useQuery({
     queryKey: queryKeys.authProviders,
     queryFn: ({ signal }) => api.get<AuthProviders>('/api/auth-providers', { signal }),
-    staleTime: Infinity,
+    staleTime: 5 * 60_000,
   });
-  return data ?? STEAM_ONLY;
+  return { providers: data ?? STEAM_ONLY, failed: isError };
 }
 
 export function useAccount() {

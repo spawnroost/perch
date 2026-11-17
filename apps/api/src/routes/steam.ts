@@ -1,4 +1,4 @@
-import { and, eq, isNotNull } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { Hono, type Context } from 'hono';
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie';
 import { getConnInfo } from '@hono/node-server/conninfo';
@@ -9,6 +9,7 @@ import {
   canUnlinkSteam,
   linkedSocialProviders,
   parseSteamCallback,
+  socialProviderConfig,
   steamPlaceholderEmail,
   type SteamAuthMode,
   type SteamErrorCode,
@@ -152,48 +153,33 @@ export function steamAuthRoutes(deps: RouteDeps) {
 }
 
 /** `/api/account`: the signed-in user's account state and Steam link management. */
-export function accountRoutes({ db }: RouteDeps) {
+export function accountRoutes({ db, env }: RouteDeps) {
+  const enabled = new Set<string>(Object.keys(socialProviderConfig(env)));
   const r = new Hono<AppVars>();
   r.use('*', requireAuth());
 
-  async function socialProvidersOf(userId: string): Promise<string[]> {
+  /** Password and enabled social logins in one query. */
+  async function signInMethods(userId: string) {
     const rows = await db
-      .select({ providerId: schema.accounts.providerId })
+      .select({ providerId: schema.accounts.providerId, password: schema.accounts.password })
       .from(schema.accounts)
       .where(eq(schema.accounts.userId, userId));
-    return linkedSocialProviders(rows.map((r) => r.providerId));
-  }
-
-  async function hasPassword(userId: string): Promise<boolean> {
-    const rows = await db
-      .select({ id: schema.accounts.id })
-      .from(schema.accounts)
-      .where(
-        and(
-          eq(schema.accounts.userId, userId),
-          eq(schema.accounts.providerId, 'credential'),
-          isNotNull(schema.accounts.password),
-        ),
-      )
-      .limit(1);
-    return rows.length > 0;
+    return {
+      hasPassword: rows.some((r) => r.providerId === 'credential' && r.password !== null),
+      linkedProviders: linkedSocialProviders(rows.map((r) => r.providerId)).filter((p) =>
+        enabled.has(p),
+      ),
+    };
   }
 
   r.get('/', async (c) => {
     const { id, email, steamId } = c.get('user');
-    return c.json({
-      email,
-      steamId: steamId ?? null,
-      hasPassword: await hasPassword(id),
-      linkedProviders: await socialProvidersOf(id),
-    });
+    return c.json({ email, steamId: steamId ?? null, ...(await signInMethods(id)) });
   });
 
   r.post('/steam/unlink', async (c) => {
     const { id, steamId } = c.get('user');
-    const password = await hasPassword(id);
-    const linkedProviders = await socialProvidersOf(id);
-    if (!canUnlinkSteam({ steamId: steamId ?? null, hasPassword: password, linkedProviders }))
+    if (!canUnlinkSteam({ steamId: steamId ?? null, ...(await signInMethods(id)) }))
       return c.json({ error: 'Steam is your only sign-in method.' }, 409);
     await db.update(schema.users).set({ steamId: null }).where(eq(schema.users.id, id));
     return c.json({ ok: true });

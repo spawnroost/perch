@@ -7,7 +7,7 @@ import { useAuthProviders } from '@/hooks/queries';
 /** "or" divider, a button per enabled provider, and any error from the last attempt. */
 export function ProviderAuthOptions() {
   const error = useAuthError();
-  const providers = useAuthProviders();
+  const { providers, failed } = useAuthProviders();
   return (
     <div className="flex flex-col gap-3">
       {error && <Notice tone="error">{error}</Notice>}
@@ -19,6 +19,7 @@ export function ProviderAuthOptions() {
       {enabledProviderList(providers).map((p) => (
         <ProviderButton key={p} provider={p} mode="login" />
       ))}
+      {failed && <p className="text-xs text-fg-muted">Couldn&apos;t load other sign-in options.</p>}
     </div>
   );
 }

@@ -128,7 +128,7 @@ function SteamLink() {
 /** Google / Discord: what is linked, and a link button for enabled providers that are not. */
 function SocialLinks() {
   const account = useAccount();
-  const enabled = useAuthProviders();
+  const { providers: enabled } = useAuthProviders();
   const linked = account.data?.linkedProviders ?? [];
   const shown = SOCIAL_PROVIDERS.filter((p) => enabled[p] || linked.includes(p));
   if (!account.data || shown.length === 0) return null;

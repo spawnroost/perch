@@ -105,9 +105,9 @@ describe('steamErrorMessage', () => {
 
 describe('account helpers', () => {
   it('only allows unlinking a linked account that has a password', () => {
-    expect(canUnlinkSteam({ steamId: ID, hasPassword: true })).toBe(true);
-    expect(canUnlinkSteam({ steamId: ID, hasPassword: false })).toBe(false);
-    expect(canUnlinkSteam({ steamId: null, hasPassword: true })).toBe(false);
+    expect(canUnlinkSteam({ steamId: ID, hasPassword: true, linkedProviders: [] })).toBe(true);
+    expect(canUnlinkSteam({ steamId: ID, hasPassword: false, linkedProviders: [] })).toBe(false);
+    expect(canUnlinkSteam({ steamId: null, hasPassword: true, linkedProviders: [] })).toBe(false);
     expect(canUnlinkSteam({ steamId: ID, hasPassword: false, linkedProviders: ['google'] })).toBe(
       true,
     );

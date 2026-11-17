@@ -72,6 +72,10 @@ export interface RawSocialProfile {
   verified?: unknown;
   /** Google */
   email_verified?: unknown;
+  /** Discord account id */
+  id?: unknown;
+  /** Google account id */
+  sub?: unknown;
 }
 
 const isTrue = (v: unknown) => v === true || v === 'true';
@@ -104,19 +108,70 @@ export function linkedSocialProviders(providerIds: readonly string[]): SocialPro
   return SOCIAL_PROVIDERS.filter((p) => providerIds.includes(p));
 }
 
-/** Readable text for better-auth's `?error=<code>` redirect after a failed social sign-in. */
+const SOCIAL_ERRORS: Record<string, string> = {
+  email_not_found:
+    'That provider did not share a verified email address. Verify it there, then try again.',
+  account_not_linked:
+    'An account with that email already exists. Verify your email, or sign in with your password and link the provider from Account.',
+  email_does_not_match: 'That provider email does not match your Perch email.',
+  "email_doesn't_match": 'That provider email does not match your Perch email.',
+  unable_to_link_account: 'Could not link that account. Try again.',
+  account_already_linked_to_different_user:
+    'That account is already linked to another Perch account.',
+  access_denied: 'Sign-in was cancelled.',
+};
+
+/**
+ * Readable text for better-auth's `?error=<code>` redirect. Known codes get a specific message;
+ * other short, plain codes a generic one that names the code; anything else nothing.
+ */
 export function socialErrorMessage(code: string | null | undefined): string | null {
   if (!code) return null;
-  switch (code) {
-    case 'email_not_found':
-      return 'That provider did not share a verified email address. Verify it there, then try again.';
-    case 'account_already_linked_to_different_user':
-      return 'That account is already linked to another Perch account.';
-    case 'access_denied':
-      return 'Sign-in was cancelled.';
-    default:
-      return 'Sign-in failed. Try again.';
-  }
+  const known = SOCIAL_ERRORS[code];
+  if (known) return known;
+  return /^[a-z0-9_]{1,40}$/i.test(code) ? `Sign-in failed (${code}). Try again.` : null;
+}
+
+/** `provider:accountId` for the account a raw profile belongs to, or null without an id. */
+export function socialAccountKey(
+  provider: SocialProvider,
+  profile: RawSocialProfile,
+): string | null {
+  const id = provider === 'google' ? profile.sub : profile.id;
+  return typeof id === 'string' || typeof id === 'number' ? `${provider}:${id}` : null;
+}
+
+/**
+ * Short-lived memory of the verified email behind a social profile, so the account-created hook
+ * (which only sees the account row) can learn which email the provider vouched for.
+ */
+export function createVerifiedEmailStash(ttlMs = 5 * 60_000, now: () => number = Date.now) {
+  const entries = new Map<string, { email: string; at: number }>();
+  return {
+    remember(key: string, email: string) {
+      for (const [k, v] of entries) if (now() - v.at > ttlMs) entries.delete(k);
+      entries.set(key, { email, at: now() });
+    },
+    take(key: string): string | undefined {
+      const hit = entries.get(key);
+      entries.delete(key);
+      return hit && now() - hit.at <= ttlMs ? hit.email : undefined;
+    },
+  };
+}
+
+/**
+ * Steam-only users have an unmailable `.invalid` email. When they link a provider that vouches
+ * for a real address nobody else uses, that address replaces it. Returns the new email or null.
+ */
+export function placeholderEmailUpgrade(
+  currentEmail: string,
+  providerEmail: string | undefined,
+  emailTaken: boolean,
+): string | null {
+  if (!isSteamPlaceholderEmail(currentEmail) || !providerEmail || emailTaken) return null;
+  const next = providerEmail.trim().toLowerCase();
+  return next && !isSteamPlaceholderEmail(next) ? next : null;
 }
 
 export type AuthProviderId = SocialProvider | 'steam';
