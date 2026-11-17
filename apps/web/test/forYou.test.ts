@@ -128,14 +128,14 @@ describe('buildShelves', () => {
     expect(shelves.map((s) => s.id)).toEqual(['source-10']);
   });
 
-  it('offers See all on source shelves always, others only when over the cap', () => {
+  it('offers See all only when a shelf is over the cap', () => {
     const picks = [
       ...many(10, 4, 1),
       pick(20, { backlog: true }),
       ...Array.from({ length: SHELF_CAP + 1 }, (_, i) => pick(100 + i)),
     ];
     const by = Object.fromEntries(buildShelves(picks).map((s) => [s.id, s]));
-    expect(by['source-10']!.seeAll).toBe(true);
+    expect(by['source-10']!.seeAll).toBe(false);
     expect(by[BACKLOG_ID]!.seeAll).toBe(false);
     expect(by[MORE_PICKS_ID]!.seeAll).toBe(true);
     expect(by[MORE_PICKS_ID]!.total).toBe(SHELF_CAP + 1);

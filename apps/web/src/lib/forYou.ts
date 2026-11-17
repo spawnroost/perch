@@ -106,22 +106,21 @@ export function buildShelves(
       id: sourceShelfKey(id),
       title: `Because you played ${g.name}`,
       claimed: claim(g.picks),
-      alwaysSeeAll: true,
     }));
   const more = claim(picks);
 
   return [
     ...because,
-    { id: SHORT_SESSIONS_ID, title: 'Short sessions', claimed: short, alwaysSeeAll: false },
-    { id: BACKLOG_ID, title: 'From your backlog', claimed: backlog, alwaysSeeAll: false },
-    { id: MORE_PICKS_ID, title: 'More picks', claimed: more, alwaysSeeAll: false },
+    { id: SHORT_SESSIONS_ID, title: 'Short sessions', claimed: short },
+    { id: BACKLOG_ID, title: 'From your backlog', claimed: backlog },
+    { id: MORE_PICKS_ID, title: 'More picks', claimed: more },
   ]
     .filter((s) => s.claimed.length > 0)
-    .map(({ claimed, alwaysSeeAll, ...shelf }) => ({
+    .map(({ claimed, ...shelf }) => ({
       ...shelf,
       picks: claimed.slice(0, cap),
       total: claimed.length,
-      seeAll: alwaysSeeAll || claimed.length > cap,
+      seeAll: claimed.length > cap,
     }));
 }
 
