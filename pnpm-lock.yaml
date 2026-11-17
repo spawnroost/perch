@@ -323,6 +323,9 @@ importers:
       drizzle-orm:
         specifier: ^0.45.4
         version: 0.45.4(kysely@0.29.9)(postgres@4.1.1)
+      jpeg-js:
+        specifier: ^0.4.4
+        version: 0.4.4
       zod:
         specifier: ^4.6.7
         version: 4.6.7
@@ -2074,6 +2077,9 @@ packages:
 
   jose@6.2.17:
     resolution: {integrity: sha512-wOuK9V1yujQFH5S0ZWmLcDZN7+IKh9bUCC2ZPCf2HDlol3WWHy+PPyNjEI75FXRLMp3vDKQcupP59xhVU95hcg==}
+
+  jpeg-js@0.4.4:
+    resolution: {integrity: sha512-WZzeDOEtTOBK4Mdsar0IqEU5sMr3vSV2RqkAIzUEV2BHnUfKGyswWFPFwK5EeDo93K3FohSHbLAjj0s1Wzd+dg==}
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
@@ -3987,6 +3993,8 @@ snapshots:
   jiti@2.7.0: {}
 
   jose@6.2.17: {}
+
+  jpeg-js@0.4.4: {}
 
   js-tokens@4.0.0: {}
 

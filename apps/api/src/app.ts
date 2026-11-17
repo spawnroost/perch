@@ -7,6 +7,7 @@ import {
   GameNotFoundError,
   IgdbError,
   ImportTooLargeError,
+  createAccentFetcher,
   createIgdbCache,
   type IgdbCache,
   type IgdbClient,
@@ -33,6 +34,8 @@ export interface AppDeps {
   mailer: Mailer;
   /** IGDB access (cached in the DB); routes that need it answer 503 when absent. */
   igdb?: IgdbClient;
+  /** Cover image -> accent colour; defaults to downloading the cover (tests stub it). */
+  accentFor?: (coverUrl: string) => Promise<string | null>;
   /** Overrides the Steam client (tests); the default talks to Steam. */
   steam?: SteamClient;
   /** Overrides the default limits (tests). */
@@ -66,7 +69,14 @@ export function createApp(appDeps: AppDeps) {
   const deps: RouteDeps = {
     ...appDeps,
     auth,
-    cache: igdb ? createIgdbCache({ db, client: igdb, mapVocab: mapGame }) : null,
+    cache: igdb
+      ? createIgdbCache({
+          db,
+          client: igdb,
+          mapVocab: mapGame,
+          accentFor: appDeps.accentFor ?? createAccentFetcher(),
+        })
+      : null,
     mapVocab: mapGame,
     labels: Object.fromEntries(VOCAB.map((v) => [v.id, v.label])),
   };

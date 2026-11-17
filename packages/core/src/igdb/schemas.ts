@@ -18,6 +18,8 @@ export const igdbGameSchema = z.object({
   slug: z.string(),
   summary: z.string().optional(),
   cover: z.object({ image_id: z.string() }).optional(),
+  artworks: z.array(z.object({ image_id: z.string() })).optional(),
+  screenshots: z.array(z.object({ image_id: z.string() })).optional(),
   first_release_date: z.number().optional(),
   total_rating: z.number().optional(),
   total_rating_count: z.number().optional(),
@@ -79,6 +81,12 @@ export interface Game {
   name: string;
   slug: string;
   coverUrl: string | null;
+  /** Same cover at t_cover_small (90x128), for lists and thumbnails. */
+  coverUrlSmall: string | null;
+  /** First artwork, else first screenshot, at t_1080p; null when IGDB has neither. */
+  heroUrl: string | null;
+  /** Vivid dominant colour of the cover as #rrggbb; null until computed (or when none found). */
+  accent: string | null;
   /** IGDB `summary`; null when IGDB has none. */
   summary: string | null;
   firstRelease: Date | null;

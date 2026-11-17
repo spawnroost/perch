@@ -23,6 +23,8 @@ const GAME_FIELDS = [
   'slug',
   'summary',
   'cover.image_id',
+  'artworks.image_id',
+  'screenshots.image_id',
   'first_release_date',
   'total_rating',
   'total_rating_count',
@@ -86,17 +88,23 @@ export interface IgdbClient {
 
 type RawGame = z.output<typeof igdbGameSchema>;
 
+const imageUrl = (size: string, imageId: string) =>
+  `https://images.igdb.com/igdb/image/upload/${size}/${imageId}.jpg`;
+
 function toGame(g: RawGame): Game {
   const steam = g.external_games?.find(
     (e) => e.external_game_source === STEAM_SOURCE_ID && e.uid && /^\d+$/.test(e.uid),
   );
+  const heroId = g.artworks?.[0]?.image_id ?? g.screenshots?.[0]?.image_id;
   return {
     igdbId: g.id,
     name: g.name,
     slug: g.slug,
-    coverUrl: g.cover
-      ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${g.cover.image_id}.jpg`
-      : null,
+    coverUrl: g.cover ? imageUrl('t_cover_big', g.cover.image_id) : null,
+    coverUrlSmall: g.cover ? imageUrl('t_cover_small', g.cover.image_id) : null,
+    heroUrl: heroId ? imageUrl('t_1080p', heroId) : null,
+    // Computed from the cover by the cache, not by IGDB.
+    accent: null,
     summary: g.summary ?? null,
     firstRelease: g.first_release_date ? new Date(g.first_release_date * 1000) : null,
     genres: g.genres ?? [],

@@ -1,4 +1,4 @@
-import { eq, inArray, sql } from 'drizzle-orm';
+import { eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { games, timeToBeat, type Db } from '@perch/db';
 import type { IgdbClient, TagQuery } from './client.js';
 import type { Game, TimeToBeat } from './schemas.js';
@@ -12,7 +12,11 @@ export interface IgdbCacheOptions {
   now?: () => Date;
   /** Taste-vocab mapper; when set, every upsert writes freshly computed `games.vocab`. */
   mapVocab?: (game: Game) => Record<string, number>;
+  /** Cover image URL -> accent hex (null on failure). When set, upserts compute `games.accent`. */
+  accentFor?: (coverUrl: string) => Promise<string | null>;
 }
+
+const ACCENT_CONCURRENCY = 8;
 
 export interface IgdbCache {
   /** Cache first; fetches and upserts on a miss or a row older than the TTL. */
@@ -23,6 +27,8 @@ export interface IgdbCache {
   queryByTags(q: TagQuery): Promise<Game[]>;
   /** Refetches every cached game by id and upserts it. Also lists ids IGDB did not return. */
   refreshAll(): Promise<{ refreshed: number; missing: number[] }>;
+  /** Refetches only cached games missing a hero or accent and fills them. */
+  backfillArt(): Promise<{ checked: number; updated: number }>;
   /** Same for time-to-beat. A game with no IGDB record is cached as an empty row (returns null). */
   getTimeToBeat(igdbId: number): Promise<TimeToBeat | null>;
 }
@@ -33,6 +39,9 @@ function toGame(row: typeof games.$inferSelect): Game {
     name: row.name,
     slug: row.slug,
     coverUrl: row.coverUrl,
+    coverUrlSmall: row.coverUrlSmall,
+    heroUrl: row.heroUrl,
+    accent: row.accent,
     summary: row.summary,
     firstRelease: row.firstRelease,
     genres: row.genres,
@@ -50,7 +59,7 @@ function toGame(row: typeof games.$inferSelect): Game {
 }
 
 export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
-  const { db, client, ttlMs = CACHE_TTL_MS, now = () => new Date(), mapVocab } = opts;
+  const { db, client, ttlMs = CACHE_TTL_MS, now = () => new Date(), mapVocab, accentFor } = opts;
   const isFresh = (at: Date) => now().getTime() - at.getTime() < ttlMs;
 
   async function getGame(igdbId: number): Promise<Game | null> {
@@ -60,15 +69,54 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
     }
     const game = await client.getGame(igdbId);
     if (!game) return null;
-    await upsertGames([game]);
-    return game;
+    const [saved] = await upsertGames([game]);
+    return saved ?? game;
   }
 
-  async function upsertGames(list: Game[]): Promise<void> {
-    if (list.length === 0) return;
+  /** Fills `accent` from the cover; a known cover keeps its accent, a failure leaves it null. */
+  async function withAccents(list: Game[]): Promise<Game[]> {
+    if (!accentFor || list.length === 0) return list;
+    const known = new Map<number, { coverUrl: string | null; accent: string | null }>();
+    for (let i = 0; i < list.length; i += 1000) {
+      const rows = await db
+        .select({ id: games.igdbId, coverUrl: games.coverUrl, accent: games.accent })
+        .from(games)
+        .where(
+          inArray(
+            games.igdbId,
+            list.slice(i, i + 1000).map((g) => g.igdbId),
+          ),
+        );
+      for (const r of rows) known.set(r.id, r);
+    }
+    const out = [...list];
+    let next = 0;
+    const worker = async () => {
+      while (next < out.length) {
+        const i = next++;
+        const g = out[i]!;
+        const prev = known.get(g.igdbId);
+        if (prev?.accent && prev.coverUrl === g.coverUrl) {
+          out[i] = { ...g, accent: prev.accent };
+        } else if (g.coverUrlSmall) {
+          out[i] = {
+            ...g,
+            accent: (await accentFor(g.coverUrlSmall).catch(() => null)) ?? g.accent,
+          };
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: ACCENT_CONCURRENCY }, worker));
+    return out;
+  }
+
+  /** Upserts the games (accent computed when configured) and returns them as stored. */
+  async function upsertGames(input: Game[]): Promise<Game[]> {
+    if (input.length === 0) return [];
+    const enriched = await withAccents(input);
     const fetchedAt = now();
     // Sorted so concurrent upserts lock rows in the same order.
-    list = [...list].sort((a, b) => a.igdbId - b.igdbId);
+    const list = [...enriched].sort((a, b) => a.igdbId - b.igdbId);
     // Chunked: Postgres caps bind parameters per statement.
     for (let i = 0; i < list.length; i += 200) {
       const chunk = list.slice(i, i + 200);
@@ -83,6 +131,10 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
             name: sql`excluded.name`,
             slug: sql`excluded.slug`,
             coverUrl: sql`excluded.cover_url`,
+            coverUrlSmall: sql`excluded.cover_url_small`,
+            heroUrl: sql`excluded.hero_url`,
+            // A lookup that failed (null) must not erase a colour we already have.
+            accent: sql`coalesce(excluded.accent, ${games.accent})`,
             summary: sql`excluded.summary`,
             firstRelease: sql`excluded.first_release`,
             genres: sql`excluded.genres`,
@@ -102,6 +154,7 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
           },
         });
     }
+    return enriched; // input order, which callers (queryByTags) rely on
   }
 
   async function getGames(igdbIds: readonly number[]): Promise<Game[]> {
@@ -122,8 +175,7 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
     if (missing.length > 0) {
       let fetched: Game[];
       try {
-        fetched = await client.getGames(missing);
-        await upsertGames(fetched);
+        fetched = await upsertGames(await client.getGames(missing));
       } catch (e) {
         // A failed refetch is fine only if every missing id has a stale row to serve instead.
         if (missing.some((id) => !stale.has(id))) throw e;
@@ -136,9 +188,7 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
   }
 
   async function queryByTags(q: TagQuery): Promise<Game[]> {
-    const result = await client.queryByTags(q);
-    await upsertGames(result);
-    return result;
+    return upsertGames(await client.queryByTags(q));
   }
 
   async function getTimeToBeat(igdbId: number): Promise<TimeToBeat | null> {
@@ -173,8 +223,7 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
   async function refreshAll(): Promise<{ refreshed: number; missing: number[] }> {
     const rows = await db.select({ id: games.igdbId }).from(games).orderBy(games.igdbId);
     // client.getGames batches the ids itself.
-    const fetched = await client.getGames(rows.map((r) => r.id));
-    await upsertGames(fetched);
+    const fetched = await upsertGames(await client.getGames(rows.map((r) => r.id)));
     const got = new Set(fetched.map((g) => g.igdbId));
     return {
       refreshed: fetched.length,
@@ -182,5 +231,15 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
     };
   }
 
-  return { getGame, getGames, queryByTags, refreshAll, getTimeToBeat };
+  async function backfillArt(): Promise<{ checked: number; updated: number }> {
+    const rows = await db
+      .select({ id: games.igdbId })
+      .from(games)
+      .where(or(isNull(games.heroUrl), isNull(games.accent)))
+      .orderBy(games.igdbId);
+    const fetched = await upsertGames(await client.getGames(rows.map((r) => r.id)));
+    return { checked: rows.length, updated: fetched.filter((g) => g.heroUrl || g.accent).length };
+  }
+
+  return { getGame, getGames, queryByTags, refreshAll, backfillArt, getTimeToBeat };
 }

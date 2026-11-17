@@ -221,10 +221,47 @@ describe('getGame', () => {
     expect(game).toMatchObject({
       steamAppId: null,
       coverUrl: null,
+      coverUrlSmall: null,
+      heroUrl: null,
+      accent: null,
       summary: null,
       firstRelease: null,
       rating: null,
       genres: [],
+    });
+  });
+
+  describe('art', () => {
+    const img = (size: string, id: string) =>
+      `https://images.igdb.com/igdb/image/upload/${size}/${id}.jpg`;
+    const one = (extra: Record<string, unknown>) =>
+      fakeFetch({ intercept: () => json([{ id: 9, name: 'A', slug: 'a', ...extra }]) });
+
+    it('requests artworks and screenshots', async () => {
+      const net = fakeFetch();
+      await make(net).getGame(fixture('Hades').igdbId);
+      const body = net.apiCalls().at(-1)!.body;
+      expect(body).toContain('artworks.image_id');
+      expect(body).toContain('screenshots.image_id');
+    });
+
+    it('uses the first artwork for the hero, else the first screenshot, else null', async () => {
+      const both = await make(
+        one({
+          artworks: [{ image_id: 'art1' }, { image_id: 'art2' }],
+          screenshots: [{ image_id: 'shot1' }],
+        }),
+      ).getGame(9);
+      expect(both?.heroUrl).toBe(img('t_1080p', 'art1'));
+      const shotOnly = await make(one({ screenshots: [{ image_id: 'shot1' }] })).getGame(9);
+      expect(shotOnly?.heroUrl).toBe(img('t_1080p', 'shot1'));
+      expect((await make(one({})).getGame(9))?.heroUrl).toBeNull();
+    });
+
+    it('exposes a big and a small cover', async () => {
+      const g = await make(one({ cover: { image_id: 'c1' } })).getGame(9);
+      expect(g?.coverUrl).toBe(img('t_cover_big', 'c1'));
+      expect(g?.coverUrlSmall).toBe(img('t_cover_small', 'c1'));
     });
   });
 

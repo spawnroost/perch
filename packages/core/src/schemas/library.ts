@@ -10,6 +10,10 @@ export const libraryEntrySchema = z.object({
   igdbId: z.number().int(),
   name: z.string(),
   coverUrl: z.string().nullable(),
+  coverUrlSmall: z.string().nullable(),
+  heroUrl: z.string().nullable(),
+  /** Dominant cover colour, #rrggbb. */
+  accent: z.string().nullable(),
   platform: z.string(),
   hoursPlayed: z.number().nullable(),
   lastPlayed: isoDate.nullable(),

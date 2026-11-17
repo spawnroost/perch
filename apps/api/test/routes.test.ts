@@ -15,6 +15,9 @@ function game(igdbId: number, name: string, extra: Partial<Game> = {}): Game {
     name,
     slug: `route-test-${igdbId}`,
     coverUrl: null,
+    coverUrlSmall: null,
+    heroUrl: null,
+    accent: null,
     summary: null,
     firstRelease: new Date('2020-01-01T00:00:00Z'),
     genres: [12],
@@ -37,11 +40,15 @@ const catalog = [
     similarIds: [B],
     steamAppId: 4_000_001,
     summary: 'An alpha summary.',
+    heroUrl: 'https://img.test/alpha-hero.jpg',
+    accent: '#c81e28',
   }),
   game(B, 'Routetest Beta', {
     genres: [12, 31],
     platforms: [6, 167],
     coverUrl: 'https://img.test/beta.jpg',
+    coverUrlSmall: 'https://img.test/beta-small.jpg',
+    accent: '#2a6fdb',
   }),
   game(C, 'Routetest Gamma', { genres: [31] }),
   game(D, 'Routetest Delta', { genres: [5] }),
@@ -194,6 +201,9 @@ describe.skipIf(!testUrl)('api routes', () => {
         igdbId: A,
         name: 'Routetest Alpha',
         summary: 'An alpha summary.',
+        heroUrl: 'https://img.test/alpha-hero.jpg',
+        accent: '#c81e28',
+        coverUrlSmall: null,
       });
       expect(body.timeToBeat).toEqual({
         hastilyHours: 1,
@@ -259,9 +269,13 @@ describe.skipIf(!testUrl)('api routes', () => {
       expect(profile).toBeDefined();
 
       const list = (await (await get('/api/library', u.cookie)).json()) as {
-        entries: { id: string }[];
+        entries: { id: string; heroUrl: string | null; accent: string | null }[];
       };
       expect(list.entries.map((e) => e.id)).toEqual([entry.id]);
+      expect(list.entries[0]).toMatchObject({
+        heroUrl: 'https://img.test/alpha-hero.jpg',
+        accent: '#c81e28',
+      });
 
       const patched = await call('PATCH', `/api/library/${entry.id}`, u.cookie, {
         hoursPlayed: 40,
@@ -514,7 +528,12 @@ describe.skipIf(!testUrl)('api routes', () => {
         recommendations: {
           rank: number;
           reason: string;
-          game: { igdbId: number; coverUrl: string | null };
+          game: {
+            igdbId: number;
+            coverUrl: string | null;
+            heroUrl: string | null;
+            accent: string | null;
+          };
           fit?: unknown;
           fits: { deviceName: string; status: string; reason: string }[];
           deck: string | null;
@@ -529,7 +548,12 @@ describe.skipIf(!testUrl)('api routes', () => {
       expect(beta.fits).toMatchObject([
         { deviceName: 'PlayStation 5', status: 'green', reason: 'Available on this console' },
       ]);
-      expect(beta.game.coverUrl).toBe('https://img.test/beta.jpg');
+      expect(beta.game).toMatchObject({
+        coverUrl: 'https://img.test/beta.jpg',
+        coverUrlSmall: 'https://img.test/beta-small.jpg',
+        heroUrl: null,
+        accent: '#2a6fdb',
+      });
       expect(beta.deck).toBeNull();
       expect(beta.timeToBeat).toBeNull();
       await ctx.db

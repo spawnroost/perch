@@ -1,6 +1,6 @@
 import { formatError } from '@perch/core';
 import { addCommand, dbUrl, importCommand, userCreateCommand } from './commands.js';
-import { igdbRefresh } from './igdb-refresh.js';
+import { igdbBackfillArt, igdbRefresh } from './igdb-refresh.js';
 import { recommendCommand } from './recommend.js';
 import { deckCommand } from './deck.js';
 import { deviceCommand } from './device.js';
@@ -23,6 +23,7 @@ commands:
   deck <game name or igdb id>  Steam Deck compatibility (cached 7 days)
   feedback <game> <up|down|played|not-interested> [--user <email>]
   igdb:refresh  refetch every cached game from IGDB (fills new fields)
+  igdb:backfill-art  fill hero art + accent colour for cached games missing them
   vocab:check   list IGDB ids with no taste-vocab mapping
   vocab:rebuild recompute stored games.vocab with the current mapping
 
@@ -57,6 +58,10 @@ async function main(argv: string[]): Promise<number> {
         return 0;
       case 'igdb:refresh': {
         console.log(await igdbRefresh(dbUrl()));
+        return 0;
+      }
+      case 'igdb:backfill-art': {
+        console.log(await igdbBackfillArt(dbUrl()));
         return 0;
       }
       case 'vocab:check': {

@@ -41,6 +41,10 @@ export const gameDetailResponseSchema = z.object({
     name: z.string(),
     slug: z.string(),
     coverUrl: z.string().nullable(),
+    coverUrlSmall: z.string().nullable(),
+    heroUrl: z.string().nullable(),
+    /** Dominant cover colour, #rrggbb. */
+    accent: z.string().nullable(),
     /** IGDB summary; null when absent or not fetched yet. */
     summary: z.string().nullable(),
     firstRelease: isoDate.nullable(),

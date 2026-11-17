@@ -5,14 +5,28 @@ import type { Status } from './fields.js';
 export type LibraryRow = typeof libraryEntries.$inferSelect & {
   name: string;
   coverUrl: string | null;
+  coverUrlSmall: string | null;
+  heroUrl: string | null;
+  accent: string | null;
 };
 
-const columns = { entry: libraryEntries, name: games.name, coverUrl: games.coverUrl };
-const flat = (r: {
+const columns = {
+  entry: libraryEntries,
+  name: games.name,
+  coverUrl: games.coverUrl,
+  coverUrlSmall: games.coverUrlSmall,
+  heroUrl: games.heroUrl,
+  accent: games.accent,
+};
+const flat = ({
+  entry,
+  ...game
+}: {
   entry: typeof libraryEntries.$inferSelect;
-  name: string;
-  coverUrl: string | null;
-}): LibraryRow => ({ ...r.entry, name: r.name, coverUrl: r.coverUrl });
+} & Omit<LibraryRow, keyof typeof libraryEntries.$inferSelect>): LibraryRow => ({
+  ...entry,
+  ...game,
+});
 
 /** The user's library, newest first. */
 export async function listLibrary(db: Db, userId: string): Promise<LibraryRow[]> {

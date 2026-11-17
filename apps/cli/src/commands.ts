@@ -4,6 +4,7 @@ import { parseArgs } from 'node:util';
 import {
   addArgsSchema,
   addGame,
+  createAccentFetcher,
   createIgdbCache,
   createIgdbClientFromEnv,
   createVerifiedUser,
@@ -102,7 +103,7 @@ export async function addCommand(argv: string[]): Promise<void> {
     const deps = {
       db,
       client,
-      cache: createIgdbCache({ db, client, mapVocab: mapGame }),
+      cache: createIgdbCache({ db, client, mapVocab: mapGame, accentFor: createAccentFetcher() }),
       mapVocab: mapGame,
     };
     const added = await addGame(deps, userId, args, 'manual');
@@ -138,7 +139,7 @@ export async function importCommand(argv: string[]): Promise<number> {
     const deps = {
       db,
       client,
-      cache: createIgdbCache({ db, client, mapVocab: mapGame }),
+      cache: createIgdbCache({ db, client, mapVocab: mapGame, accentFor: createAccentFetcher() }),
       mapVocab: mapGame,
     };
     for (const { line, value } of entries) {

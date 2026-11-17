@@ -111,6 +111,11 @@ export const games = pgTable(
     name: text('name').notNull(),
     slug: text('slug').notNull(),
     coverUrl: text('cover_url'),
+    coverUrlSmall: text('cover_url_small'),
+    /** First IGDB artwork, else first screenshot (t_1080p). */
+    heroUrl: text('hero_url'),
+    /** Dominant cover colour as #rrggbb; null when not computed or the cover has no colour. */
+    accent: text('accent'),
     /** IGDB summary; null until fetched with a client that asks for it. */
     summary: text('summary'),
     firstRelease: ts('first_release'),

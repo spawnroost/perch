@@ -27,7 +27,7 @@ export function captureMailer(): Mailer & { sent: Mail[] } {
 export async function setupApi(
   rateLimit?: RateLimitConfig,
   envOverrides: Partial<ApiEnv> = {},
-  extra: Partial<Pick<AppDeps, 'igdb' | 'steam'>> = {},
+  extra: Partial<Pick<AppDeps, 'igdb' | 'steam' | 'accentFor'>> = {},
 ) {
   await runMigrations(testUrl!);
   const db: Db = createDb(testUrl!);
@@ -36,6 +36,8 @@ export async function setupApi(
     db,
     env: { ...testEnv, ...envOverrides },
     mailer,
+    // Never download covers in tests.
+    accentFor: async () => null,
     ...extra,
     ...(rateLimit ? { rateLimit } : {}),
   });

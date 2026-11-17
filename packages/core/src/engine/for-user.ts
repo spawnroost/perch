@@ -46,6 +46,9 @@ export interface GameFit {
 export type UserRecommendation = Recommendation &
   GameFit & {
     coverUrl: string | null;
+    coverUrlSmall: string | null;
+    heroUrl: string | null;
+    accent: string | null;
     /** Only what is already in the DB; null when none or too few submissions. */
     timeToBeat: TimeToBeatHours | null;
   };
@@ -84,6 +87,9 @@ export async function recommendForUser(
       return {
         ...rec,
         coverUrl: game?.coverUrl ?? null,
+        coverUrlSmall: game?.coverUrlSmall ?? null,
+        heroUrl: game?.heroUrl ?? null,
+        accent: game?.accent ?? null,
         timeToBeat: ttb.get(rec.game.igdbId) ?? null,
         ...(await fitsForGame(allDevices, fetchers, game ?? rec.game)),
       };

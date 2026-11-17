@@ -35,6 +35,7 @@ describe.skipIf(!url)('igdb db cache', () => {
   function setup(
     intercept?: Parameters<typeof fakeFetch>[0] extends infer O ? O : never,
     mapVocab?: (g: { genres: number[] }) => Record<string, number>,
+    accentFor?: (url: string) => Promise<string | null>,
   ) {
     const net = fakeFetch(intercept);
     const client = createIgdbClient({
@@ -44,7 +45,7 @@ describe.skipIf(!url)('igdb db cache', () => {
       maxPerSecond: 1000,
     });
     let now = T0;
-    const cache = createIgdbCache({ db, client, now: () => now, mapVocab });
+    const cache = createIgdbCache({ db, client, now: () => now, mapVocab, accentFor });
     return {
       net,
       cache,
@@ -251,6 +252,74 @@ describe.skipIf(!url)('igdb db cache', () => {
         .from(games)
         .where(inArray(games.igdbId, [hades.igdbId, celeste.igdbId]));
       expect(rows).toHaveLength(2);
+    });
+  });
+
+  describe('art and accent', () => {
+    const art = {
+      id: hades.igdbId,
+      name: 'Hades',
+      slug: 'hades',
+      cover: { image_id: 'c1' },
+      artworks: [{ image_id: 'a1' }],
+    };
+    const rowOf = async () =>
+      (await db.select().from(games).where(eq(games.igdbId, hades.igdbId)))[0];
+
+    it('stores hero, small cover and the accent computed from the small cover', async () => {
+      const urls: string[] = [];
+      const { cache } = setup({ intercept: () => json([art]) }, undefined, async (u) => {
+        urls.push(u);
+        return '#c81e28';
+      });
+      const game = await cache.getGame(hades.igdbId);
+      expect(game?.accent).toBe('#c81e28');
+      expect(urls).toEqual([expect.stringContaining('t_cover_small/c1')]);
+      expect(await rowOf()).toMatchObject({
+        accent: '#c81e28',
+        heroUrl: expect.stringContaining('t_1080p/a1'),
+        coverUrlSmall: expect.stringContaining('t_cover_small/c1'),
+      });
+      expect((await cache.getGame(hades.igdbId))?.heroUrl).toContain('t_1080p/a1');
+    });
+
+    it('a failing or empty accent lookup is non-fatal and stores null', async () => {
+      const { cache } = setup({ intercept: () => json([art]) }, undefined, async () => {
+        throw new Error('image host down');
+      });
+      expect((await cache.getGame(hades.igdbId))?.accent).toBeNull();
+      expect((await rowOf())?.accent).toBeNull();
+    });
+
+    it('does not refetch the image for a known cover, and a later failure keeps the accent', async () => {
+      let calls = 0;
+      const first = setup({ intercept: () => json([art]) }, undefined, async () => {
+        calls++;
+        return '#112233';
+      });
+      await first.cache.getGame(hades.igdbId);
+      first.setNow(new Date(T0.getTime() + 40 * DAY));
+      await first.cache.getGame(hades.igdbId);
+      expect(calls).toBe(1);
+      const failing = setup({ intercept: () => json([{ ...art, cover: { image_id: 'c1' } }]) });
+      await failing.cache.refreshAll();
+      expect((await rowOf())?.accent).toBe('#112233');
+    });
+
+    it('backfillArt fills hero and accent only for rows missing them', async () => {
+      const plain = setup({
+        intercept: () =>
+          json([{ id: hades.igdbId, name: 'Hades', slug: 'hades', cover: { image_id: 'c1' } }]),
+      });
+      await plain.cache.getGame(hades.igdbId);
+      expect((await rowOf())?.heroUrl).toBeNull();
+      const { cache } = setup({ intercept: () => json([art]) }, undefined, async () => '#00aa55');
+      const res = await cache.backfillArt();
+      expect(res.updated).toBeGreaterThanOrEqual(1);
+      expect(await rowOf()).toMatchObject({
+        accent: '#00aa55',
+        heroUrl: expect.stringContaining('a1'),
+      });
     });
   });
 
