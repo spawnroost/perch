@@ -8,6 +8,7 @@ export async function igdbRefresh(databaseUrl: string): Promise<string> {
   try {
     const cache = makeCache(db);
     const { refreshed, missing } = await cache.refreshAll();
+    await cache.idle(); // accent downloads run in the background
     return `refreshed ${refreshed} games from IGDB, ${missing.length} missing`;
   } finally {
     await db.$client.end();

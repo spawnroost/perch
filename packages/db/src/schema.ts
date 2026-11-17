@@ -116,6 +116,10 @@ export const games = pgTable(
     heroUrl: text('hero_url'),
     /** Dominant cover colour as #rrggbb; null when not computed or the cover has no colour. */
     accent: text('accent'),
+    /** The cover_url_small the accent was computed from (set even when no colour was found). */
+    accentSource: text('accent_source'),
+    /** When hero/cover art was last fetched from IGDB; null on rows cached before art existed. */
+    artCheckedAt: ts('art_checked_at'),
     /** IGDB summary; null until fetched with a client that asks for it. */
     summary: text('summary'),
     firstRelease: ts('first_release'),

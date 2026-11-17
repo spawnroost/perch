@@ -1,6 +1,7 @@
-import { eq, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, ne, or, sql } from 'drizzle-orm';
 import { games, timeToBeat, type Db } from '@perch/db';
 import type { IgdbClient, TagQuery } from './client.js';
+import { sharedAccentQueue, type AccentQueue } from './accent.js';
 import type { Game, TimeToBeat } from './schemas.js';
 
 export const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -14,9 +15,9 @@ export interface IgdbCacheOptions {
   mapVocab?: (game: Game) => Record<string, number>;
   /** Cover image URL -> accent hex (null on failure). When set, upserts compute `games.accent`. */
   accentFor?: (coverUrl: string) => Promise<string | null>;
+  /** Limits and dedupes the downloads; defaults to the process-wide queue. */
+  accentQueue?: AccentQueue;
 }
-
-const ACCENT_CONCURRENCY = 8;
 
 export interface IgdbCache {
   /** Cache first; fetches and upserts on a miss or a row older than the TTL. */
@@ -27,8 +28,13 @@ export interface IgdbCache {
   queryByTags(q: TagQuery): Promise<Game[]>;
   /** Refetches every cached game by id and upserts it. Also lists ids IGDB did not return. */
   refreshAll(): Promise<{ refreshed: number; missing: number[] }>;
-  /** Refetches only cached games missing a hero or accent and fills them. */
+  /**
+   * Fetches art for cached games never checked for it and computes missing accents, waiting for
+   * the downloads. `updated` counts rows whose hero or accent actually changed.
+   */
   backfillArt(): Promise<{ checked: number; updated: number }>;
+  /** Resolves when all background accent downloads started by this cache have finished. */
+  idle(): Promise<void>;
   /** Same for time-to-beat. A game with no IGDB record is cached as an empty row (returns null). */
   getTimeToBeat(igdbId: number): Promise<TimeToBeat | null>;
 }
@@ -60,6 +66,7 @@ function toGame(row: typeof games.$inferSelect): Game {
 
 export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
   const { db, client, ttlMs = CACHE_TTL_MS, now = () => new Date(), mapVocab, accentFor } = opts;
+  const accentQueue = opts.accentQueue ?? sharedAccentQueue;
   const isFresh = (at: Date) => now().getTime() - at.getTime() < ttlMs;
 
   async function getGame(igdbId: number): Promise<Game | null> {
@@ -73,57 +80,58 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
     return saved ?? game;
   }
 
-  /** Fills `accent` from the cover; a known cover keeps its accent, a failure leaves it null. */
-  async function withAccents(list: Game[]): Promise<Game[]> {
-    if (!accentFor || list.length === 0) return list;
-    const known = new Map<number, { coverUrl: string | null; accent: string | null }>();
-    for (let i = 0; i < list.length; i += 1000) {
-      const rows = await db
-        .select({ id: games.igdbId, coverUrl: games.coverUrl, accent: games.accent })
-        .from(games)
-        .where(
-          inArray(
-            games.igdbId,
-            list.slice(i, i + 1000).map((g) => g.igdbId),
-          ),
-        );
-      for (const r of rows) known.set(r.id, r);
+  /** Accent downloads still running in the background (see `idle`). */
+  const pending = new Set<Promise<void>>();
+
+  /** Downloads and stores accents without blocking the caller; errors are swallowed. */
+  function fillAccents(todo: Array<{ igdbId: number; url: string }>): void {
+    if (!accentFor) return;
+    for (const { igdbId, url } of todo) {
+      const p: Promise<void> = accentQueue
+        .run(url, accentFor)
+        .then(async (accent) => {
+          // Only if the cover has not changed again while we were downloading.
+          await db
+            .update(games)
+            .set({ accent, accentSource: url })
+            .where(and(eq(games.igdbId, igdbId), eq(games.coverUrlSmall, url)));
+        })
+        .catch(() => {})
+        .finally(() => pending.delete(p));
+      pending.add(p);
     }
-    const out = [...list];
-    let next = 0;
-    const worker = async () => {
-      while (next < out.length) {
-        const i = next++;
-        const g = out[i]!;
-        const prev = known.get(g.igdbId);
-        if (prev?.accent && prev.coverUrl === g.coverUrl) {
-          out[i] = { ...g, accent: prev.accent };
-        } else if (g.coverUrlSmall) {
-          out[i] = {
-            ...g,
-            accent: (await accentFor(g.coverUrlSmall).catch(() => null)) ?? g.accent,
-          };
-        }
-      }
-    };
-    await Promise.all(Array.from({ length: ACCENT_CONCURRENCY }, worker));
-    return out;
   }
 
-  /** Upserts the games (accent computed when configured) and returns them as stored. */
+  async function idle(): Promise<void> {
+    while (pending.size > 0) await Promise.allSettled([...pending]);
+  }
+
+  /**
+   * Upserts the games and returns them as stored, in input order. The accent is never computed
+   * here: a row keeps its accent while its small cover is unchanged, otherwise it is cleared and
+   * queued for the background filler.
+   */
   async function upsertGames(input: Game[]): Promise<Game[]> {
     if (input.length === 0) return [];
-    const enriched = await withAccents(input);
     const fetchedAt = now();
+    const stored = new Map<number, { accent: string | null }>();
+    const todo: Array<{ igdbId: number; url: string }> = [];
     // Sorted so concurrent upserts lock rows in the same order.
-    const list = [...enriched].sort((a, b) => a.igdbId - b.igdbId);
+    const list = [...input].sort((a, b) => a.igdbId - b.igdbId);
     // Chunked: Postgres caps bind parameters per statement.
     for (let i = 0; i < list.length; i += 200) {
       const chunk = list.slice(i, i + 200);
-      await db
+      const rows = await db
         .insert(games)
         .values(
-          chunk.map((g) => ({ ...g, fetchedAt, ...(mapVocab ? { vocab: mapVocab(g) } : {}) })),
+          chunk.map((g) => ({
+            ...g,
+            accent: null,
+            accentSource: null,
+            artCheckedAt: fetchedAt,
+            fetchedAt,
+            ...(mapVocab ? { vocab: mapVocab(g) } : {}),
+          })),
         )
         .onConflictDoUpdate({
           target: games.igdbId,
@@ -133,8 +141,10 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
             coverUrl: sql`excluded.cover_url`,
             coverUrlSmall: sql`excluded.cover_url_small`,
             heroUrl: sql`excluded.hero_url`,
-            // A lookup that failed (null) must not erase a colour we already have.
-            accent: sql`coalesce(excluded.accent, ${games.accent})`,
+            // Keep the colour only while it was computed from the cover we still have.
+            accent: sql`case when ${games.accentSource} = excluded.cover_url_small then ${games.accent} end`,
+            accentSource: sql`case when ${games.accentSource} = excluded.cover_url_small then ${games.accentSource} end`,
+            artCheckedAt: sql`excluded.art_checked_at`,
             summary: sql`excluded.summary`,
             firstRelease: sql`excluded.first_release`,
             genres: sql`excluded.genres`,
@@ -152,9 +162,22 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
             // Without a mapper, vocab is derived elsewhere and an upsert must not reset it.
             ...(mapVocab ? { vocab: sql`excluded.vocab` } : {}),
           },
+        })
+        .returning({
+          igdbId: games.igdbId,
+          accent: games.accent,
+          accentSource: games.accentSource,
+          coverUrlSmall: games.coverUrlSmall,
         });
+      for (const r of rows) {
+        stored.set(r.igdbId, { accent: r.accent });
+        if (r.coverUrlSmall && r.accentSource !== r.coverUrlSmall) {
+          todo.push({ igdbId: r.igdbId, url: r.coverUrlSmall });
+        }
+      }
     }
-    return enriched; // input order, which callers (queryByTags) rely on
+    fillAccents(todo);
+    return input.map((g) => ({ ...g, accent: stored.get(g.igdbId)?.accent ?? null }));
   }
 
   async function getGames(igdbIds: readonly number[]): Promise<Game[]> {
@@ -232,14 +255,57 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
   }
 
   async function backfillArt(): Promise<{ checked: number; updated: number }> {
-    const rows = await db
+    const snapshot = async (ids: number[]) => {
+      const out = new Map<number, string>();
+      for (let i = 0; i < ids.length; i += 1000) {
+        const rows = await db
+          .select({ id: games.igdbId, hero: games.heroUrl, accent: games.accent })
+          .from(games)
+          .where(inArray(games.igdbId, ids.slice(i, i + 1000)));
+        for (const r of rows) out.set(r.id, `${r.hero}|${r.accent}`);
+      }
+      return out;
+    };
+    const unchecked = await db
       .select({ id: games.igdbId })
       .from(games)
-      .where(or(isNull(games.heroUrl), isNull(games.accent)))
+      .where(isNull(games.artCheckedAt))
       .orderBy(games.igdbId);
-    const fetched = await upsertGames(await client.getGames(rows.map((r) => r.id)));
-    return { checked: rows.length, updated: fetched.filter((g) => g.heroUrl || g.accent).length };
+    // Art already fetched but the accent never settled for the current cover.
+    const needAccent = accentFor
+      ? await db
+          .select({ id: games.igdbId, url: games.coverUrlSmall })
+          .from(games)
+          .where(
+            and(
+              isNotNull(games.artCheckedAt),
+              isNotNull(games.coverUrlSmall),
+              or(isNull(games.accentSource), ne(games.accentSource, games.coverUrlSmall)),
+            ),
+          )
+      : [];
+    const ids = [...unchecked.map((r) => r.id), ...needAccent.map((r) => r.id)];
+    const before = await snapshot(ids);
+    if (unchecked.length > 0) {
+      const fetched = await client.getGames(unchecked.map((r) => r.id));
+      await upsertGames(fetched);
+      // Games IGDB no longer returns count as checked too, so they are not asked again.
+      await db
+        .update(games)
+        .set({ artCheckedAt: now() })
+        .where(
+          inArray(
+            games.igdbId,
+            unchecked.map((r) => r.id),
+          ),
+        );
+    }
+    fillAccents(needAccent.flatMap((r) => (r.url ? [{ igdbId: r.id, url: r.url }] : [])));
+    await idle();
+    const after = await snapshot(ids);
+    const updated = ids.filter((id) => before.get(id) !== after.get(id)).length;
+    return { checked: ids.length, updated };
   }
 
-  return { getGame, getGames, queryByTags, refreshAll, backfillArt, getTimeToBeat };
+  return { getGame, getGames, queryByTags, refreshAll, backfillArt, idle, getTimeToBeat };
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import jpeg from 'jpeg-js';
-import { createAccentFetcher, pickAccent } from '../../src/igdb/accent.js';
+import { createAccentFetcher, createAccentQueue, pickAccent } from '../../src/igdb/accent.js';
 
 /** Builds an RGBA buffer from [r,g,b,count] runs. */
 function pixels(runs: Array<[number, number, number, number]>, alpha = 255): Uint8Array {
@@ -93,5 +93,41 @@ describe('createAccentFetcher', () => {
     expect(await createAccentFetcher({ fetch: bad })('u')).toBeNull();
     expect(await createAccentFetcher({ fetch: ok(new Uint8Array([1, 2, 3])) })('u')).toBeNull();
     expect(await createAccentFetcher({ fetch: boom })('u')).toBeNull();
+  });
+});
+
+describe('createAccentQueue', () => {
+  it('runs at most `concurrency` jobs at once', async () => {
+    const q = createAccentQueue(2);
+    let active = 0;
+    let peak = 0;
+    const job = async () => {
+      active++;
+      peak = Math.max(peak, active);
+      await new Promise((r) => setTimeout(r, 5));
+      active--;
+      return '#000000';
+    };
+    await Promise.all(['a', 'b', 'c', 'd', 'e'].map((u) => q.run(u, job)));
+    expect(peak).toBe(2);
+  });
+
+  it('shares one in-flight job per URL, and runs it again once it has settled', async () => {
+    const q = createAccentQueue(4);
+    let calls = 0;
+    const job = async () => {
+      calls++;
+      return '#111111';
+    };
+    const [x, y] = await Promise.all([q.run('u', job), q.run('u', job)]);
+    expect([x, y, calls]).toEqual(['#111111', '#111111', 1]);
+    await q.run('u', job);
+    expect(calls).toBe(2);
+  });
+
+  it('keeps going after a failing job', async () => {
+    const q = createAccentQueue(1);
+    await expect(q.run('a', async () => Promise.reject(new Error('x')))).rejects.toThrow();
+    expect(await q.run('b', async () => '#222222')).toBe('#222222');
   });
 });

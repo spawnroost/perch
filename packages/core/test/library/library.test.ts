@@ -172,11 +172,17 @@ describe('row builders', () => {
   };
   it('buildGameRow adds vocab and fetchedAt', () => {
     const now = new Date('2026-01-01T00:00:00Z');
+    const rest: Partial<Game> = { ...game };
+    delete rest.accent;
     expect(buildGameRow(game, { roguelike: 1 }, now)).toEqual({
-      ...game,
+      ...rest,
       vocab: { roguelike: 1 },
       fetchedAt: now,
     });
+  });
+  it('buildGameRow never writes the accent (the background filler owns it)', () => {
+    const row = buildGameRow({ ...game, accent: '#c81e28' }, {}, new Date());
+    expect(row).not.toHaveProperty('accent');
   });
   it('buildLibraryRow: defaults on insert, only provided fields on update', () => {
     const { insert, update } = buildLibraryRow({

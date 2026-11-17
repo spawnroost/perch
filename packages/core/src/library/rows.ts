@@ -7,7 +7,10 @@ export function buildGameRow(
   vocab: Record<string, number>,
   now: Date = new Date(),
 ): typeof games.$inferInsert {
-  return { ...game, vocab, fetchedAt: now };
+  // The accent column belongs to the cache's background filler; writing it here could erase it.
+  const columns: Omit<Game, 'accent'> & { accent?: string | null } = { ...game };
+  delete columns.accent;
+  return { ...columns, vocab, fetchedAt: now };
 }
 
 export interface LibraryInput {

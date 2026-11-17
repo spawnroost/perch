@@ -111,3 +111,44 @@ export function createAccentFetcher(
     }
   };
 }
+
+export interface AccentQueue {
+  /** Runs `job(url)` with limited concurrency; callers asking for the same URL share one job. */
+  run(url: string, job: (url: string) => Promise<string | null>): Promise<string | null>;
+}
+
+export function createAccentQueue(concurrency = 4): AccentQueue {
+  const inflight = new Map<string, Promise<string | null>>();
+  const waiters: Array<() => void> = [];
+  let active = 0;
+  const acquire = async () => {
+    if (active < concurrency) active++;
+    else await new Promise<void>((resolve) => waiters.push(resolve));
+  };
+  const release = () => {
+    const next = waiters.shift();
+    if (next)
+      next(); // hand the slot straight over
+    else active--;
+  };
+  return {
+    run(url, job) {
+      let p = inflight.get(url);
+      if (!p) {
+        p = (async () => {
+          await acquire();
+          try {
+            return await job(url);
+          } finally {
+            release();
+          }
+        })().finally(() => inflight.delete(url));
+        inflight.set(url, p);
+      }
+      return p;
+    },
+  };
+}
+
+/** Process-wide queue: all caches share it, so one cover is never downloaded twice at once. */
+export const sharedAccentQueue = createAccentQueue(4);

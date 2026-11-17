@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { and, eq, inArray } from 'drizzle-orm';
 import { hashPassword } from 'better-auth/crypto';
 import { createVerifiedUser, type DeckCategory, type Game, type IgdbClient } from '@perch/core';
@@ -41,14 +41,13 @@ const catalog = [
     steamAppId: 4_000_001,
     summary: 'An alpha summary.',
     heroUrl: 'https://img.test/alpha-hero.jpg',
-    accent: '#c81e28',
+    coverUrlSmall: 'https://img.test/alpha-small.jpg',
   }),
   game(B, 'Routetest Beta', {
     genres: [12, 31],
     platforms: [6, 167],
     coverUrl: 'https://img.test/beta.jpg',
     coverUrlSmall: 'https://img.test/beta-small.jpg',
-    accent: '#2a6fdb',
   }),
   game(C, 'Routetest Gamma', { genres: [31] }),
   game(D, 'Routetest Delta', { genres: [5] }),
@@ -98,16 +97,38 @@ const fakeSteam = {
   },
 };
 
+const COLOURS: Record<string, string> = {
+  'https://img.test/alpha-small.jpg': '#c81e28',
+  'https://img.test/beta-small.jpg': '#2a6fdb',
+};
+const accentFor = async (url: string) => COLOURS[url] ?? null;
+
 describe.skipIf(!testUrl)('api routes', () => {
   let ctx: Awaited<ReturnType<typeof setupApi>>;
   beforeAll(async () => {
     const big = { limit: 100_000, windowMs: 60_000 };
-    ctx = await setupApi({ api: big, auth: big }, {}, { igdb: fakeIgdb, steam: fakeSteam });
+    ctx = await setupApi(
+      { api: big, auth: big },
+      {},
+      { igdb: fakeIgdb, steam: fakeSteam, accentFor },
+    );
   });
   afterAll(async () => {
     await ctx?.db.delete(schema.games).where(inArray(schema.games.igdbId, [A, B, C, D]));
     await ctx?.cleanup();
   });
+
+  /** Accents are filled in the background after a game is cached; wait for the given games. */
+  async function accentsFilled(...ids: number[]) {
+    await vi.waitFor(async () => {
+      const rows = await ctx.db
+        .select({ accent: schema.games.accent })
+        .from(schema.games)
+        .where(inArray(schema.games.igdbId, ids));
+      expect(rows).toHaveLength(ids.length);
+      expect(rows.every((r) => r.accent !== null)).toBe(true);
+    });
+  }
 
   async function newUser() {
     const email = ctx.newEmail();
@@ -183,6 +204,7 @@ describe.skipIf(!testUrl)('api routes', () => {
       const empty = await get(`/api/games/${A}`, u.cookie);
       expect(empty.status).toBe(200);
       expect(((await empty.json()) as { why: string[] }).why).toEqual([]);
+      await accentsFilled(A);
 
       await call('POST', '/api/library', u.cookie, {
         igdbId: B,
@@ -203,7 +225,7 @@ describe.skipIf(!testUrl)('api routes', () => {
         summary: 'An alpha summary.',
         heroUrl: 'https://img.test/alpha-hero.jpg',
         accent: '#c81e28',
-        coverUrlSmall: null,
+        coverUrlSmall: 'https://img.test/alpha-small.jpg',
       });
       expect(body.timeToBeat).toEqual({
         hastilyHours: 1,
@@ -268,11 +290,12 @@ describe.skipIf(!testUrl)('api routes', () => {
         .where(eq(schema.tasteProfiles.userId, u.id));
       expect(profile).toBeDefined();
 
-      const list = (await (await get('/api/library', u.cookie)).json()) as {
+      await accentsFilled(A);
+      const filled = (await (await get('/api/library', u.cookie)).json()) as {
         entries: { id: string; heroUrl: string | null; accent: string | null }[];
       };
-      expect(list.entries.map((e) => e.id)).toEqual([entry.id]);
-      expect(list.entries[0]).toMatchObject({
+      expect(filled.entries.map((e) => e.id)).toEqual([entry.id]);
+      expect(filled.entries[0]).toMatchObject({
         heroUrl: 'https://img.test/alpha-hero.jpg',
         accent: '#c81e28',
       });
@@ -522,6 +545,9 @@ describe.skipIf(!testUrl)('api routes', () => {
       });
       await call('POST', '/api/devices', u.cookie, { preset: 'ps5' });
 
+      // The first call caches the picks; their accents arrive in the background.
+      await get('/api/recommendations?device=none&limit=5', u.cookie);
+      await accentsFilled(B);
       const none = await get('/api/recommendations?device=none&limit=5', u.cookie);
       expect(none.status).toBe(200);
       const body = (await none.json()) as {
