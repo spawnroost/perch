@@ -24,12 +24,12 @@ export interface SessionOptions {
   device: SessionDevice | null;
 }
 
-/** Device kinds that run on a battery. */
-const HANDHELD_KINDS = new Set(['steam-deck', 'rog-ally']);
+/** PC handheld kinds, where low battery makes GPU-heavy games a poor pick (not every battery device). */
+const BATTERY_AWARE_KINDS = new Set(['steam-deck', 'rog-ally']);
 const LOW_BATTERY_PCT = 40;
 
-/** True for device kinds that run on a battery (the only ones where battery level matters). */
-export const isHandheldKind = (kind: string) => HANDHELD_KINDS.has(kind);
+/** True for kinds where battery level changes the ranking. */
+export const isBatteryAwareKind = (kind: string) => BATTERY_AWARE_KINDS.has(kind);
 /** A game wanting more than this share of the device's GPU is heavy on battery. */
 const HEAVY_GPU_SHARE = 0.7;
 /** Vocab tags of games played in short runs (the taste vocab has no arcade tag). */
@@ -71,7 +71,7 @@ export function batteryMatters(device: SessionDevice | null, batteryPct: number 
     device !== null &&
     batteryPct !== undefined &&
     batteryPct < LOW_BATTERY_PCT &&
-    isHandheldKind(device.kind)
+    isBatteryAwareKind(device.kind)
   );
 }
 

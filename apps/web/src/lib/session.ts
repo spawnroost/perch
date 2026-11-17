@@ -1,6 +1,6 @@
 /** Quick session logic: which device and params a session query uses. */
 import type { DeviceView, SessionQuery } from '@perch/core';
-import { isHandheldKind } from '@perch/core/session';
+import { isBatteryAwareKind } from '@perch/core/session';
 
 export const SESSION_MINUTES = [15, 30, 60, 120] as const;
 export const DEFAULT_SESSION_MINUTES = 30;
@@ -13,9 +13,9 @@ export function sessionDevice(
   return devices.find((d) => d.id === pickedId) ?? devices.find((d) => d.isDefault) ?? devices[0];
 }
 
-/** Battery only matters on handheld kinds, so the slider is hidden elsewhere. */
+/** Battery only matters on battery-aware kinds, so the slider is hidden elsewhere. */
 export const showBattery = (device: DeviceView | undefined): boolean =>
-  device !== undefined && isHandheldKind(device.kind);
+  device !== undefined && isBatteryAwareKind(device.kind);
 
 /** A Battery API level (0-1) as a whole percent; undefined when it is not a number. */
 export function batteryPercent(level: number): number | undefined {
@@ -24,15 +24,36 @@ export function batteryPercent(level: number): number | undefined {
 
 type BatteryNav = { getBattery?: () => Promise<{ level: number }> };
 
-/** Current battery percent from `navigator.getBattery()`; undefined when unsupported or denied. */
-export async function readBatteryPercent(nav: object): Promise<number | undefined> {
+export const BATTERY_READ_TIMEOUT_MS = 800;
+
+/**
+ * Current battery percent from `navigator.getBattery()`; undefined when unsupported, denied, or
+ * not settled within `timeoutMs` (the promise can hang).
+ */
+export async function readBatteryPercent(
+  nav: object,
+  timeoutMs = BATTERY_READ_TIMEOUT_MS,
+): Promise<number | undefined> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<undefined>((resolve) => {
+    timer = setTimeout(() => resolve(undefined), timeoutMs);
+  });
   try {
-    const battery = await (nav as BatteryNav).getBattery?.();
-    return battery ? batteryPercent(battery.level) : undefined;
+    const read = (async () => {
+      const battery = await (nav as BatteryNav).getBattery?.();
+      return battery ? batteryPercent(battery.level) : undefined;
+    })();
+    return await Promise.race([read, timeout]);
   } catch {
     return undefined;
+  } finally {
+    clearTimeout(timer);
   }
 }
+
+/** Shelf title for the session a query asked for (not the controls' current minutes). */
+export const sessionTitle = (query: SessionQuery, deviceName: string): string =>
+  `Fits ${query.minutes} min on ${deviceName}`;
 
 /** Query for `/api/session`; battery is sent only for a handheld. Null without a device. */
 export function sessionParams({

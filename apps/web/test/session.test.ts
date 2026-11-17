@@ -5,6 +5,7 @@ import {
   readBatteryPercent,
   sessionDevice,
   sessionParams,
+  sessionTitle,
   showBattery,
   SESSION_MINUTES,
 } from '../src/lib/session.js';
@@ -78,6 +79,23 @@ describe('readBatteryPercent', () => {
     expect(await readBatteryPercent({ getBattery: () => Promise.reject(new Error('no')) })).toBe(
       undefined,
     );
+  });
+});
+
+describe('readBatteryPercent timeout', () => {
+  it('gives up when getBattery never settles', async () => {
+    const nav = { getBattery: () => new Promise<{ level: number }>(() => undefined) };
+    expect(await readBatteryPercent(nav, 20)).toBeUndefined();
+  });
+  it('still returns a fast read', async () => {
+    const nav = { getBattery: () => Promise.resolve({ level: 0.8 }) };
+    expect(await readBatteryPercent(nav, 20)).toBe(80);
+  });
+});
+
+describe('sessionTitle', () => {
+  it('names the minutes and device of the query', () => {
+    expect(sessionTitle({ minutes: 60, deviceId: 'd' }, 'Deck')).toBe('Fits 60 min on Deck');
   });
 });
 

@@ -12,12 +12,12 @@ export function removesFromPicks(kind: FeedbackKind): boolean {
   return kind !== 'up';
 }
 
-export function dropRecommendation(
-  data: RecommendationsResponse | undefined,
+export function dropRecommendation<T extends RecommendationsResponse>(
+  data: T | undefined,
   igdbId: number,
-): RecommendationsResponse | undefined {
+): T | undefined {
   if (!data) return data;
-  return { recommendations: data.recommendations.filter((r) => r.game.igdbId !== igdbId) };
+  return { ...data, recommendations: data.recommendations.filter((r) => r.game.igdbId !== igdbId) };
 }
 
 /** One game's feedback in the map; `undefined` clears it. */

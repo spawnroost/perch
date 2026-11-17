@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { rankForSession, type SessionRec } from '../../src/engine/session.js';
+import {
+  batteryMatters,
+  isBatteryAwareKind,
+  rankForSession,
+  type SessionRec,
+} from '../../src/engine/session.js';
 import type { TimeToBeatHours } from '../../src/igdb/time-to-beat.js';
 import { game } from './fixtures.js';
 
@@ -123,5 +128,21 @@ describe('rankForSession', () => {
     expect(out.map((r) => r.game.igdbId)).toEqual([a.game.igdbId, b.game.igdbId]);
     expect(input[0]).toBe(b);
     expect(input[0]).not.toHaveProperty('sessionReason');
+  });
+});
+
+describe('isBatteryAwareKind / batteryMatters', () => {
+  it('is true only for PC handheld kinds', () => {
+    expect(isBatteryAwareKind('steam-deck')).toBe(true);
+    expect(isBatteryAwareKind('rog-ally')).toBe(true);
+    expect(isBatteryAwareKind('pc')).toBe(false);
+    expect(isBatteryAwareKind('switch')).toBe(false);
+  });
+  it('matters only below 40% on a battery-aware device', () => {
+    expect(batteryMatters(deck, 30)).toBe(true);
+    expect(batteryMatters(deck, 40)).toBe(false);
+    expect(batteryMatters(deck, undefined)).toBe(false);
+    expect(batteryMatters(pc, 10)).toBe(false);
+    expect(batteryMatters(null, 10)).toBe(false);
   });
 });

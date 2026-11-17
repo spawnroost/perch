@@ -111,9 +111,12 @@ export function useRecommendations(device: string, limit = 5, keepPrevious = fal
 export function useSession(params: SessionQuery | null) {
   return useQuery({
     queryKey: queryKeys.session(params),
-    queryFn: ({ signal }) =>
-      api.get<SessionResponse>('/api/session', { query: { ...params }, signal }),
-    select: (data) => data.recommendations,
+    queryFn: async ({ signal }) => {
+      if (!params) throw new Error('No session params');
+      const res = await api.get<SessionResponse>('/api/session', { query: { ...params }, signal });
+      // Carry the params so a title can match the cards (not the controls) under keepPreviousData.
+      return { ...res, query: params };
+    },
     enabled: params !== null,
     placeholderData: keepPreviousData,
   });

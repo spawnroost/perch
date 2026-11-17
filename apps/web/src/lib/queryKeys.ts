@@ -13,5 +13,6 @@ export const queryKeys = {
   recommendationsAll: ['recommendations'] as const,
   /** Under `recommendationsAll`, so library and feedback changes refresh sessions too. */
   session: (q: SessionQuery | null) => ['recommendations', 'session', q] as const,
-  recommendations: (device: string, limit: number) => ['recommendations', device, limit] as const,
+  recommendations: (device: string, limit: number) =>
+    ['recommendations', 'feed', device, limit] as const,
 };

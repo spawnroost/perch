@@ -122,4 +122,17 @@ describe('applyFeedback / revertFeedback', () => {
     revertFeedback(qc, first, prev);
     expect(qc.getQueryData(queryKeys.feedback)).toEqual({ 1: 'played' });
   });
+
+  it('drops a hidden game from session results too, without colliding with a device id', async () => {
+    const qc = new QueryClient();
+    const key = queryKeys.session({ minutes: 30, deviceId: 'd' });
+    qc.setQueryData(queryKeys.recommendations('session', 20), list(1, 2));
+    qc.setQueryData(key, { ...list(1, 2, 3), query: { minutes: 30 } });
+    await applyFeedback(qc, { igdbId: 2, kind: 'not_interested', undo: false });
+    const ids = (k: readonly unknown[]) =>
+      qc.getQueryData<RecommendationsResponse>(k)?.recommendations.map((r) => r.game.igdbId);
+    expect(ids(key)).toEqual([1, 3]);
+    expect(ids(queryKeys.recommendations('session', 20))).toEqual([1]);
+    expect(qc.getQueryData<{ query: unknown }>(key)?.query).toEqual({ minutes: 30 });
+  });
 });
