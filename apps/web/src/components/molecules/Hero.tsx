@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react';
-import { motion } from 'motion/react';
-import { useLauncherSpring } from '@/hooks/useMotionPrefs';
+import { AnimatePresence, motion } from 'motion/react';
+import { useLoadedImage } from '@/hooks/useLoadedImage';
+import { useReduced } from '@/hooks/useMotionPrefs';
 import { accentStyle } from '@/lib/accent';
 import { cn } from '@/lib/cn';
+import { heroImageMotion } from '@/lib/motion';
 
 export type HeroProps = {
   title: string;
@@ -34,7 +36,9 @@ export function Hero({
   overlay,
   className,
 }: HeroProps) {
-  const transition = useLauncherSpring('hero');
+  const art = heroImageMotion(useReduced());
+  // The old art stays until the new art has loaded, then they crossfade.
+  const shownUrl = useLoadedImage(heroUrl);
   return (
     <header
       style={accentStyle(accent)}
@@ -44,22 +48,22 @@ export function Hero({
       )}
     >
       <div aria-hidden className="absolute inset-0 -z-10 bg-surface-1">
-        {heroUrl ? (
-          <div className="absolute inset-0 motion-safe:animate-hero-drift">
-            <motion.img
-              key={heroUrl}
-              src={heroUrl}
-              alt=""
-              loading="eager"
-              fetchPriority="high"
-              decoding="async"
-              initial={{ opacity: 0, scale: 1.12 }}
-              animate={{ opacity: 1, scale: 1.08 }}
-              transition={transition}
-              className="size-full object-cover blur-hero"
-            />
-          </div>
-        ) : null}
+        <div className="absolute inset-0 motion-safe:animate-hero-drift">
+          <AnimatePresence mode="popLayout">
+            {shownUrl ? (
+              <motion.img
+                key={shownUrl}
+                src={shownUrl}
+                alt=""
+                loading="eager"
+                fetchPriority="high"
+                decoding="async"
+                {...art}
+                className="size-full object-cover blur-hero"
+              />
+            ) : null}
+          </AnimatePresence>
+        </div>
         {/* The accent lights the art from the lower left instead of recolouring it. */}
         <div
           className={cn(

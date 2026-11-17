@@ -16,7 +16,7 @@ import { accentStyle } from '@/lib/accent';
 import { withCardWidth } from '@/lib/cardWidth';
 import { cn } from '@/lib/cn';
 import { coverImage } from '@/lib/coverSrcSet';
-import { LIFT_PX, SPRINGS, tiltFromPointer } from '@/lib/motion';
+import { fadeTransition, FADE_MS, LIFT_PX, SPRINGS, tiltFromPointer } from '@/lib/motion';
 
 export type GameCardProps = {
   title: string;
@@ -37,6 +37,8 @@ export type GameCardProps = {
   to?: string;
   /** img sizes hint when the caller overrides the default card width. */
   sizes?: string;
+  /** Fades the card in on mount (short opacity tween), for cards that return without a cover flight. */
+  fadeIn?: boolean;
   /** Shimmer placeholder while the game loads. */
   skeleton?: boolean;
   className?: string;
@@ -71,6 +73,7 @@ export function GameCard({
   glow,
   actions,
   layoutId,
+  fadeIn,
   to,
   sizes = COVER_SIZES,
   skeleton,
@@ -125,8 +128,11 @@ export function GameCard({
   };
 
   return (
-    <div
+    <motion.div
       style={accentStyle(accent)}
+      initial={fadeIn ? { opacity: 0 } : false}
+      animate={{ opacity: 1 }}
+      transition={fadeTransition(reduced, FADE_MS.cards)}
       onPointerEnter={() => setHovered(true)}
       onPointerMove={handlePointerMove}
       onPointerLeave={() => {
@@ -197,6 +203,6 @@ export function GameCard({
           {actions}
         </div>
       ) : null}
-    </div>
+    </motion.div>
   );
 }

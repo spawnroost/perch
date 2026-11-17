@@ -3,6 +3,10 @@ import {
   SPRINGS,
   TILT_MAX_DEG,
   coverLayoutId,
+  FADE_MS,
+  fadeTransition,
+  heroImageMotion,
+  HERO_SCALE,
   firstOfEach,
   resolveSpring,
   tiltFromPointer,
@@ -67,6 +71,42 @@ describe('coverLayoutId', () => {
   it('is stable per game and unset when reduced', () => {
     expect(coverLayoutId(42, false)).toBe('cover-42');
     expect(coverLayoutId(42, true)).toBeUndefined();
+  });
+
+  it('is unset when suppressed (history back lands without a flight)', () => {
+    expect(coverLayoutId(42, false, true)).toBeUndefined();
+    expect(coverLayoutId(42, false, false)).toBe('cover-42');
+  });
+});
+
+describe('fadeTransition', () => {
+  it('is an opacity-friendly tween in seconds, shorter under reduced motion', () => {
+    expect(fadeTransition(false)).toEqual({ type: 'tween', duration: FADE_MS.base / 1000 });
+    expect(fadeTransition(true)).toEqual({ type: 'tween', duration: FADE_MS.reduced / 1000 });
+    expect(fadeTransition(false, FADE_MS.cards).duration).toBeCloseTo(0.15);
+  });
+
+  it('returns shared objects', () => {
+    expect(fadeTransition(false)).toBe(fadeTransition(false));
+    expect(fadeTransition(true)).toBe(fadeTransition(true));
+  });
+});
+
+describe('heroImageMotion', () => {
+  it('fades and settles the scale with a tween when motion is allowed', () => {
+    const m = heroImageMotion(false);
+    expect(m.initial.opacity).toBe(0);
+    expect(m.initial.scale).toBeGreaterThan(HERO_SCALE);
+    expect(m.animate).toEqual({ opacity: 1, scale: HERO_SCALE });
+    expect(m.exit).toEqual({ opacity: 0 });
+    expect(m.transition.type).toBe('tween');
+  });
+
+  it('is opacity only under reduced motion (scale held constant, no transform animation)', () => {
+    const m = heroImageMotion(true);
+    expect(m.initial.scale).toBe(HERO_SCALE);
+    expect(m.animate.scale).toBe(HERO_SCALE);
+    expect(m.transition.duration).toBeCloseTo(FADE_MS.reduced / 1000);
   });
 });
 

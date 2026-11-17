@@ -33,6 +33,7 @@ import {
   revertFeedback,
   type FeedbackMap,
 } from '@/lib/feedback';
+import { seedGameDetail } from '@/lib/gameSeed';
 import { devicesAffected, libraryAffected } from '@/lib/invalidation';
 import { queryKeys } from '@/lib/queryKeys';
 
@@ -106,11 +107,21 @@ export function useDeviceRecommendations(deviceIds: readonly string[], limit = 5
   return useQueries({ queries: deviceIds.map((device) => recommendationsQuery(device, limit)) });
 }
 
+/** Seeded from the recommendation or library caches (placeholder data) so the cover shows on the first frame. */
 export function useGameDetail(igdbId: number | null) {
-  return useQuery({
+  const qc = useQueryClient();
+  return useQuery<GameDetailResponse>({
     queryKey: queryKeys.game(igdbId ?? 0),
     queryFn: ({ signal }) => api.get<GameDetailResponse>(`/api/games/${igdbId}`, { signal }),
     enabled: igdbId !== null,
+    placeholderData: () => {
+      if (igdbId === null) return undefined;
+      const feeds = qc
+        .getQueriesData<RecommendationsResponse>({ queryKey: queryKeys.recommendationsAll })
+        .map(([, data]) => data?.recommendations);
+      const library = qc.getQueryData<{ entries: LibraryEntry[] }>(queryKeys.library)?.entries;
+      return seedGameDetail(igdbId, feeds, library);
+    },
   });
 }
 

@@ -7,11 +7,28 @@ import { useAddToLibrary, useFeedback, useGameDetail, useLibrary } from '@/hooks
 import { useReduced } from '@/hooks/useMotionPrefs';
 import { ApiError } from '@/lib/api';
 import { coverImage } from '@/lib/coverSrcSet';
-import { coverLayoutId } from '@/lib/motion';
+import { coverLayoutId, fadeTransition } from '@/lib/motion';
 import { releaseYear } from '@/lib/onboarding';
 import { platformChips } from '@/lib/forYou';
 import { platformNames } from '@/lib/platforms';
 import { timeToBeatLabel } from '@/lib/timeToBeat';
+
+/** Sized once so the loading skeleton and the loaded cover are the same shared-element target. */
+const COVER_BOX = 'w-32 shrink-0 sm:w-40 md:w-55';
+
+/** Fades its content in when it first appears (keyed swaps from placeholder to real data included). */
+function Reveal({ skip, children }: { skip?: boolean; children: React.ReactNode }) {
+  const reduced = useReduced();
+  return (
+    <motion.div
+      initial={skip ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={fadeTransition(reduced)}
+    >
+      {children}
+    </motion.div>
+  );
+}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -60,7 +77,7 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
       <>
         {standaloneBack}
         <div className="flex gap-4 px-gutter" aria-busy>
-          <motion.div layoutId={layoutId} className="w-40 shrink-0">
+          <motion.div layoutId={layoutId} className={COVER_BOX}>
             <Skeleton className="aspect-3/4 w-full" />
           </motion.div>
           <Skeleton className="h-32 flex-1" />
@@ -82,6 +99,8 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
     );
   }
 
+  // Placeholder data comes from the clicked card: art and fit, but no summary or reasons yet.
+  const seeded = detail.isPlaceholderData;
   const { game, fit, deck, why, timeToBeat } = detail.data;
   const toBeat = timeToBeatLabel(timeToBeat);
   const year = releaseYear(game.firstRelease);
@@ -98,7 +117,7 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
         heroUrl={game.heroUrl}
         accent={game.accent}
         cover={
-          <motion.div layoutId={layoutId} className="w-32 shrink-0 sm:w-40 md:w-55">
+          <motion.div layoutId={layoutId} className={COVER_BOX}>
             <Cover
               src={image?.src ?? null}
               srcSet={image?.srcSet}
@@ -155,51 +174,68 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
         <div className="flex max-w-3xl flex-col gap-8">
           {add.isError && <Notice tone="error">{add.error.message}</Notice>}
           {feedbackError && <Notice tone="error">{feedbackError.message}</Notice>}
-          {game.summary && (
-            <Section title="About">
-              <p className="text-base text-fg">{game.summary}</p>
-            </Section>
-          )}
+          {seeded ? (
+            <Skeleton className="h-40 w-full" aria-busy />
+          ) : (
+            <Reveal>
+              <div className="flex flex-col gap-8">
+                {game.summary && (
+                  <Section title="About">
+                    <p className="text-base text-fg">{game.summary}</p>
+                  </Section>
+                )}
 
-          <Section title="Why it's recommended">
-            {why.length > 0 ? (
-              <ul className="flex flex-col gap-1">
-                {why.map((line) => (
-                  <li key={line} className="text-base text-fg">
-                    {line}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-base text-fg-muted">
-                Nothing in your library points to this game yet. Add more games with hours played.
-              </p>
-            )}
-          </Section>
+                <Section title="Why it's recommended">
+                  {why.length > 0 ? (
+                    <ul className="flex flex-col gap-1">
+                      {why.map((line) => (
+                        <li key={line} className="text-base text-fg">
+                          {line}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-base text-fg-muted">
+                      Nothing in your library points to this game yet. Add more games with hours
+                      played.
+                    </p>
+                  )}
+                </Section>
+              </div>
+            </Reveal>
+          )}
         </div>
 
         <aside className="lg:sticky lg:top-16 lg:self-start">
-          <Section title="Will it run">
-            {fit.length > 0 ? (
-              <ul className="overflow-hidden rounded-lg border border-line bg-surface-1">
-                {fit.map((f) => (
-                  <FitDetailRow
-                    key={f.deviceId}
-                    deviceName={f.deviceName}
-                    status={f.status}
-                    reason={f.reason}
-                  />
-                ))}
-              </ul>
-            ) : (
-              <Notice>
-                <Link to="/devices" className="text-fg underline underline-offset-4">
-                  Add a device
-                </Link>{' '}
-                to see whether it runs.
-              </Notice>
-            )}
-          </Section>
+          {seeded && fit.length === 0 ? (
+            <Section title="Will it run">
+              <Skeleton className="h-24 w-full" aria-busy />
+            </Section>
+          ) : (
+            <Reveal skip={seeded}>
+              <Section title="Will it run">
+                {fit.length > 0 ? (
+                  <ul className="overflow-hidden rounded-lg border border-line bg-surface-1">
+                    {fit.map((f) => (
+                      <FitDetailRow
+                        key={f.deviceId}
+                        deviceName={f.deviceName}
+                        status={f.status}
+                        reason={f.reason}
+                      />
+                    ))}
+                  </ul>
+                ) : (
+                  <Notice>
+                    <Link to="/devices" className="text-fg underline underline-offset-4">
+                      Add a device
+                    </Link>{' '}
+                    to see whether it runs.
+                  </Notice>
+                )}
+              </Section>
+            </Reveal>
+          )}
         </aside>
       </div>
     </div>

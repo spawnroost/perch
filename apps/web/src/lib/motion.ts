@@ -55,8 +55,44 @@ export function tiltFromPointer(x: number, y: number, rect: Rect, reduced: boole
 }
 
 /** Shared-element id linking a card's cover to the detail cover; unset when reduced (no layout animation). */
-export function coverLayoutId(igdbId: number, reduced: boolean): string | undefined {
-  return reduced ? undefined : `cover-${igdbId}`;
+export function coverLayoutId(
+  igdbId: number,
+  reduced: boolean,
+  suppressed = false,
+): string | undefined {
+  return reduced || suppressed ? undefined : `cover-${igdbId}`;
+}
+
+/** Opacity tween lengths in ms: ordinary fades, the shorter reduced-motion fade, and cards returning on history back. */
+export const FADE_MS = { base: 200, reduced: 120, cards: 150 } as const;
+
+export type FadeTransition = { type: 'tween'; duration: number };
+
+const FADES = new Map<number, FadeTransition>();
+
+/** Opacity-only tween (no transforms); reduced motion always uses the shorter `FADE_MS.reduced`. */
+export function fadeTransition(reduced: boolean, ms: number = FADE_MS.base): FadeTransition {
+  const key = reduced ? FADE_MS.reduced : ms;
+  let t = FADES.get(key);
+  if (!t) {
+    t = { type: 'tween', duration: key / 1000 };
+    FADES.set(key, t);
+  }
+  return t;
+}
+
+/** Resting scale of the hero art (hides the blurred edge); the entrance starts a touch larger. */
+export const HERO_SCALE = 1.08;
+const HERO_ENTER_SCALE = 1.1;
+
+/** Hero image entrance and exit: opacity tween plus a subtle settle; opacity only when reduced. */
+export function heroImageMotion(reduced: boolean) {
+  return {
+    initial: { opacity: 0, scale: reduced ? HERO_SCALE : HERO_ENTER_SCALE },
+    animate: { opacity: 1, scale: HERO_SCALE },
+    exit: { opacity: 0 },
+    transition: fadeTransition(reduced),
+  };
 }
 
 /**

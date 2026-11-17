@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useNavigationType } from 'react-router';
 import type { DeviceView } from '@perch/core';
 import { Button, Notice, Skeleton } from '../atoms';
 import { FeedbackActions, FitChips, GameCard, Hero, LoadError, Shelf } from '../molecules';
@@ -39,6 +39,9 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
   const { feedback, send, error } = useFeedback();
   const navigate = useNavigate();
   const reduced = useReduced();
+  // Coming back from a detail page the cover would fly into a card clipped by the shelf scroller, so
+  // the cards fade in instead of sharing the cover.
+  const popped = useNavigationType() === 'POP';
   const deckDevice = hasDeckDevice(devices);
   const deviceFeeds = useDeviceRecommendations(
     devices.map((d) => d.id),
@@ -131,8 +134,11 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
                     <FeedbackActions value={feedback[id]} onSend={(kind) => send(id, kind)} />
                   }
                   layoutId={
-                    owners.has(cardKey(shelf.id, id)) ? coverLayoutId(id, reduced) : undefined
+                    owners.has(cardKey(shelf.id, id))
+                      ? coverLayoutId(id, reduced, popped)
+                      : undefined
                   }
+                  fadeIn={popped}
                   onClick={() => open(id)}
                 />
               );
