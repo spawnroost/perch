@@ -13,10 +13,12 @@ export type PickGridProps = {
   deviceId: string;
   feedback: FeedbackMap;
   onSend: (igdbId: number, kind: FeedbackKind) => void;
+  /** Optional line under each title, e.g. the tags a pick shares with a seed game. */
+  metaFor?: (pick: Recommendation) => string | undefined;
 };
 
 /** Picks as a cover grid with the feedback and "More like this" overlay on each card. */
-export function PickGrid({ picks, devices, deviceId, feedback, onSend }: PickGridProps) {
+export function PickGrid({ picks, devices, deviceId, feedback, onSend, metaFor }: PickGridProps) {
   const cardReturn = useCardReturn();
   return (
     <ul className={CARD_GRID}>
@@ -30,6 +32,7 @@ export function PickGrid({ picks, devices, deviceId, feedback, onSend }: PickGri
               coverUrlSmall={r.game.coverUrlSmall}
               accent={r.game.accent}
               chips={cardChips(r, devices, deviceId)}
+              meta={metaFor?.(r)}
               sizes={CARD_GRID_SIZES}
               layoutId={cardReturn.coverId(id)}
               fadeIn={cardReturn.fadeIn}

@@ -4,6 +4,7 @@ import { PickGridPage } from './PickGridPage';
 import { useFeedback, useSimilar } from '@/hooks/queries';
 import { useResolvedDevice } from '@/hooks/useResolvedDevice';
 import { ApiError } from '@/lib/api';
+import { likeMeta } from '@/lib/forYou';
 
 export type SimilarGamesProps = {
   igdbId: number;
@@ -39,6 +40,7 @@ export function SimilarGames({ igdbId, device }: SimilarGamesProps) {
           deviceId={deviceId}
           feedback={feedback}
           onSend={send}
+          metaFor={name ? (r) => likeMeta(r.reason, name) : undefined}
         />
       )}
     </PickGridPage>

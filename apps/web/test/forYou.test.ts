@@ -25,6 +25,7 @@ import {
   platformChips,
   pickChips,
   type Recommendation,
+  likeMeta,
 } from '../src/lib/forYou.js';
 import { platformNames } from '../src/lib/platforms.js';
 
@@ -436,5 +437,21 @@ describe('similarPath', () => {
   it('routes to the More like this grid; the device rides along unless it is All', () => {
     expect(similarPath(42, ALL_TAB)).toBe('/for-you/like/42');
     expect(similarPath(42, 'dev 1')).toBe('/for-you/like/42?device=dev%201');
+  });
+});
+
+describe('likeMeta', () => {
+  it('keeps only the shared tags after the seed name, even when the name has a colon', () => {
+    expect(likeMeta('Like Hades II: Roguelike, Mythology', 'Hades II')).toBe(
+      'Roguelike, Mythology',
+    );
+    expect(
+      likeMeta('Like Middle-earth: Shadow of Mordor: Open world', 'Middle-earth: Shadow of Mordor'),
+    ).toBe('Open world');
+  });
+
+  it('returns undefined when there are no shared tags or the reason is for another seed', () => {
+    expect(likeMeta('Like Hades II', 'Hades II')).toBeUndefined();
+    expect(likeMeta('Similar to Hades: Roguelike', 'Hades II')).toBeUndefined();
   });
 });

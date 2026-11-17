@@ -253,3 +253,9 @@ export function layoutOwners(shelves: readonly Pick<PickShelf, 'id' | 'picks'>[]
   );
   return new Set([...firstOfEach(cards, (c) => c.igdbId)].map((c) => c.key));
 }
+
+/** Shared tags from a "Like <seed>: <tags>" reason (the page title already names the seed). */
+export function likeMeta(reason: string, seedName: string): string | undefined {
+  const prefix = `Like ${seedName}: `;
+  return reason.startsWith(prefix) ? reason.slice(prefix.length) || undefined : undefined;
+}

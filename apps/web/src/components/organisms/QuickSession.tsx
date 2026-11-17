@@ -88,7 +88,7 @@ export function QuickSession({ devices }: { devices: readonly DeviceView[] }) {
         title="Quick session"
         description="Games that fit the time you have."
       >
-        <div className="no-scrollbar flex min-h-0 flex-col gap-5 overflow-y-auto">
+        <div className="no-scrollbar flex min-h-0 flex-col gap-5 overflow-y-auto [&>*]:shrink-0">
           <div className="flex flex-col gap-1.5">
             <p className="text-sm font-medium text-fg">Where are you playing?</p>
             <DeviceSwitcher
