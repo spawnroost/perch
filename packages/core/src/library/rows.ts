@@ -8,8 +8,8 @@ export function buildGameRow(
   now: Date = new Date(),
 ): typeof games.$inferInsert {
   // The accent column belongs to the cache's background filler; writing it here could erase it.
-  const columns: Omit<Game, 'accent'> & { accent?: string | null } = { ...game };
-  delete columns.accent;
+  const { accent, ...columns } = game;
+  void accent;
   return { ...columns, vocab, fetchedAt: now };
 }
 

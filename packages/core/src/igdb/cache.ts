@@ -64,6 +64,17 @@ function toGame(row: typeof games.$inferSelect): Game {
   };
 }
 
+/** Runs `query` over id batches (Postgres caps bind parameters) and concatenates the rows. */
+async function inBatches<T>(
+  ids: readonly number[],
+  query: (batch: number[]) => Promise<T[]>,
+  size = 1000,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let i = 0; i < ids.length; i += size) out.push(...(await query(ids.slice(i, i + size))));
+  return out;
+}
+
 export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
   const { db, client, ttlMs = CACHE_TTL_MS, now = () => new Date(), mapVocab, accentFor } = opts;
   const accentQueue = opts.accentQueue ?? sharedAccentQueue;
@@ -114,7 +125,7 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
   async function upsertGames(input: Game[]): Promise<Game[]> {
     if (input.length === 0) return [];
     const fetchedAt = now();
-    const stored = new Map<number, { accent: string | null }>();
+    const storedAccent = new Map<number, string | null>();
     const todo: Array<{ igdbId: number; url: string }> = [];
     // Sorted so concurrent upserts lock rows in the same order.
     const list = [...input].sort((a, b) => a.igdbId - b.igdbId);
@@ -170,14 +181,14 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
           coverUrlSmall: games.coverUrlSmall,
         });
       for (const r of rows) {
-        stored.set(r.igdbId, { accent: r.accent });
+        storedAccent.set(r.igdbId, r.accent);
         if (r.coverUrlSmall && r.accentSource !== r.coverUrlSmall) {
           todo.push({ igdbId: r.igdbId, url: r.coverUrlSmall });
         }
       }
     }
     fillAccents(todo);
-    return input.map((g) => ({ ...g, accent: stored.get(g.igdbId)?.accent ?? null }));
+    return input.map((g) => ({ ...g, accent: storedAccent.get(g.igdbId) ?? null }));
   }
 
   async function getGames(igdbIds: readonly number[]): Promise<Game[]> {
@@ -185,14 +196,11 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
     if (ids.length === 0) return [];
     const found = new Map<number, Game>();
     const stale = new Map<number, Game>();
-    for (let i = 0; i < ids.length; i += 1000) {
-      const rows = await db
-        .select()
-        .from(games)
-        .where(inArray(games.igdbId, ids.slice(i, i + 1000)));
-      for (const row of rows) {
-        (isFresh(row.fetchedAt) ? found : stale).set(row.igdbId, toGame(row));
-      }
+    const rows = await inBatches(ids, (batch) =>
+      db.select().from(games).where(inArray(games.igdbId, batch)),
+    );
+    for (const row of rows) {
+      (isFresh(row.fetchedAt) ? found : stale).set(row.igdbId, toGame(row));
     }
     const missing = ids.filter((id) => !found.has(id));
     if (missing.length > 0) {
@@ -256,34 +264,34 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
 
   async function backfillArt(): Promise<{ checked: number; updated: number }> {
     const snapshot = async (ids: number[]) => {
-      const out = new Map<number, string>();
-      for (let i = 0; i < ids.length; i += 1000) {
-        const rows = await db
+      const rows = await inBatches(ids, (batch) =>
+        db
           .select({ id: games.igdbId, hero: games.heroUrl, accent: games.accent })
           .from(games)
-          .where(inArray(games.igdbId, ids.slice(i, i + 1000)));
-        for (const r of rows) out.set(r.id, `${r.hero}|${r.accent}`);
-      }
-      return out;
+          .where(inArray(games.igdbId, batch)),
+      );
+      return new Map(rows.map((r) => [r.id, `${r.hero}|${r.accent}`]));
     };
-    const unchecked = await db
-      .select({ id: games.igdbId })
-      .from(games)
-      .where(isNull(games.artCheckedAt))
-      .orderBy(games.igdbId);
-    // Art already fetched but the accent never settled for the current cover.
-    const needAccent = accentFor
-      ? await db
-          .select({ id: games.igdbId, url: games.coverUrlSmall })
-          .from(games)
-          .where(
-            and(
-              isNotNull(games.artCheckedAt),
-              isNotNull(games.coverUrlSmall),
-              or(isNull(games.accentSource), ne(games.accentSource, games.coverUrlSmall)),
-            ),
-          )
-      : [];
+    const [unchecked, needAccent] = await Promise.all([
+      db
+        .select({ id: games.igdbId })
+        .from(games)
+        .where(isNull(games.artCheckedAt))
+        .orderBy(games.igdbId),
+      // Art already fetched but the accent never settled for the current cover.
+      accentFor
+        ? db
+            .select({ id: games.igdbId, url: games.coverUrlSmall })
+            .from(games)
+            .where(
+              and(
+                isNotNull(games.artCheckedAt),
+                isNotNull(games.coverUrlSmall),
+                or(isNull(games.accentSource), ne(games.accentSource, games.coverUrlSmall)),
+              ),
+            )
+        : Promise.resolve([]),
+    ]);
     const ids = [...unchecked.map((r) => r.id), ...needAccent.map((r) => r.id)];
     const before = await snapshot(ids);
     if (unchecked.length > 0) {
