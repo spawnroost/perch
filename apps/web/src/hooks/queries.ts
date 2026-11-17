@@ -1,7 +1,6 @@
 import {
   keepPreviousData,
   useMutation,
-  useQueries,
   useQuery,
   useQueryClient,
   type QueryClient,
@@ -98,13 +97,12 @@ function recommendationsQuery(device: string, limit: number) {
   };
 }
 
-export function useRecommendations(device: string, limit = 5) {
-  return useQuery(recommendationsQuery(device, limit));
-}
-
-/** One server-ranked feed per device (same cache keys as useRecommendations), in the given order. */
-export function useDeviceRecommendations(deviceIds: readonly string[], limit = 5) {
-  return useQueries({ queries: deviceIds.map((device) => recommendationsQuery(device, limit)) });
+/** `keepPrevious` shows the last feed while another device's loads (no skeleton flash on switch). */
+export function useRecommendations(device: string, limit = 5, keepPrevious = false) {
+  return useQuery({
+    ...recommendationsQuery(device, limit),
+    ...(keepPrevious ? { placeholderData: keepPreviousData } : {}),
+  });
 }
 
 /** Seeded from the recommendation or library caches (placeholder data) so the cover shows on the first frame. */

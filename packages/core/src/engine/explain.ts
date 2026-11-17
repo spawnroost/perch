@@ -8,6 +8,8 @@ export interface ExplainRequest {
   library: readonly EngineGame[];
   /** Per-tag idf weights; rare tags count more. Absent = all tags weigh 1. */
   idf?: Readonly<Record<string, number>>;
+  /** The library game closest to `game`, when the caller already found it (null = none). Absent = provider searches. */
+  closest?: EngineGame | null;
 }
 
 /** Turns ranked games into one short reason each; results are in request order. */
@@ -21,11 +23,11 @@ export const MAX_SHARED_LABELS = 3;
 export const GENERIC_REASON = 'Matches your overall taste profile';
 
 /** The library game most similar to `game` (never itself); null when none shares any vocab. */
-export function closestSource(
+export function closestGame(
   game: EngineGame,
   library: readonly EngineGame[],
   idf?: Readonly<Record<string, number>>,
-): { igdbId: number; name: string } | null {
+): EngineGame | null {
   let closest: EngineGame | undefined;
   let best = 0;
   for (const lib of library) {
@@ -36,6 +38,16 @@ export function closestSource(
       closest = lib;
     }
   }
+  return closest ?? null;
+}
+
+/** `closestGame`, trimmed to what a recommendation exposes. */
+export function closestSource(
+  game: EngineGame,
+  library: readonly EngineGame[],
+  idf?: Readonly<Record<string, number>>,
+): { igdbId: number; name: string } | null {
+  const closest = closestGame(game, library, idf);
   return closest ? { igdbId: closest.igdbId, name: closest.name } : null;
 }
 
@@ -46,9 +58,8 @@ export function createNoneProvider(opts: {
   return {
     name: 'none',
     async explain(requests) {
-      return requests.map(({ game, library, idf }) => {
-        const source = closestSource(game, library, idf);
-        const closest = source && library.find((l) => l.igdbId === source.igdbId);
+      return requests.map(({ game, library, idf, closest: given }) => {
+        const closest = given === undefined ? closestGame(game, library, idf) : given;
         if (!closest) return GENERIC_REASON;
         const shared = Object.entries(game.vocab)
           .map(([id, v]) => [id, v * (closest.vocab[id] ?? 0) * (idf?.[id] ?? 1)] as const)

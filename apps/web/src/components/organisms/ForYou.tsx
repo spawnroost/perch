@@ -11,13 +11,9 @@ import {
   LoadError,
   Shelf,
 } from '../molecules';
-import {
-  useDeviceRecommendations,
-  useDevices,
-  useFeedback,
-  useRecommendations,
-} from '@/hooks/queries';
+import { useDevices, useFeedback, useRecommendations } from '@/hooks/queries';
 import { useCardReturn } from '@/hooks/useCardReturn';
+import { hasDeckDevice } from '@/lib/devices';
 import {
   ALL_TAB,
   buildShelves,
@@ -47,13 +43,13 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
   const { feedback, send, error } = useFeedback();
   const navigate = useNavigate();
   const cardReturn = useCardReturn();
-  const [selected, setSelected] = useState(ALL_TAB);
+  const [picked, setPicked] = useState(ALL_TAB);
+  // A selection whose device was removed falls back to All.
+  const selectedDevice = devices.find((d) => d.id === picked);
+  const selected = selectedDevice ? picked : ALL_TAB;
   // The hero is the overall top pick; the shelves follow the selected device's own server-ranked feed.
-  const [shelfFeed] = useDeviceRecommendations([selected], FOR_YOU_LIMIT);
-  const selectedDevice = devices.find((d) => d.id === selected);
-  const deckDevice = selectedDevice
-    ? selectedDevice.kind === 'steam-deck'
-    : devices.some((d) => d.kind === 'steam-deck');
+  const shelfFeed = useRecommendations(selected, FOR_YOU_LIMIT, true);
+  const deckDevice = selectedDevice ? selectedDevice.kind === 'steam-deck' : hasDeckDevice(devices);
 
   if (feed.isPending) return <LauncherSkeleton />;
   if (feed.isError) {
@@ -86,7 +82,7 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
   }
 
   const open = (igdbId: number) => void navigate(`/games/${igdbId}`);
-  const shelves = shelfFeed?.data ? buildShelves(shelfFeed.data, top.game.igdbId) : [];
+  const shelves = shelfFeed.data ? buildShelves(shelfFeed.data, top.game.igdbId) : [];
   const owners = layoutOwners(shelves);
 
   return (
@@ -126,18 +122,23 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
             label="Show picks for"
             options={deviceOptions(devices)}
             value={selected}
-            onChange={setSelected}
+            onChange={setPicked}
           />
         )}
-        {shelfFeed?.isError && (
+        {shelfFeed.isError && (
           <LoadError message={shelfFeed.error.message} onRetry={() => void shelfFeed.refetch()} />
         )}
-        {shelfFeed?.isPending && (
+        {shelfFeed.isPending && (
           <div className="flex gap-4" aria-busy>
             {[0, 1, 2, 3].map((i) => (
               <GameCard key={i} skeleton title="" />
             ))}
           </div>
+        )}
+        {shelfFeed.isSuccess && !shelfFeed.isPlaceholderData && shelves.length === 0 && (
+          <Notice>
+            {selectedDevice ? `Nothing fits ${selectedDevice.name} yet.` : 'No more picks yet.'}
+          </Notice>
         )}
         {shelves.map((shelf) => (
           <Shelf key={shelf.id} title={shelf.title} controls>

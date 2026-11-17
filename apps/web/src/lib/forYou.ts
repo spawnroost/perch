@@ -102,10 +102,13 @@ export interface FitChip {
   tone: Tone;
 }
 
-/** One HUD chip per device: its name and a tone from the will-it-run status. */
+/**
+ * One HUD chip per device: its name and a tone from the will-it-run status. The omitted device's
+ * chip is dropped only when it is green (the feed already implies it runs); otherwise it stays.
+ */
 export function fitChips(fits: readonly DeviceFit[], omitDeviceId?: string): FitChip[] {
   return fits
-    .filter((f) => f.deviceId !== omitDeviceId)
+    .filter((f) => f.deviceId !== omitDeviceId || f.status !== 'green')
     .map((f) => ({ label: f.deviceName, tone: fitDisplay(f.status).tone }));
 }
 
@@ -120,8 +123,10 @@ export interface PickChip extends FitChip {
 export const CARD_CHIP_LIMIT = 2;
 
 /**
- * Card chips for a pick: per-device fit (minus `omitDeviceId`, the selected device), then Backlog and Steam Deck compatibility when set. With a
- * Steam Deck device the fit chip already covers deck status, so the separate Deck chip is dropped.
+ * Card chips for a pick: per-device fit (minus a green `omitDeviceId`, the selected device), then
+ * Backlog and Steam Deck compatibility when set. With a Steam Deck device (`hasDeckDevice`; when
+ * `omitDeviceId` is set, that it is the selected device) the fit chip covers deck status, so the
+ * Deck chip is dropped, unless the selected device's fit is not green.
  */
 export function pickChips(
   rec: Pick<Recommendation, 'fits' | 'backlog' | 'deck'>,
@@ -129,7 +134,10 @@ export function pickChips(
 ): PickChip[] {
   const chips: PickChip[] = fitChips(rec.fits, omitDeviceId);
   if (rec.backlog) chips.push({ label: 'Backlog', tone: 'unknown', plain: true });
-  if (rec.deck && !hasDeckDevice) {
+  const selectedFit = rec.fits.find((f) => f.deviceId === omitDeviceId);
+  const deckCovered =
+    hasDeckDevice && (selectedFit === undefined || selectedFit.status === 'green');
+  if (rec.deck && !deckCovered) {
     const { label, tone } = deckDisplay(rec.deck);
     chips.push({ label: `Deck: ${label}`, tone });
   }

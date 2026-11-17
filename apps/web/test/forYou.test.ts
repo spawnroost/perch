@@ -161,13 +161,26 @@ describe('fitChips', () => {
 });
 
 describe('fitChips omitting a device', () => {
-  it('drops the chip of the selected device', () => {
+  it('drops the chip of the selected device only when its fit is green', () => {
     const fits = [
       { deviceId: 'a', deviceName: 'Laptop', status: 'green', reason: '' },
       { deviceId: 'b', deviceName: 'Deck', status: 'yellow', reason: '' },
     ] as const;
     expect(fitChips(fits, 'a')).toEqual([{ label: 'Deck', tone: 'low' }]);
+    expect(fitChips(fits, 'b')).toHaveLength(2);
     expect(fitChips(fits, ALL_TAB)).toHaveLength(2);
+  });
+
+  it('keeps yellow and unknown chips of the selected device', () => {
+    const fits = [
+      { deviceId: 'a', deviceName: 'Laptop', status: 'yellow', reason: '' },
+      { deviceId: 'b', deviceName: 'PC', status: 'unknown', reason: '' },
+    ] as const;
+    expect(fitChips(fits, 'a')).toEqual([
+      { label: 'Laptop', tone: 'low' },
+      { label: 'PC', tone: 'unknown' },
+    ]);
+    expect(fitChips(fits, 'b')).toHaveLength(2);
   });
 });
 
@@ -196,6 +209,22 @@ describe('pickChips', () => {
     expect(pickChips(rec({ backlog: true }), { omitDeviceId: 'a' })).toEqual([
       { label: 'Backlog', tone: 'unknown', plain: true },
     ]);
+  });
+
+  it('keeps the selected device chip and the Deck chip when the selected Deck fit is not green', () => {
+    const yellow = rec({
+      fits: [{ deviceId: 'a', deviceName: 'Deck', status: 'yellow', reason: '' }],
+      deck: 'playable',
+    });
+    expect(pickChips(yellow, { hasDeckDevice: true, omitDeviceId: 'a' })).toEqual([
+      { label: 'Deck', tone: 'low' },
+      { label: 'Deck: Playable', tone: 'low' },
+    ]);
+    const green = rec({
+      fits: [{ deviceId: 'a', deviceName: 'Deck', status: 'green', reason: '' }],
+      deck: 'verified',
+    });
+    expect(pickChips(green, { hasDeckDevice: true, omitDeviceId: 'a' })).toEqual([]);
   });
 
   it('drops the Deck chip when the user has a Steam Deck device (its fit chip covers it)', () => {

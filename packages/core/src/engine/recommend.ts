@@ -1,5 +1,5 @@
 import { buildCandidates, type CandidateDeps } from './candidates.js';
-import { closestSource, type ExplainProvider } from './explain.js';
+import { closestGame, type ExplainProvider } from './explain.js';
 import {
   bestFit,
   deviceKind,
@@ -162,8 +162,15 @@ export async function recommend(
     top = kept.map((k) => k.item);
     for (const k of kept) fits.set(k.item.game.igdbId, k.fit);
   }
+  const closest = top.map((t) => closestGame(t.game, similarSources, idf));
   const reasons = await deps.explain.explain(
-    top.map((t) => ({ game: t.game, profile, library: similarSources, idf })),
+    top.map((t, i) => ({
+      game: t.game,
+      profile,
+      library: similarSources,
+      idf,
+      closest: closest[i] ?? null,
+    })),
   );
   return top.map((t, i) => ({
     rank: i + 1,
@@ -171,7 +178,7 @@ export async function recommend(
     score: t.score,
     backlog: t.backlog,
     reason: reasons[i] ?? '',
-    sourceGame: closestSource(t.game, similarSources, idf),
+    sourceGame: closest[i] ? { igdbId: closest[i].igdbId, name: closest[i].name } : null,
     ...(fits.has(t.game.igdbId) ? { fit: fits.get(t.game.igdbId) } : {}),
   }));
 }

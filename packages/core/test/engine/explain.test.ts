@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { closestSource, createNoneProvider } from '../../src/engine/explain.js';
+import { closestSource, createNoneProvider, GENERIC_REASON } from '../../src/engine/explain.js';
 import { buildProfile } from '../../src/engine/profile.js';
 import { CANDIDATES, LIBRARY, NOW, game } from './fixtures.js';
 
@@ -24,6 +24,15 @@ describe('none explain provider', () => {
     expect(shared.length).toBeLessThanOrEqual(3);
     expect(shared).toContain('Roguelike');
     expect(shared).toContain('Mythology');
+  });
+
+  it('uses a precomputed closest game instead of searching the library', async () => {
+    const odyssey = CANDIDATES.find((g) => g.igdbId === 102)!;
+    const other = library.find((g) => g.name !== 'Hades')!;
+    const [forced] = await provider.explain([{ game: odyssey, profile, library, closest: other }]);
+    expect(forced).toMatch(new RegExp(`^Similar to ${other.name}: `));
+    const [none] = await provider.explain([{ game: odyssey, profile, library, closest: null }]);
+    expect(none).toBe(GENERIC_REASON);
   });
 
   it('falls back to the vocab id when there is no label', async () => {
