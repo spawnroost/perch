@@ -2,10 +2,19 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { motion } from 'motion/react';
 import { Check, ChevronLeft, Plus } from 'lucide-react';
-import { Badge, Button, Cover, DeckBadge, Notice, SectionHeading, Skeleton } from '../atoms';
-import { FeedbackActions, FitChips, FitDetailRow, Hero, LoadError } from '../molecules';
+import { Badge, Button, Cover, DeckBadge, Notice, Skeleton } from '../atoms';
+import {
+  DetailSection,
+  FeedbackActions,
+  FitChips,
+  FitDetailRow,
+  Hero,
+  LoadError,
+} from '../molecules';
+import { GameFactsRail } from './GameFactsRail';
 import { useAddToLibrary, useFeedback, useGameDetail, useLibrary } from '@/hooks/queries';
 import { useReduced } from '@/hooks/useMotionPrefs';
+import { accentStyle } from '@/lib/accent';
 import { ApiError } from '@/lib/api';
 import { coverImage } from '@/lib/coverSrcSet';
 import { coverLayoutId, fadeTransition } from '@/lib/motion';
@@ -28,15 +37,6 @@ function Reveal({ skip, children }: { skip?: boolean; children: React.ReactNode 
     >
       {children}
     </motion.div>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="flex flex-col gap-2">
-      <SectionHeading>{title}</SectionHeading>
-      {children}
-    </section>
   );
 }
 
@@ -103,7 +103,7 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
 
   // Placeholder data comes from the clicked card: art and fit, but no summary or reasons yet.
   const seeded = detail.isPlaceholderData;
-  const { game, fit, deck, why, timeToBeat } = detail.data;
+  const { game, fit, deck, why, timeToBeat, facts } = detail.data;
   const toBeat = timeToBeatLabel(timeToBeat);
   const year = releaseYear(game.firstRelease);
   const platforms = platformChips(platformNames(game.platforms), allPlatforms);
@@ -195,12 +195,12 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
             <Reveal>
               <div className="flex flex-col gap-8">
                 {game.summary && (
-                  <Section title="About">
+                  <DetailSection title="About">
                     <p className="text-base text-fg">{game.summary}</p>
-                  </Section>
+                  </DetailSection>
                 )}
 
-                <Section title="Why it's recommended">
+                <DetailSection title="Why it's recommended">
                   {why.length > 0 ? (
                     <ul className="flex flex-col gap-1">
                       {why.map((line) => (
@@ -215,20 +215,23 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
                       played.
                     </p>
                   )}
-                </Section>
+                </DetailSection>
               </div>
             </Reveal>
           )}
         </div>
 
-        <aside className="lg:sticky lg:top-16 lg:self-start">
+        <aside
+          style={accentStyle(game.accent)}
+          className="-mx-1 flex flex-col gap-6 px-1 lg:sticky lg:top-16 lg:max-h-[calc(100dvh-5rem)] lg:self-start lg:overflow-y-auto"
+        >
           {seeded && fit.length === 0 ? (
-            <Section title="Will it run">
+            <DetailSection title="Will it run">
               <Skeleton className="h-24 w-full" aria-busy />
-            </Section>
+            </DetailSection>
           ) : (
             <Reveal skip={seeded}>
-              <Section title="Will it run">
+              <DetailSection title="Will it run">
                 {fit.length > 0 ? (
                   <ul className="overflow-hidden rounded-lg border border-line bg-surface-1">
                     {fit.map((f) => (
@@ -248,7 +251,18 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
                     to see whether it runs.
                   </Notice>
                 )}
-              </Section>
+              </DetailSection>
+            </Reveal>
+          )}
+          {seeded ? (
+            <DetailSection title="Details">
+              <Skeleton className="h-40 w-full" aria-busy />
+            </DetailSection>
+          ) : (
+            <Reveal>
+              <div className="flex flex-col gap-6">
+                <GameFactsRail facts={facts} timeToBeat={timeToBeat} steamAppId={game.steamAppId} />
+              </div>
             </Reveal>
           )}
         </aside>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { timeToBeatHours, timeToBeatLabel } from '../src/lib/timeToBeat.js';
+import { timeToBeatHours, timeToBeatLabel, timeToBeatTiers } from '../src/lib/timeToBeat.js';
 
 describe('timeToBeatLabel', () => {
   it('prefers the main-story time and falls back to the other figures', () => {
@@ -50,5 +50,54 @@ describe('timeToBeatHours', () => {
       }),
     ).toBeNull();
     expect(timeToBeatHours(null)).toBeNull();
+  });
+});
+
+describe('timeToBeatTiers', () => {
+  it('lists the known tiers with bar widths relative to the longest', () => {
+    expect(
+      timeToBeatTiers({
+        hastilyHours: 10,
+        normallyHours: 20,
+        completelyHours: 40,
+        submissions: 1234,
+      }),
+    ).toEqual({
+      tiers: [
+        { key: 'hastily', label: 'Story', hours: '10 h', share: 0.25 },
+        { key: 'normally', label: 'Story + extras', hours: '20 h', share: 0.5 },
+        { key: 'completely', label: '100%', hours: '40 h', share: 1 },
+      ],
+      source: 'from 1,234 players',
+    });
+  });
+  it('skips missing tiers, keeps decimals and singularises one player', () => {
+    expect(
+      timeToBeatTiers({
+        hastilyHours: null,
+        normallyHours: 7.5,
+        completelyHours: null,
+        submissions: 1,
+      }),
+    ).toEqual({
+      tiers: [{ key: 'normally', label: 'Story + extras', hours: '7.5 h', share: 1 }],
+      source: 'from 1 player',
+    });
+  });
+  it('is null with no hours or no data', () => {
+    expect(timeToBeatTiers(null)).toBeNull();
+    expect(
+      timeToBeatTiers({
+        hastilyHours: null,
+        normallyHours: null,
+        completelyHours: null,
+        submissions: 3,
+      }),
+    ).toBeNull();
+  });
+  it('treats zero hours as unknown', () => {
+    expect(
+      timeToBeatTiers({ hastilyHours: 0, normallyHours: 0, completelyHours: 0, submissions: 3 }),
+    ).toBeNull();
   });
 });
