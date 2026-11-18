@@ -147,7 +147,7 @@ export function createSteamClient(opts: SteamClientOptions = {}): SteamClient {
 
     async getReviewSummary(appId) {
       const id = Math.trunc(appId);
-      const url = `${REVIEWS_URL}/${id}?json=1&num_per_page=0&language=all&purchase_type=all`;
+      const url = `${REVIEWS_URL}/${id}?json=1&num_per_page=0&language=all&purchase_type=steam`;
       const res = await request(url, 'reviews', id);
       try {
         return parseReviewSummary(JSON.parse(await res.text()));
@@ -167,6 +167,11 @@ export interface GetRequirementsOptions {
 }
 
 let sharedClient: SteamClient | undefined;
+
+/** The one Steam store client (and so one rate queue) for requirements, deck and reviews. */
+export function getSharedSteamClient(): SteamClient {
+  return (sharedClient ??= createSteamClient());
+}
 
 /** Plain-text excerpt of the min/rec blocks that the scores were parsed from. */
 export function requirementsExcerpt(pc: PcRequirementsHtml): string | null {
@@ -205,7 +210,7 @@ export async function getRequirements(
     .where(eq(games.igdbId, igdbId));
   if (!game?.steamAppId) return cached ?? null;
 
-  const client = opts.client ?? (sharedClient ??= createSteamClient());
+  const client = opts.client ?? getSharedSteamClient();
   let pc: PcRequirementsHtml;
   try {
     pc = await client.getPcRequirements(game.steamAppId);

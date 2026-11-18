@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { deckCompat, type Db } from '@perch/db';
 import {
-  createSteamClient,
+  getSharedSteamClient,
   SteamError,
   type DeckCategory,
   type SteamClient,
@@ -14,8 +14,6 @@ export interface GetDeckCategoryOptions {
   ttlMs?: number;
   now?: () => Date;
 }
-
-let sharedClient: SteamClient | undefined;
 
 /**
  * Steam Deck category for a Steam app: the cached row if fresher than the TTL, else fetched and
@@ -33,7 +31,7 @@ export async function getDeckCategory(
     return cached.category as DeckCategory;
   }
 
-  const client = opts.client ?? (sharedClient ??= createSteamClient());
+  const client = opts.client ?? getSharedSteamClient();
   let category: DeckCategory;
   try {
     category = await client.getDeckCompat(steamAppId);

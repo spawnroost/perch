@@ -1,7 +1,11 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { createDb, games, runMigrations, type Db } from '@perch/db';
-import { createSteamClient, type SteamClient } from '../../src/requirements/index.js';
+import {
+  createSteamClient,
+  getSharedSteamClient,
+  type SteamClient,
+} from '../../src/requirements/index.js';
 import {
   loadSteamReviews,
   parseReviewSummary,
@@ -39,6 +43,12 @@ describe('parseReviewSummary', () => {
   });
 });
 
+describe('getSharedSteamClient', () => {
+  it('returns one client for every caller', () => {
+    expect(getSharedSteamClient()).toBe(getSharedSteamClient());
+  });
+});
+
 describe('steam client getReviewSummary', () => {
   it('requests the appreviews summary for one app and parses it', async () => {
     const urls: string[] = [];
@@ -59,7 +69,7 @@ describe('steam client getReviewSummary', () => {
     expect(u.searchParams.get('json')).toBe('1');
     expect(u.searchParams.get('num_per_page')).toBe('0');
     expect(u.searchParams.get('language')).toBe('all');
-    expect(u.searchParams.get('purchase_type')).toBe('all');
+    expect(u.searchParams.get('purchase_type')).toBe('steam');
   });
   it('is null for an unreadable body', async () => {
     const client = createSteamClient({
@@ -140,6 +150,50 @@ describe.skipIf(!url)('steamReviewsFor', () => {
     });
     const later = { client: bad.client, now: () => new Date(+T0 + 9 * DAY) };
     expect(await steamReviewsFor(db, game, later)).toEqual(reviews);
+    await steamReviewsIdle();
+  });
+
+  it('serves a stale summary at once and refreshes it in the background', async () => {
+    const ok = fake(async () => reviews);
+    await steamReviewsFor(db, game, { client: ok.client, now: () => T0 });
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const newer = { desc: 'Mixed', pct: 55, total: 99 };
+    const slow = fake(async () => {
+      await gate;
+      return newer;
+    });
+    const later = { client: slow.client, now: () => new Date(+T0 + 9 * DAY), waitMs: 60_000 };
+    // waitMs is huge, so this only returns because the stale value is served without waiting.
+    expect(await steamReviewsFor(db, game, later)).toEqual(reviews);
+    release();
+    await steamReviewsIdle();
+    expect((await loadSteamReviews(db, ID))?.reviews).toEqual(newer);
+  });
+
+  it('negative-caches a failed fetch for 6 hours and logs a warning', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const bad = fake(async () => {
+      throw new Error('boom');
+    });
+    const at = (ms: number) => ({ client: bad.client, now: () => new Date(+T0 + ms) });
+    expect(await steamReviewsFor(db, game, at(0))).toBeNull();
+    await steamReviewsFor(db, game, at(60 * 60 * 1000));
+    expect(bad.calls).toHaveLength(1);
+    await steamReviewsFor(db, game, at(7 * 60 * 60 * 1000));
+    expect(bad.calls).toHaveLength(2);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('never throws: a database error gives null', async () => {
+    const broken = {
+      select() {
+        throw new Error('db down');
+      },
+    } as unknown as Db;
+    const f = fake(async () => reviews);
+    expect(await steamReviewsFor(broken, game, { client: f.client })).toBeNull();
   });
 
   it('is null and not stored as data when the app has no reviews; asked again only after the TTL', async () => {

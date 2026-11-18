@@ -10,6 +10,7 @@ export { noneLlm } from './llm.js';
 export type { RequirementsLlm } from './llm.js';
 export {
   createSteamClient,
+  getSharedSteamClient,
   getRequirements,
   requirementsExcerpt,
   REQUIREMENTS_TTL_MS,

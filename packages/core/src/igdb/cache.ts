@@ -33,6 +33,12 @@ export interface IgdbCache {
    * the downloads. `updated` counts rows whose hero or accent actually changed.
    */
   backfillArt(): Promise<{ checked: number; updated: number }>;
+  /**
+   * Refetches cached games that have neither a critic rating nor store links (rows cached before
+   * those fields existed, or games IGDB has no data for) and upserts them. `updated` counts the
+   * games that now have either.
+   */
+  backfillFacts(): Promise<{ checked: number; updated: number }>;
   /** Resolves when all background work (accent downloads, time-to-beat warm-ups) has finished. */
   idle(): Promise<void>;
   /** Same for time-to-beat. A game with no IGDB record is cached as an empty row (returns null). */
@@ -306,6 +312,20 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
     };
   }
 
+  async function backfillFacts(): Promise<{ checked: number; updated: number }> {
+    const rows = await db
+      .select({ id: games.igdbId })
+      .from(games)
+      .where(and(isNull(games.criticRating), sql`${games.websites} = '[]'::jsonb`))
+      .orderBy(games.igdbId);
+    // client.getGames batches the ids itself.
+    const fetched = await upsertGames(await client.getGames(rows.map((r) => r.id)));
+    return {
+      checked: rows.length,
+      updated: fetched.filter((g) => g.criticRating !== null || g.websites.length > 0).length,
+    };
+  }
+
   async function backfillArt(): Promise<{ checked: number; updated: number }> {
     const snapshot = async (ids: number[]) => {
       const rows = await inBatches(ids, (batch) =>
@@ -365,6 +385,7 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
     queryByTags,
     refreshAll,
     backfillArt,
+    backfillFacts,
     idle,
     getTimeToBeat,
     warmTimeToBeat,

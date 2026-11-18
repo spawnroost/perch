@@ -424,6 +424,27 @@ describe.skipIf(!url)('igdb db cache', () => {
       expect(refetched(net, before)).toBe(false);
     });
 
+    it('backfillFacts refetches only games missing critic rating and websites', async () => {
+      const raw = {
+        id: hades.igdbId,
+        name: 'Hades',
+        slug: 'hades',
+        aggregated_rating: 88,
+        aggregated_rating_count: 9,
+        websites: [{ url: 'https://www.gog.com/game/hades', type: 17 }],
+      };
+      const first = setup({
+        intercept: () => json([{ ...raw, aggregated_rating: undefined, websites: undefined }]),
+      });
+      await first.cache.getGame(hades.igdbId);
+      const { cache } = setup({ intercept: () => json([raw]) });
+      const res = await cache.backfillFacts();
+      expect(res.checked).toBeGreaterThanOrEqual(1);
+      expect(res.updated).toBeGreaterThanOrEqual(1);
+      const [row] = await db.select().from(games).where(eq(games.igdbId, hades.igdbId));
+      expect(row).toMatchObject({ criticRating: 88, websites: [{ store: 'gog' }] });
+    });
+
     it('backfillArt does not refetch a game that has no art', async () => {
       const bare = { id: hades.igdbId, name: 'Hades', slug: 'hades' };
       const { cache, net } = setup({ intercept: () => json([bare]) });

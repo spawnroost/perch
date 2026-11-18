@@ -1,6 +1,6 @@
 import { formatError } from '@perch/core';
 import { addCommand, dbUrl, importCommand, userCreateCommand } from './commands.js';
-import { igdbBackfillArt, igdbRefresh } from './igdb-refresh.js';
+import { igdbBackfillArt, igdbBackfillFacts, igdbRefresh } from './igdb-refresh.js';
 import { recommendCommand } from './recommend.js';
 import { deckCommand } from './deck.js';
 import { deviceCommand } from './device.js';
@@ -24,6 +24,7 @@ commands:
   feedback <game> <up|down|played|not-interested> [--user <email>]
   igdb:refresh  refetch every cached game from IGDB (fills new fields)
   igdb:backfill-art  fill hero art + accent colour for cached games missing them
+  igdb:backfill-facts  fetch critic rating + store links for cached games missing them
   vocab:check   list IGDB ids with no taste-vocab mapping
   vocab:rebuild recompute stored games.vocab with the current mapping
 
@@ -62,6 +63,10 @@ async function main(argv: string[]): Promise<number> {
       }
       case 'igdb:backfill-art': {
         console.log(await igdbBackfillArt(dbUrl()));
+        return 0;
+      }
+      case 'igdb:backfill-facts': {
+        console.log(await igdbBackfillFacts(dbUrl()));
         return 0;
       }
       case 'vocab:check': {

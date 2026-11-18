@@ -26,6 +26,19 @@ export async function igdbBackfillArt(databaseUrl: string): Promise<string> {
   }
 }
 
+/** Fetches critic rating and store links for cached games that lack them. */
+export async function igdbBackfillFacts(databaseUrl: string): Promise<string> {
+  const db = createDb(databaseUrl);
+  try {
+    const cache = makeCache(db);
+    const { checked, updated } = await cache.backfillFacts();
+    await cache.idle(); // accent downloads run in the background
+    return `checked ${checked} games missing critic/store data, filled ${updated}`;
+  } finally {
+    await db.$client.end();
+  }
+}
+
 const makeCache = (db: Db) =>
   createIgdbCache({
     db,
