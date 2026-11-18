@@ -53,4 +53,17 @@ describe('toTimeToBeatHours', () => {
       submissions: 0,
     });
   });
+
+  it('with minCount 1 (detail page) keeps small samples but still drops empty rows', () => {
+    const row = {
+      hastilySeconds: 10 * hour,
+      normallySeconds: null,
+      completelySeconds: null,
+      count: 3,
+    };
+    expect(toTimeToBeatHours(row)).toBeNull();
+    expect(toTimeToBeatHours(row, 1)).toMatchObject({ hastilyHours: 10, submissions: 3 });
+    expect(toTimeToBeatHours({ ...row, count: 0 }, 1)).toBeNull();
+    expect(toTimeToBeatHours({ ...row, hastilySeconds: null }, 1)).toBeNull();
+  });
 });

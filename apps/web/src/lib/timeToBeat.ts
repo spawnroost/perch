@@ -10,6 +10,9 @@ export function timeToBeatHours(t: TimeToBeat): number | null {
   return [t.hastilyHours, t.normallyHours, t.completelyHours].find(hasHours) ?? null;
 }
 
+/** Mirrors core MIN_TIME_TO_BEAT_COUNT (not importable here: it lives next to db code). */
+const ROUGH_BELOW = 5;
+
 const hoursText = (h: number) => `${Number.isInteger(h) ? h : h.toFixed(1)} h`;
 
 /** "About 15 h to beat" from the Story tier (else the closest figure); null with no data. */
@@ -33,6 +36,12 @@ export interface TimeToBeatTier {
   share: number;
 }
 
+function sourceText(submissions: number): string | null {
+  if (submissions <= 0) return null;
+  const from = `from ${submissions.toLocaleString('en-US')} player${submissions === 1 ? '' : 's'}`;
+  return submissions < ROUGH_BELOW ? `Rough estimate · ${from}` : from;
+}
+
 /** The known tiers (Story, Story + extras, 100%) with bar widths and the player count behind them; null with no hours. */
 export function timeToBeatTiers(
   t: TimeToBeat,
@@ -51,9 +60,6 @@ export function timeToBeatTiers(
       hours: hoursText(h),
       share: h / longest,
     })),
-    source:
-      t.submissions > 0
-        ? `from ${t.submissions.toLocaleString('en-US')} player${t.submissions === 1 ? '' : 's'}`
-        : null,
+    source: sourceText(t.submissions),
   };
 }

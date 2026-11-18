@@ -39,6 +39,19 @@ export async function igdbBackfillFacts(databaseUrl: string): Promise<string> {
   }
 }
 
+/** Fetches time-to-beat for cached games that have no row yet (IGDB limits calls to 4 a second). */
+export async function igdbBackfillTimeToBeat(databaseUrl: string): Promise<string> {
+  const db = createDb(databaseUrl);
+  try {
+    const cache = makeCache(db);
+    const { checked, updated } = await cache.backfillTimeToBeat();
+    await cache.idle();
+    return `checked ${checked} games without time to beat, filled ${updated}`;
+  } finally {
+    await db.$client.end();
+  }
+}
+
 const makeCache = (db: Db) =>
   createIgdbCache({
     db,

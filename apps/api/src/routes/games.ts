@@ -97,7 +97,7 @@ export function gamesRoutes(deps: RouteDeps) {
         steamAppId: game.steamAppId,
       },
       fit: fits,
-      timeToBeat: toTimeToBeatHours(timeToBeat),
+      timeToBeat: toTimeToBeatHours(timeToBeat, 1),
       deck,
       facts: buildGameFacts(game, steamReviews),
       why,

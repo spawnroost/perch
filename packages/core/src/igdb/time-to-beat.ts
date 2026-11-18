@@ -16,9 +16,15 @@ export interface TimeToBeatHours {
 const toHours = (seconds: number | null) =>
   seconds === null ? null : Math.round((seconds / 3600) * 10) / 10;
 
-/** Hours for display; null when there is no usable data. */
-export function toTimeToBeatHours(t: TimeToBeat | null): TimeToBeatHours | null {
-  if (!t || (t.count !== null && t.count < MIN_TIME_TO_BEAT_COUNT)) return null;
+/**
+ * Hours for display; null when there is no usable data. `minCount` is the submission floor: the
+ * engine keeps the default, the detail page passes 1 and labels small samples as rough.
+ */
+export function toTimeToBeatHours(
+  t: TimeToBeat | null,
+  minCount: number = MIN_TIME_TO_BEAT_COUNT,
+): TimeToBeatHours | null {
+  if (!t || (t.count !== null && t.count < minCount)) return null;
   const hours = {
     hastilyHours: toHours(t.hastilySeconds),
     normallyHours: toHours(t.normallySeconds),

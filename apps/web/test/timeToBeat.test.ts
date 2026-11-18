@@ -72,7 +72,7 @@ describe('timeToBeatTiers', () => {
       source: 'from 1,234 players',
     });
   });
-  it('skips missing tiers, keeps decimals and singularises one player', () => {
+  it('skips missing tiers, keeps decimals and marks a small sample as rough', () => {
     expect(
       timeToBeatTiers({
         hastilyHours: null,
@@ -82,8 +82,15 @@ describe('timeToBeatTiers', () => {
       }),
     ).toEqual({
       tiers: [{ key: 'normally', label: 'Story + extras', hours: '7.5 h', share: 1 }],
-      source: 'from 1 player',
+      source: 'Rough estimate · from 1 player',
     });
+  });
+  it('is a plain count from 5 players up, rough below', () => {
+    const at = (submissions: number) =>
+      timeToBeatTiers({ hastilyHours: 5, normallyHours: null, completelyHours: null, submissions })
+        ?.source;
+    expect(at(4)).toBe('Rough estimate · from 4 players');
+    expect(at(5)).toBe('from 5 players');
   });
   it('is null with no hours or no data', () => {
     expect(timeToBeatTiers(null)).toBeNull();

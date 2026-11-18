@@ -40,6 +40,11 @@ export interface IgdbCache {
    * games that now have any of the facts.
    */
   backfillFacts(): Promise<{ checked: number; updated: number }>;
+  /**
+   * Fetches time-to-beat for every cached game that has no row yet (rows already stored, even
+   * empty ones, are left to the normal TTL refresh). `updated` counts games that now have hours.
+   */
+  backfillTimeToBeat(): Promise<{ checked: number; updated: number }>;
   /** Resolves when all background work (accent downloads, time-to-beat warm-ups) has finished. */
   idle(): Promise<void>;
   /** Same for time-to-beat. A game with no IGDB record is cached as an empty row (returns null). */
@@ -385,6 +390,36 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
     return { checked: rows.length, updated };
   }
 
+  async function backfillTimeToBeat(): Promise<{ checked: number; updated: number }> {
+    const rows = await db
+      .select({ id: games.igdbId })
+      .from(games)
+      .leftJoin(timeToBeat, eq(timeToBeat.igdbId, games.igdbId))
+      .where(isNull(timeToBeat.igdbId))
+      .orderBy(games.igdbId);
+    const ids = rows.map((r) => r.id);
+    let updated = 0;
+    for (let i = 0; i < ids.length; i += BACKFILL_BATCH) {
+      const batch = ids.slice(i, i + BACKFILL_BATCH);
+      await warmTimeToBeat(batch);
+      const found = await db
+        .select({ id: timeToBeat.igdbId })
+        .from(timeToBeat)
+        .where(
+          and(
+            inArray(timeToBeat.igdbId, batch),
+            or(
+              isNotNull(timeToBeat.hastilySeconds),
+              isNotNull(timeToBeat.normallySeconds),
+              isNotNull(timeToBeat.completelySeconds),
+            ),
+          ),
+        );
+      updated += found.length;
+    }
+    return { checked: ids.length, updated };
+  }
+
   async function backfillArt(): Promise<{ checked: number; updated: number }> {
     const snapshot = async (ids: number[]) => {
       const rows = await inBatches(ids, (batch) =>
@@ -445,6 +480,7 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
     refreshAll,
     backfillArt,
     backfillFacts,
+    backfillTimeToBeat,
     idle,
     getTimeToBeat,
     warmTimeToBeat,

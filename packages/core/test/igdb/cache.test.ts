@@ -602,6 +602,20 @@ describe.skipIf(!url)('igdb db cache', () => {
       await expect(cache.idle()).resolves.toBeUndefined();
     });
 
+    it('backfillTimeToBeat fetches only games with no time_to_beat row yet', async () => {
+      const { net, cache } = setup();
+      await cache.getGame(hades.igdbId);
+      await db.delete(timeToBeat).where(eq(timeToBeat.igdbId, hades.igdbId));
+      const first = await cache.backfillTimeToBeat();
+      expect(first.checked).toBeGreaterThanOrEqual(1);
+      expect(first.updated).toBeGreaterThanOrEqual(1);
+      const [row] = await db.select().from(timeToBeat).where(eq(timeToBeat.igdbId, hades.igdbId));
+      expect(row?.normallySeconds).toBe(253600);
+      const calls = net.apiCalls().length;
+      await cache.backfillTimeToBeat();
+      expect(net.apiCalls()).toHaveLength(calls);
+    });
+
     it('returns null for an unknown game without writing a row', async () => {
       const { cache } = setup();
       expect(await cache.getTimeToBeat(424242)).toBeNull();
