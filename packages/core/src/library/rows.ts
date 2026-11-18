@@ -7,9 +7,19 @@ export function buildGameRow(
   vocab: Record<string, number>,
   now: Date = new Date(),
 ): typeof games.$inferInsert {
-  // The accent column belongs to the cache's background filler; writing it here could erase it.
-  const { accent, ...columns } = game;
-  void accent;
+  // The accent belongs to the cache's background filler and the About columns to the cache's
+  // full IGDB fetch; writing either here could erase them (a prefetched game may be lean).
+  const {
+    accent,
+    developers,
+    publishers,
+    multiplayer,
+    dlcCount,
+    expansionCount,
+    seriesName,
+    ...columns
+  } = game;
+  void [accent, developers, publishers, multiplayer, dlcCount, expansionCount, seriesName];
   return { ...columns, vocab, fetchedAt: now };
 }
 

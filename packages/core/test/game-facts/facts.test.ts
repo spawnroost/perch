@@ -120,16 +120,10 @@ describe('buildGameFacts', () => {
     expect(f.stores.map((s) => s.store)).toEqual(['steam']);
     expect(f.links.map((l) => l.label)).toEqual(['OpenCritic', 'Reddit']);
   });
-  it('adds the about block and time-to-beat tiers', () => {
-    const f = buildGameFacts(game, null, {
-      hastilySeconds: 36000,
-      normallySeconds: 54000,
-      completelySeconds: null,
-      count: 9,
-    });
+  it('adds the about block', () => {
+    const f = buildGameFacts(game, null);
     expect(f.about).toMatchObject({ developers: ['Supergiant'], modes: ['Single player'] });
-    expect(f.timeToBeat).toEqual({ story: 10, extras: 15, completionist: null, submissions: 9 });
-    expect(buildGameFacts(game, null).timeToBeat).toBeNull();
+    expect(f).not.toHaveProperty('timeToBeat');
   });
   it('has null critic and reviews when the data is missing', () => {
     const f = buildGameFacts({ ...game, criticRating: null, criticRatingCount: null }, null);

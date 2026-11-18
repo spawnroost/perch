@@ -57,7 +57,9 @@ describe('buildShelves', () => {
       sourceGame: source === null ? null : { igdbId: source, name: `S${source}` },
       fits: [],
       timeToBeat:
-        hours === null ? null : { hastilyHours: null, normallyHours: hours, completelyHours: null },
+        hours === null
+          ? null
+          : { hastilyHours: null, normallyHours: hours, completelyHours: null, submissions: 5 },
     } as unknown as Recommendation;
   };
   const ids = (s: { picks: Recommendation[] }) => s.picks.map((p) => p.game.igdbId);

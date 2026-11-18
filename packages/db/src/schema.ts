@@ -127,6 +127,15 @@ export interface StoreLink {
   url: string;
 }
 
+/** Co-op / split-screen modes; core's `multiplayerSchema` is checked against this shape. */
+export interface Multiplayer {
+  campaign: boolean;
+  online: boolean;
+  onlineMax: number | null;
+  local: boolean;
+  splitscreen: boolean;
+}
+
 export const games = pgTable(
   'games',
   {
@@ -168,13 +177,7 @@ export const games = pgTable(
     developers: jsonb('developers').$type<string[]>().notNull().default([]),
     publishers: jsonb('publishers').$type<string[]>().notNull().default([]),
     /** Merged multiplayer modes; null when IGDB lists none. */
-    multiplayer: jsonb('multiplayer').$type<{
-      campaign: boolean;
-      online: boolean;
-      onlineMax: number | null;
-      local: boolean;
-      splitscreen: boolean;
-    }>(),
+    multiplayer: jsonb('multiplayer').$type<Multiplayer>(),
     dlcCount: integer('dlc_count').notNull().default(0),
     expansionCount: integer('expansion_count').notNull().default(0),
     seriesName: text('series_name'),

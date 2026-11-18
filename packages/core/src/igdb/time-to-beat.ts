@@ -9,6 +9,8 @@ export interface TimeToBeatHours {
   hastilyHours: number | null;
   normallyHours: number | null;
   completelyHours: number | null;
+  /** How many IGDB submissions the figures rest on (0 when IGDB gives no count). */
+  submissions: number;
 }
 
 const toHours = (seconds: number | null) =>
@@ -22,29 +24,8 @@ export function toTimeToBeatHours(t: TimeToBeat | null): TimeToBeatHours | null 
     normallyHours: toHours(t.normallySeconds),
     completelyHours: toHours(t.completelySeconds),
   };
-  return Object.values(hours).every((h) => h === null) ? null : hours;
-}
-
-export interface TimeToBeatTiers {
-  /** Rushed main story. */
-  story: number | null;
-  /** Main story plus extras. */
-  extras: number | null;
-  /** 100%. */
-  completionist: number | null;
-  submissions: number;
-}
-
-/** The three tiers in hours plus how many submissions they rest on; null when unusable. */
-export function toTimeToBeatTiers(t: TimeToBeat | null): TimeToBeatTiers | null {
-  const hours = toTimeToBeatHours(t);
-  if (!t || !hours) return null;
-  return {
-    story: hours.hastilyHours,
-    extras: hours.normallyHours,
-    completionist: hours.completelyHours,
-    submissions: t.count ?? 0,
-  };
+  if (Object.values(hours).every((h) => h === null)) return null;
+  return { ...hours, submissions: t.count ?? 0 };
 }
 
 /** Time-to-beat already in the DB (never calls IGDB), keyed by IGDB id; games without a row are absent. */

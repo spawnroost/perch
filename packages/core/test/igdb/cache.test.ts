@@ -424,42 +424,47 @@ describe.skipIf(!url)('igdb db cache', () => {
       expect(refetched(net, before)).toBe(false);
     });
 
-    it('backfillFacts refetches only games missing critic rating and websites', async () => {
-      const raw = {
-        id: hades.igdbId,
-        name: 'Hades',
-        slug: 'hades',
-        aggregated_rating: 88,
-        aggregated_rating_count: 9,
-        websites: [{ url: 'https://www.gog.com/game/hades', type: 17 }],
-      };
-      const first = setup({
-        intercept: () => json([{ ...raw, aggregated_rating: undefined, websites: undefined }]),
-      });
-      await first.cache.getGame(hades.igdbId);
-      const { cache } = setup({ intercept: () => json([raw]) });
+    const full = {
+      id: hades.igdbId,
+      name: 'Hades',
+      slug: 'hades',
+      aggregated_rating: 88,
+      aggregated_rating_count: 9,
+      involved_companies: [{ company: { name: 'Supergiant' }, developer: true }],
+      dlcs: [1],
+    };
+    const unstamp = () =>
+      db.update(games).set({ aboutFetchedAt: null }).where(eq(games.igdbId, hades.igdbId));
+    const hadesRow = async () =>
+      (await db.select().from(games).where(eq(games.igdbId, hades.igdbId)))[0]!;
+
+    it('backfillFacts fills the facts of games whose About fields were never fetched', async () => {
+      const { cache } = setup({ intercept: () => json([full]) });
+      await cache.getGame(hades.igdbId);
+      await unstamp();
       const res = await cache.backfillFacts();
       expect(res.checked).toBeGreaterThanOrEqual(1);
       expect(res.updated).toBeGreaterThanOrEqual(1);
-      const [row] = await db.select().from(games).where(eq(games.igdbId, hades.igdbId));
-      expect(row).toMatchObject({ criticRating: 88, websites: [{ store: 'gog' }] });
+      expect(await hadesRow()).toMatchObject({
+        criticRating: 88,
+        developers: ['Supergiant'],
+        dlcCount: 1,
+        aboutFetchedAt: T0,
+      });
     });
 
-    it('backfillFacts also fills the About fields, once', async () => {
-      const raw = {
-        id: hades.igdbId,
-        name: 'Hades',
-        slug: 'hades',
-        involved_companies: [{ company: { name: 'Supergiant' }, developer: true }],
-        dlcs: [1],
-      };
-      const { cache } = setup({ intercept: () => json([raw]) });
-      await cache.getGame(hades.igdbId);
-      await db.update(games).set({ aboutFetchedAt: null }).where(eq(games.igdbId, hades.igdbId));
-      expect((await cache.backfillFacts()).checked).toBeGreaterThanOrEqual(1);
-      const [row] = await db.select().from(games).where(eq(games.igdbId, hades.igdbId));
-      expect(row).toMatchObject({ developers: ['Supergiant'], dlcCount: 1 });
-      expect(row?.aboutFetchedAt).not.toBeNull();
+    it('backfillFacts skips stamped games and stamps ids IGDB does not return', async () => {
+      const { cache, net } = setup({ intercept: () => json([]) });
+      await db
+        .insert(games)
+        .values({ igdbId: hades.igdbId, name: 'Hades', slug: 'hades' })
+        .onConflictDoNothing();
+      await unstamp();
+      await cache.backfillFacts();
+      expect((await hadesRow()).aboutFetchedAt).toEqual(T0);
+      const before = net.apiCalls().length;
+      await cache.backfillFacts();
+      expect(refetched(net, before)).toBe(false);
     });
 
     it('backfillArt does not refetch a game that has no art', async () => {
@@ -470,6 +475,43 @@ describe.skipIf(!url)('igdb db cache', () => {
       const before = net.apiCalls().length;
       await cache.backfillArt();
       expect(refetched(net, before)).toBe(false);
+    });
+  });
+
+  describe('lean candidate fetches', () => {
+    const raw = {
+      id: hades.igdbId,
+      name: 'Hades',
+      slug: 'hades',
+      involved_companies: [{ company: { name: 'Supergiant' }, developer: true }],
+      dlcs: [1, 2],
+    };
+    it('a lean upsert keeps the stored About fields and stamp', async () => {
+      const first = setup({ intercept: () => json([raw]) });
+      await first.cache.getGame(hades.igdbId);
+      const lean = setup({
+        intercept: () =>
+          json([{ ...raw, involved_companies: undefined, dlcs: undefined, summary: 'new' }]),
+      });
+      lean.setNow(new Date(+T0 + CACHE_TTL_MS + DAY));
+      await lean.cache.getGames([hades.igdbId]);
+      const [row] = await db.select().from(games).where(eq(games.igdbId, hades.igdbId));
+      expect(row).toMatchObject({ summary: 'new', developers: ['Supergiant'], dlcCount: 2 });
+      expect(row?.aboutFetchedAt).toEqual(T0);
+    });
+
+    it('a lean insert leaves the stamp empty and getGame then refetches in full', async () => {
+      const { cache, net } = setup({ intercept: () => json([raw]) });
+      await cache.getGames([hades.igdbId]);
+      const [lean] = await db.select().from(games).where(eq(games.igdbId, hades.igdbId));
+      expect(lean?.aboutFetchedAt).toBeNull();
+      await cache.getGame(hades.igdbId);
+      expect(net.apiCalls()).toHaveLength(2);
+      const [row] = await db.select().from(games).where(eq(games.igdbId, hades.igdbId));
+      expect(row).toMatchObject({ developers: ['Supergiant'], dlcCount: 2 });
+      expect(row?.aboutFetchedAt).toEqual(T0);
+      await cache.getGame(hades.igdbId);
+      expect(net.apiCalls()).toHaveLength(2);
     });
   });
 

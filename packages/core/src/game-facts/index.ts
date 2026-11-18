@@ -1,8 +1,6 @@
 import { STORE_IDS, type StoreLink } from './stores.js';
 import type { SteamReviews } from '../steam-reviews/summary.js';
 import { buildAbout, type AboutInput, type GameAbout } from './about.js';
-import { toTimeToBeatTiers, type TimeToBeatTiers } from '../igdb/time-to-beat.js';
-import type { TimeToBeat } from '../igdb/schemas.js';
 
 export * from './about.js';
 
@@ -21,8 +19,6 @@ export interface GameFacts {
   stores: StoreLink[];
   links: ExternalLink[];
   about: GameAbout;
-  /** Story / story + extras / 100% in hours; null when IGDB has too little data. */
-  timeToBeat: TimeToBeatTiers | null;
 }
 
 export interface GameFactsInput extends AboutInput {
@@ -55,11 +51,7 @@ export function externalLinks(name: string): ExternalLink[] {
   ];
 }
 
-export function buildGameFacts(
-  game: GameFactsInput,
-  steamReviews: SteamReviews | null,
-  timeToBeat: TimeToBeat | null = null,
-): GameFacts {
+export function buildGameFacts(game: GameFactsInput, steamReviews: SteamReviews | null): GameFacts {
   return {
     critic:
       game.criticRating === null
@@ -69,6 +61,5 @@ export function buildGameFacts(
     stores: storeLinks(game),
     links: externalLinks(game.name),
     about: buildAbout(game),
-    timeToBeat: toTimeToBeatTiers(timeToBeat),
   };
 }

@@ -1,3 +1,6 @@
+import { z } from 'zod';
+import type { Multiplayer as StoredMultiplayer } from '@perch/db';
+
 /** Pure mapping from IGDB raw shapes and stored ids to the "About" facts block. */
 
 /** IGDB `game_modes` ids; ids we don't know are dropped. */
@@ -52,30 +55,36 @@ export interface RawMultiplayerMode {
   splitscreen?: boolean | undefined;
 }
 
-export interface Multiplayer {
+/** Co-op / split-screen modes merged over all platforms (the shape also stored in the DB). */
+export const multiplayerSchema = z.object({
   /** Campaign co-op. */
-  campaign: boolean;
-  online: boolean;
+  campaign: z.boolean(),
+  online: z.boolean(),
   /** Most online co-op players on any platform; null when unknown. */
-  onlineMax: number | null;
+  onlineMax: z.number().int().nullable(),
   /** Offline (couch) co-op. */
-  local: boolean;
-  splitscreen: boolean;
-}
+  local: z.boolean(),
+  splitscreen: z.boolean(),
+}) satisfies z.ZodType<StoredMultiplayer>;
+export type Multiplayer = z.infer<typeof multiplayerSchema>;
 
-/** Merges IGDB's per-platform multiplayer entries; null when IGDB lists none. */
+/**
+ * Merges IGDB's per-platform multiplayer entries; null when none of them has a co-op or
+ * split-screen flag set (a bare player count says nothing about co-op).
+ */
 export function parseMultiplayer(
   raw: readonly RawMultiplayerMode[] | undefined,
 ): Multiplayer | null {
   if (!raw || raw.length === 0) return null;
   const max = Math.max(0, ...raw.map((m) => m.onlinecoopmax ?? 0));
-  return {
+  const modes = {
     campaign: raw.some((m) => m.campaigncoop === true),
     online: raw.some((m) => m.onlinecoop === true),
     onlineMax: max > 0 ? max : null,
     local: raw.some((m) => m.offlinecoop === true),
     splitscreen: raw.some((m) => m.splitscreen === true),
   };
+  return modes.campaign || modes.online || modes.local || modes.splitscreen ? modes : null;
 }
 
 export interface RawNamed {
@@ -83,12 +92,17 @@ export interface RawNamed {
   name?: string | undefined;
 }
 
-/** First named collection, else first named franchise. */
+/**
+ * The series to show: the named collection with the lowest id, else the named franchise with
+ * the lowest id. IGDB's array order is not stable, so the choice is by id to stay deterministic.
+ */
 export function pickSeriesName(
   collections: readonly RawNamed[] | undefined,
   franchises: readonly RawNamed[] | undefined,
 ): string | null {
-  return collections?.find((c) => c.name)?.name ?? franchises?.find((f) => f.name)?.name ?? null;
+  const lowest = (list: readonly RawNamed[] | undefined) =>
+    [...(list ?? [])].filter((r) => r.name).sort((a, b) => a.id - b.id)[0]?.name;
+  return lowest(collections) ?? lowest(franchises) ?? null;
 }
 
 export interface AboutInput {

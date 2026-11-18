@@ -99,7 +99,7 @@ export function gamesRoutes(deps: RouteDeps) {
       fit: fits,
       timeToBeat: toTimeToBeatHours(timeToBeat),
       deck,
-      facts: buildGameFacts(game, steamReviews, timeToBeat),
+      facts: buildGameFacts(game, steamReviews),
       why,
     } satisfies GameDetailResponse);
   });

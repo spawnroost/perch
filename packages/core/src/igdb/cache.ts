@@ -34,9 +34,9 @@ export interface IgdbCache {
    */
   backfillArt(): Promise<{ checked: number; updated: number }>;
   /**
-   * Refetches cached games whose About fields were never fetched, or that have neither a critic
-   * rating nor store links (rows cached before those fields existed), and upserts them. `updated`
-   * counts the games that now have any of the facts.
+   * Refetches, in batches, the cached games whose About fields were never fetched and upserts
+   * them; games IGDB no longer returns are stamped so they are not retried. `updated` counts the
+   * games that now have any of the facts.
    */
   backfillFacts(): Promise<{ checked: number; updated: number }>;
   /** Resolves when all background work (accent downloads, time-to-beat warm-ups) has finished. */
@@ -97,6 +97,22 @@ async function inBatches<T>(
   return out;
 }
 
+const hasFacts = (g: Game) =>
+  g.criticRating !== null ||
+  g.websites.length > 0 ||
+  g.developers.length > 0 ||
+  g.multiplayer !== null ||
+  g.dlcCount + g.expansionCount > 0 ||
+  g.seriesName !== null;
+
+/** The game without its About fields (see `upsertGames`). */
+function withoutAbout(game: Game) {
+  const { developers, publishers, multiplayer, dlcCount, expansionCount, seriesName, ...rest } =
+    game;
+  void [developers, publishers, multiplayer, dlcCount, expansionCount, seriesName];
+  return rest;
+}
+
 export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
   const { db, client, ttlMs = CACHE_TTL_MS, now = () => new Date(), mapVocab, accentFor } = opts;
   const accentQueue = opts.accentQueue ?? sharedAccentQueue;
@@ -104,12 +120,13 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
 
   async function getGame(igdbId: number): Promise<Game | null> {
     const [row] = await db.select().from(games).where(eq(games.igdbId, igdbId));
-    if (row && isFresh(row.fetchedAt)) {
+    // A row from a lean (candidate) fetch has no About fields yet: fetch it in full.
+    if (row && row.aboutFetchedAt && isFresh(row.fetchedAt)) {
       return toGame(row);
     }
     const game = await client.getGame(igdbId);
     if (!game) return null;
-    const [saved] = await upsertGames([game]);
+    const [saved] = await upsertGames([game], { about: true });
     return saved ?? game;
   }
 
@@ -142,9 +159,10 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
   /**
    * Upserts the games and returns them as stored, in input order. The accent is never computed
    * here: a row keeps its accent while its small cover is unchanged, otherwise it is cleared and
-   * queued for the background filler.
+   * queued for the background filler. Games from a lean fetch (`about: false`) never touch the
+   * About columns or their stamp, so details already stored survive a candidate refresh.
    */
-  async function upsertGames(input: Game[]): Promise<Game[]> {
+  async function upsertGames(input: Game[], { about = false } = {}): Promise<Game[]> {
     if (input.length === 0) return [];
     const fetchedAt = now();
     const storedAccent = new Map<number, string | null>();
@@ -158,11 +176,11 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
         .insert(games)
         .values(
           chunk.map((g) => ({
-            ...g,
+            ...(about ? g : withoutAbout(g)),
             accent: null,
             accentSource: null,
             artCheckedAt: fetchedAt,
-            aboutFetchedAt: fetchedAt,
+            ...(about ? { aboutFetchedAt: fetchedAt } : {}),
             fetchedAt,
             ...(mapVocab ? { vocab: mapVocab(g) } : {}),
           })),
@@ -195,13 +213,17 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
             criticRating: sql`excluded.critic_rating`,
             criticRatingCount: sql`excluded.critic_rating_count`,
             websites: sql`excluded.websites`,
-            developers: sql`excluded.developers`,
-            publishers: sql`excluded.publishers`,
-            multiplayer: sql`excluded.multiplayer`,
-            dlcCount: sql`excluded.dlc_count`,
-            expansionCount: sql`excluded.expansion_count`,
-            seriesName: sql`excluded.series_name`,
-            aboutFetchedAt: sql`excluded.about_fetched_at`,
+            ...(about
+              ? {
+                  developers: sql`excluded.developers`,
+                  publishers: sql`excluded.publishers`,
+                  multiplayer: sql`excluded.multiplayer`,
+                  dlcCount: sql`excluded.dlc_count`,
+                  expansionCount: sql`excluded.expansion_count`,
+                  seriesName: sql`excluded.series_name`,
+                  aboutFetchedAt: sql`excluded.about_fetched_at`,
+                }
+              : {}),
             fetchedAt: sql`excluded.fetched_at`,
             // Without a mapper, vocab is derived elsewhere and an upsert must not reset it.
             ...(mapVocab ? { vocab: sql`excluded.vocab` } : {}),
@@ -318,7 +340,13 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
   async function refreshAll(): Promise<{ refreshed: number; missing: number[] }> {
     const rows = await db.select({ id: games.igdbId }).from(games).orderBy(games.igdbId);
     // client.getGames batches the ids itself.
-    const fetched = await upsertGames(await client.getGames(rows.map((r) => r.id)));
+    const fetched = await upsertGames(
+      await client.getGames(
+        rows.map((r) => r.id),
+        { full: true },
+      ),
+      { about: true },
+    );
     const got = new Set(fetched.map((g) => g.igdbId));
     return {
       refreshed: fetched.length,
@@ -326,31 +354,29 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
     };
   }
 
+  /** Games per IGDB fetch + upsert in `backfillFacts`, so progress is kept and memory stays bounded. */
+  const BACKFILL_BATCH = 100;
+
   async function backfillFacts(): Promise<{ checked: number; updated: number }> {
     const rows = await db
       .select({ id: games.igdbId })
       .from(games)
-      .where(
-        or(
-          isNull(games.aboutFetchedAt),
-          and(isNull(games.criticRating), sql`${games.websites} = '[]'::jsonb`),
-        ),
-      )
+      .where(isNull(games.aboutFetchedAt))
       .orderBy(games.igdbId);
-    // client.getGames batches the ids itself.
-    const fetched = await upsertGames(await client.getGames(rows.map((r) => r.id)));
-    return {
-      checked: rows.length,
-      updated: fetched.filter(
-        (g) =>
-          g.criticRating !== null ||
-          g.websites.length > 0 ||
-          g.developers.length > 0 ||
-          g.multiplayer !== null ||
-          g.dlcCount + g.expansionCount > 0 ||
-          g.seriesName !== null,
-      ).length,
-    };
+    let updated = 0;
+    for (let i = 0; i < rows.length; i += BACKFILL_BATCH) {
+      const ids = rows.slice(i, i + BACKFILL_BATCH).map((r) => r.id);
+      const fetched = await upsertGames(await client.getGames(ids, { full: true }), {
+        about: true,
+      });
+      // Games IGDB no longer returns are stamped too, so they are not asked again.
+      await db
+        .update(games)
+        .set({ aboutFetchedAt: now() })
+        .where(and(inArray(games.igdbId, ids), isNull(games.aboutFetchedAt)));
+      updated += fetched.filter(hasFacts).length;
+    }
+    return { checked: rows.length, updated };
   }
 
   async function backfillArt(): Promise<{ checked: number; updated: number }> {

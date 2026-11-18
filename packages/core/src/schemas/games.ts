@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { multiplayerSchema } from '../game-facts/about.js';
 import { STORE_IDS } from '../game-facts/stores.js';
 import { isoDate } from './common.js';
 
@@ -35,29 +36,24 @@ export const timeToBeatSchema = z
     hastilyHours: z.number().nullable(),
     normallyHours: z.number().nullable(),
     completelyHours: z.number().nullable(),
+    /** IGDB submissions the hours rest on. */
+    submissions: z.number().int(),
   })
   .nullable();
 
-/** Critic score, Steam reviews and where to buy / read more; each part is empty when unknown. */
+/** Studios, modes, co-op, DLC and series; each part is empty or null when unknown. */
 export const gameAboutSchema = z.object({
   developers: z.array(z.string()),
   publishers: z.array(z.string()),
   modes: z.array(z.string()),
   perspectives: z.array(z.string()),
-  coop: z
-    .object({
-      campaign: z.boolean(),
-      online: z.boolean(),
-      onlineMax: z.number().int().nullable(),
-      local: z.boolean(),
-      splitscreen: z.boolean(),
-    })
-    .nullable(),
+  coop: multiplayerSchema.nullable(),
   dlcCount: z.number().int(),
   expansionCount: z.number().int(),
   series: z.string().nullable(),
 });
 
+/** Critic score, Steam reviews and where to buy / read more; each part is empty when unknown. */
 export const gameFactsSchema = z.object({
   critic: z.object({ score: z.number().int(), count: z.number().nullable() }).nullable(),
   steamReviews: z
@@ -66,15 +62,6 @@ export const gameFactsSchema = z.object({
   stores: z.array(z.object({ store: z.enum(STORE_IDS), url: z.string() })),
   links: z.array(z.object({ label: z.string(), url: z.string() })),
   about: gameAboutSchema,
-  /** Story / story + extras / 100% in hours; null when IGDB has too little data. */
-  timeToBeat: z
-    .object({
-      story: z.number().nullable(),
-      extras: z.number().nullable(),
-      completionist: z.number().nullable(),
-      submissions: z.number().int(),
-    })
-    .nullable(),
 });
 
 export const gameDetailResponseSchema = z.object({

@@ -7,7 +7,6 @@ import {
   perspectiveNames,
   pickSeriesName,
 } from '../../src/game-facts/about.js';
-import { toTimeToBeatTiers } from '../../src/igdb/time-to-beat.js';
 
 describe('names for stored ids', () => {
   it('maps game mode ids and drops unknown ones', () => {
@@ -58,13 +57,17 @@ describe('parseMultiplayer', () => {
       ]),
     ).toEqual({ campaign: true, online: true, onlineMax: 4, local: true, splitscreen: true });
   });
+  it('is null when no co-op or split-screen flag is true', () => {
+    expect(parseMultiplayer([{ onlinecoopmax: 0 }])).toBeNull();
+    expect(parseMultiplayer([{ campaigncoop: false, onlinecoopmax: 4 }, {}])).toBeNull();
+  });
   it('treats missing flags as false and a zero max as unknown', () => {
-    expect(parseMultiplayer([{ onlinecoopmax: 0 }])).toEqual({
+    expect(parseMultiplayer([{ splitscreen: true, onlinecoopmax: 0 }])).toEqual({
       campaign: false,
       online: false,
       onlineMax: null,
       local: false,
-      splitscreen: false,
+      splitscreen: true,
     });
   });
 });
@@ -75,6 +78,13 @@ describe('pickSeriesName', () => {
     expect(pickSeriesName([], [{ id: 2, name: 'Greek' }])).toBe('Greek');
     expect(pickSeriesName([{ id: 1 }], [{ id: 2, name: 'Greek' }])).toBe('Greek');
     expect(pickSeriesName(undefined, undefined)).toBeNull();
+  });
+  it('is deterministic: lowest id among the named collections, then franchises', () => {
+    const a = { id: 9, name: 'Nine' };
+    const b = { id: 2, name: 'Two' };
+    expect(pickSeriesName([a, b], [])).toBe('Two');
+    expect(pickSeriesName([b, a], [])).toBe('Two');
+    expect(pickSeriesName([], [a, b])).toBe('Two');
   });
 });
 
@@ -101,47 +111,5 @@ describe('buildAbout', () => {
       expansionCount: 2,
       series: 'Hades',
     });
-  });
-});
-
-describe('toTimeToBeatTiers', () => {
-  it('maps hastily/normally/completely to story/extras/completionist with the submission count', () => {
-    expect(
-      toTimeToBeatTiers({
-        hastilySeconds: 36000,
-        normallySeconds: 55080,
-        completelySeconds: 144000,
-        count: 12,
-      }),
-    ).toEqual({ story: 10, extras: 15.3, completionist: 40, submissions: 12 });
-  });
-  it('is null with no row, too few submissions or no figures', () => {
-    expect(toTimeToBeatTiers(null)).toBeNull();
-    expect(
-      toTimeToBeatTiers({
-        hastilySeconds: 3600,
-        normallySeconds: null,
-        completelySeconds: null,
-        count: 2,
-      }),
-    ).toBeNull();
-    expect(
-      toTimeToBeatTiers({
-        hastilySeconds: null,
-        normallySeconds: null,
-        completelySeconds: null,
-        count: 50,
-      }),
-    ).toBeNull();
-  });
-  it('keeps a null count as 0 submissions', () => {
-    expect(
-      toTimeToBeatTiers({
-        hastilySeconds: null,
-        normallySeconds: 7200,
-        completelySeconds: null,
-        count: null,
-      }),
-    ).toEqual({ story: null, extras: 2, completionist: null, submissions: 0 });
   });
 });

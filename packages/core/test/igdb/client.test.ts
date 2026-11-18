@@ -271,7 +271,7 @@ describe('getGame', () => {
           { id: 10, name: 'Y', slug: 'y' },
         ]),
     });
-    const [x, y] = await make(net).getGames([9, 10]);
+    const [x, y] = await make(net).getGames([9, 10], { full: true });
     expect(x).toMatchObject({
       developers: ['Dev Co'],
       publishers: ['Pub Co'],
@@ -425,6 +425,28 @@ describe('getGames', () => {
     const net = fakeFetch();
     expect(await make(net).getGames([])).toEqual([]);
     expect(net.apiCalls()).toHaveLength(0);
+  });
+});
+
+describe('lean and full field sets', () => {
+  const HEAVY = /involved_companies|multiplayer_modes|dlcs|expansions|collections\.name/;
+  it('getGame and getGames({ full }) request the About fields', async () => {
+    const net = fakeFetch({ intercept: () => json([]) });
+    const client = make(net);
+    await client.getGame(1);
+    await client.getGames([1], { full: true });
+    for (const c of net.apiCalls()) expect(c.body).toMatch(HEAVY);
+  });
+  it('getGames and queryByTags are lean by default', async () => {
+    const net = fakeFetch({ intercept: () => json([]) });
+    const client = make(net);
+    await client.getGames([1, 2]);
+    await client.queryByTags({ genres: [12], themes: [], minRatingCount: 50, limit: 9 });
+    expect(net.apiCalls()).toHaveLength(2);
+    for (const c of net.apiCalls()) {
+      expect(c.body).not.toMatch(HEAVY);
+      expect(c.body).toMatch(/collections,franchises/);
+    }
   });
 });
 

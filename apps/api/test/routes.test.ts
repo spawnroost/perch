@@ -270,6 +270,7 @@ describe.skipIf(!testUrl)('api routes', () => {
         hastilyHours: 1,
         normallyHours: 2,
         completelyHours: null,
+        submissions: 50,
       });
       expect(Object.fromEntries(body.fit.map((f) => [f.deviceName, f.reason]))).toEqual({
         'Steam Deck': 'Steam Deck Verified',
@@ -297,7 +298,6 @@ describe.skipIf(!testUrl)('api routes', () => {
           expansionCount: 1,
           series: 'Alpha Saga',
         },
-        timeToBeat: { story: 1, extras: 2, completionist: null, submissions: 50 },
       });
       expect(Object.fromEntries(body.fit.map((f) => [f.deviceName, f.status]))).toEqual({
         'Steam Deck': 'green',
@@ -316,7 +316,6 @@ describe.skipIf(!testUrl)('api routes', () => {
       expect(body.facts.stores).toEqual([]);
       expect(body.facts.links).toHaveLength(2);
       expect(body.facts).toMatchObject({
-        timeToBeat: null,
         about: { developers: [], modes: [], coop: null, dlcCount: 0, series: null },
       });
     });
@@ -768,6 +767,7 @@ describe.skipIf(!testUrl)('api routes', () => {
         hastilyHours: null,
         normallyHours: 10,
         completelyHours: null,
+        submissions: 10,
       });
       expect((await get('/api/recommendations?device=all', u.cookie)).status).toBe(200);
     });

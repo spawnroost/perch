@@ -181,9 +181,22 @@ describe('row builders', () => {
     expansionCount: 0,
     seriesName: null,
   };
+  const ABOUT_KEYS = [
+    'developers',
+    'publishers',
+    'multiplayer',
+    'dlcCount',
+    'expansionCount',
+    'seriesName',
+  ] as const;
+  it('buildGameRow never writes the About columns (the IGDB cache owns them)', () => {
+    const row = buildGameRow(game, {}, new Date());
+    for (const k of ABOUT_KEYS) expect(row).not.toHaveProperty(k);
+  });
   it('buildGameRow adds vocab and fetchedAt', () => {
     const now = new Date('2026-01-01T00:00:00Z');
     const rest: Partial<Game> = { ...game };
+    for (const k of ABOUT_KEYS) delete rest[k];
     delete rest.accent;
     expect(buildGameRow(game, { roguelike: 1 }, now)).toEqual({
       ...rest,

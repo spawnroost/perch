@@ -27,7 +27,6 @@ export function seedGameDetail(
       expansionCount: 0,
       series: null,
     },
-    timeToBeat: null,
   };
   const base = { slug: '', summary: null, platforms: [], ratingCount: null, steamAppId: null };
   for (const feed of feeds) {

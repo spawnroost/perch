@@ -22,7 +22,8 @@ const API_BASE = 'https://api.igdb.com/v4';
 /** `external_game_source` id for Steam (the `category` field is deprecated). */
 export const STEAM_SOURCE_ID = 1;
 
-const GAME_FIELDS = [
+/** Fields for bulk candidate queries; the About fields are left out to keep responses small. */
+const LEAN = [
   'name',
   'slug',
   'summary',
@@ -43,6 +44,16 @@ const GAME_FIELDS = [
   'game_modes',
   'platforms',
   'similar_games',
+  'collections',
+  'franchises',
+  'external_games.uid',
+  'external_games.external_game_source',
+];
+const LEAN_FIELDS = LEAN.join(',');
+
+/** The detail page also wants studios, co-op modes, DLC counts and the series name. */
+const FULL_FIELDS = [
+  ...LEAN.filter((f) => f !== 'collections' && f !== 'franchises'),
   'collections.name',
   'franchises.name',
   'involved_companies.company.name',
@@ -55,8 +66,6 @@ const GAME_FIELDS = [
   'multiplayer_modes.splitscreen',
   'dlcs',
   'expansions',
-  'external_games.uid',
-  'external_games.external_game_source',
 ].join(',');
 
 export class IgdbError extends Error {
@@ -95,8 +104,11 @@ export const IGDB_MAX_LIMIT = 500;
 export interface IgdbClient {
   searchGames(name: string): Promise<SearchResult>;
   getGame(igdbId: number): Promise<Game | null>;
-  /** Batched lookup (<= 500 ids per query). Unknown ids are omitted; order is not preserved. */
-  getGames(igdbIds: readonly number[]): Promise<Game[]>;
+  /**
+   * Batched lookup (<= 500 ids per query). Unknown ids are omitted; order is not preserved.
+   * Lean by default (no About fields: those come back empty); `full` asks for them too.
+   */
+  getGames(igdbIds: readonly number[], opts?: { full?: boolean }): Promise<Game[]>;
   /** Best-rated main games (game_type 0) matching any genre/theme, with at least minRatingCount ratings. */
   queryByTags(q: TagQuery): Promise<Game[]>;
   getTimeToBeat(igdbId: number): Promise<TimeToBeat | null>;
@@ -218,20 +230,21 @@ export function createIgdbClient(opts: IgdbClientOptions): IgdbClient {
     async getGame(igdbId) {
       const [g] = await query(
         'games',
-        `fields ${GAME_FIELDS}; where id = ${Math.trunc(igdbId)};`,
+        `fields ${FULL_FIELDS}; where id = ${Math.trunc(igdbId)};`,
         igdbGamesResponseSchema,
       );
       return g ? toGame(g) : null;
     },
 
-    async getGames(igdbIds) {
+    async getGames(igdbIds, opts) {
+      const fields = opts?.full ? FULL_FIELDS : LEAN_FIELDS;
       const ids = [...new Set(igdbIds)];
       const out: Game[] = [];
       for (let i = 0; i < ids.length; i += IGDB_MAX_LIMIT) {
         const batch = ids.slice(i, i + IGDB_MAX_LIMIT);
         const rows = await query(
           'games',
-          `fields ${GAME_FIELDS}; where id = (${idList(batch)}); limit ${IGDB_MAX_LIMIT};`,
+          `fields ${fields}; where id = (${idList(batch)}); limit ${IGDB_MAX_LIMIT};`,
           igdbGamesResponseSchema,
         );
         out.push(...rows.map(toGame));
@@ -246,7 +259,7 @@ export function createIgdbClient(opts: IgdbClientOptions): IgdbClient {
       if (tags.length === 0) return [];
       const rows = await query(
         'games',
-        `fields ${GAME_FIELDS}; where (${tags.join(' | ')}) & total_rating_count >= ${Math.trunc(minRatingCount)} & game_type = 0; ` +
+        `fields ${LEAN_FIELDS}; where (${tags.join(' | ')}) & total_rating_count >= ${Math.trunc(minRatingCount)} & game_type = 0; ` +
           `sort total_rating desc; limit ${Math.min(Math.max(Math.trunc(limit), 1), IGDB_MAX_LIMIT)};`,
         igdbGamesResponseSchema,
       );

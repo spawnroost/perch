@@ -12,12 +12,7 @@ export type { IgdbCache, IgdbCacheOptions } from './cache.js';
 export { RateQueue } from './queue.js';
 export { TokenProvider } from './token.js';
 export type { Game, GameCandidate, SearchResult, TimeToBeat } from './schemas.js';
-export {
-  loadTimeToBeat,
-  MIN_TIME_TO_BEAT_COUNT,
-  toTimeToBeatHours,
-  toTimeToBeatTiers,
-} from './time-to-beat.js';
-export type { TimeToBeatHours, TimeToBeatTiers } from './time-to-beat.js';
+export { loadTimeToBeat, MIN_TIME_TO_BEAT_COUNT, toTimeToBeatHours } from './time-to-beat.js';
+export type { TimeToBeatHours } from './time-to-beat.js';
 export { createAccentFetcher, pickAccent } from './accent.js';
 export type { AccentFetcherOptions } from './accent.js';

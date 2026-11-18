@@ -29,6 +29,7 @@ const ttb = (hastily: number | null, normally: number | null): TimeToBeatHours =
   hastilyHours: hastily,
   normallyHours: normally,
   completelyHours: null,
+  submissions: 5,
 });
 const pc = { id: 'd1', kind: 'pc', gpuScore: 10000 };
 const deck = { id: 'd1', kind: 'steam-deck', gpuScore: 5600 };

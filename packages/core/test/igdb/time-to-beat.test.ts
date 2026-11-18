@@ -12,7 +12,12 @@ describe('toTimeToBeatHours', () => {
         completelySeconds: null,
         count: 20,
       }),
-    ).toEqual({ hastilyHours: 10, normallyHours: 15.3, completelyHours: null });
+    ).toEqual({
+      hastilyHours: 10,
+      normallyHours: 15.3,
+      completelyHours: null,
+      submissions: 20,
+    });
   });
   it('is null for no data, an all-null row, or fewer than 5 submissions', () => {
     expect(toTimeToBeatHours(null)).toBeNull();
@@ -41,6 +46,11 @@ describe('toTimeToBeatHours', () => {
         completelySeconds: null,
         count: null,
       }),
-    ).toEqual({ hastilyHours: null, normallyHours: 2, completelyHours: null });
+    ).toEqual({
+      hastilyHours: null,
+      normallyHours: 2,
+      completelyHours: null,
+      submissions: 0,
+    });
   });
 });

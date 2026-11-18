@@ -19,7 +19,7 @@ const rec = {
   },
   fits: [{ deviceId: 'd1', deviceName: 'Deck', status: 'yes', reason: 'ok' }],
   deck: 'verified',
-  timeToBeat: { hastilyHours: 1, normallyHours: 2, completelyHours: 3 },
+  timeToBeat: { hastilyHours: 1, normallyHours: 2, completelyHours: 3, submissions: 9 },
 } as unknown as RecommendationsResponse['recommendations'][number];
 
 const entry = {
