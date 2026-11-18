@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { STEAM_PRIVATE_HELP } from '@perch/core';
+import {
+  STEAM_NOT_CONFIGURED_HELP,
+  STEAM_NOT_LINKED_HELP,
+  STEAM_PRIVATE_HELP,
+  STEAM_UNAVAILABLE_HELP,
+} from '@perch/core';
 import { steamSyncErrorText, steamSyncSummary, syncedAgo } from '../src/lib/steamSync.js';
 import { ApiError } from '../src/lib/api.js';
 
@@ -36,8 +41,11 @@ describe('steamSyncErrorText', () => {
     expect(STEAM_PRIVATE_HELP).toMatch(/Privacy Settings.*Game details.*Public/);
   });
   it('explains the other codes and passes unknown errors through', () => {
-    expect(steamSyncErrorText(new ApiError(503, 'steam_not_configured'))).toMatch(/not set up/);
-    expect(steamSyncErrorText(new ApiError(502, 'steam_unavailable'))).toMatch(/try again/i);
+    expect(steamSyncErrorText(new ApiError(503, 'steam_not_configured'))).toBe(
+      STEAM_NOT_CONFIGURED_HELP,
+    );
+    expect(steamSyncErrorText(new ApiError(502, 'steam_unavailable'))).toBe(STEAM_UNAVAILABLE_HELP);
+    expect(steamSyncErrorText(new ApiError(400, 'steam_not_linked'))).toBe(STEAM_NOT_LINKED_HELP);
     expect(steamSyncErrorText(new ApiError(0, 'Could not reach the server.'))).toBe(
       'Could not reach the server.',
     );

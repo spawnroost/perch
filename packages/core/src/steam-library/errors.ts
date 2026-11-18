@@ -24,3 +24,11 @@ export class SteamNetworkError extends Error {
     this.name = 'SteamNetworkError';
   }
 }
+
+/** The user's linked Steam account changed while an import was running, so nothing was written. */
+export class SteamAccountChangedError extends Error {
+  constructor() {
+    super('Steam account changed during the import');
+    this.name = 'SteamAccountChangedError';
+  }
+}

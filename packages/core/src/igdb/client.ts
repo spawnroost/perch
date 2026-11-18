@@ -248,16 +248,23 @@ export function createIgdbClient(opts: IgdbClientOptions): IgdbClient {
       const unique = [...new Set(appids)];
       const out = new Map<number, number>();
       for (let i = 0; i < unique.length; i += IGDB_MAX_LIMIT) {
-        const batch = unique.slice(i, i + IGDB_MAX_LIMIT);
-        const uids = batch.map((a) => `"${Math.trunc(a)}"`).join(',');
-        const rows = await query(
-          'external_games',
-          `fields uid,game; where external_game_source = ${STEAM_SOURCE_ID} & uid = (${uids}) & game != null; limit ${IGDB_MAX_LIMIT};`,
-          igdbExternalGamesResponseSchema,
-        );
-        for (const r of rows) {
-          // An appid can have several IGDB entries (bundles, DLC): the first one wins.
-          if (r.game !== undefined && !out.has(Number(r.uid))) out.set(Number(r.uid), r.game);
+        const uids = unique
+          .slice(i, i + IGDB_MAX_LIMIT)
+          .map((a) => `"${Math.trunc(a)}"`)
+          .join(',');
+        // An appid can have several IGDB entries (bundles, DLC), so a page can fill up with
+        // duplicates: page with an offset until a short page.
+        for (let offset = 0; ; offset += IGDB_MAX_LIMIT) {
+          const rows = await query(
+            'external_games',
+            `fields uid,game; where external_game_source = ${STEAM_SOURCE_ID} & uid = (${uids}) & game != null; limit ${IGDB_MAX_LIMIT}; offset ${offset};`,
+            igdbExternalGamesResponseSchema,
+          );
+          for (const r of rows) {
+            // The first IGDB entry per appid wins.
+            if (r.game !== undefined && !out.has(Number(r.uid))) out.set(Number(r.uid), r.game);
+          }
+          if (rows.length < IGDB_MAX_LIMIT) break;
         }
       }
       return out;

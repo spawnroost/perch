@@ -434,6 +434,24 @@ describe('steamAppIds', () => {
     expect(call.body).toContain('uid = ("10","20","30")');
   });
 
+  it('pages with offset when duplicate rows fill the 500 limit', async () => {
+    const page = (n: number, base: number) =>
+      Array.from({ length: n }, (_, i) => ({ uid: String(base + (i % 250)), game: 1000 + i }));
+    const net = fakeFetch({
+      intercept: ({ url, body }) => {
+        if (!url.endsWith('/external_games')) return undefined;
+        const offset = Number(/offset (\d+)/.exec(body)?.[1] ?? 0);
+        if (offset === 0) return json(page(500, 1));
+        if (offset === 500) return json([{ uid: '400', game: 4000 }]);
+        return json([]);
+      },
+    });
+    const map = await make(net).steamAppIds(Array.from({ length: 400 }, (_, i) => i + 1));
+    expect(net.apiCalls()).toHaveLength(2);
+    expect(net.apiCalls()[1]!.body).toContain('offset 500');
+    expect(map.get(400)).toBe(4000);
+  });
+
   it('makes no request for no appids and batches 500 uids per query', async () => {
     const net = fakeFetch({ intercept: () => json([]) });
     const client = make(net);

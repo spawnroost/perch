@@ -176,14 +176,13 @@ export function accountRoutes({ db, env, steamSync }: RouteDeps) {
 
   r.get('/', async (c) => {
     const { id, email, steamId } = c.get('user');
-    const [row] = await db
-      .select({ at: schema.users.steamSyncedAt })
-      .from(schema.users)
-      .where(eq(schema.users.id, id));
+    const { steamSyncedAt } = c.get('user');
+    // Off the request path: not awaited, never throws.
+    if (steamId) steamSync.maybeAuto(id, steamId);
     return c.json({
       email,
       steamId: steamId ?? null,
-      steamSyncedAt: row?.at?.toISOString() ?? null,
+      steamSyncedAt: steamSyncedAt ? new Date(steamSyncedAt).toISOString() : null,
       steamSyncAvailable: steamSync.configured,
       ...(await signInMethods(id)),
     });
@@ -193,7 +192,10 @@ export function accountRoutes({ db, env, steamSync }: RouteDeps) {
     const { id, steamId } = c.get('user');
     if (!canUnlinkSteam({ steamId: steamId ?? null, ...(await signInMethods(id)) }))
       return c.json({ error: 'Steam is your only sign-in method.' }, 409);
-    await db.update(schema.users).set({ steamId: null }).where(eq(schema.users.id, id));
+    await db
+      .update(schema.users)
+      .set({ steamId: null, steamSyncedAt: null })
+      .where(eq(schema.users.id, id));
     return c.json({ ok: true });
   });
 

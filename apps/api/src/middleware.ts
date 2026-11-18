@@ -9,10 +9,7 @@ import { isAuthPost } from './http.js';
  * Requests without a cookie better-auth recognises, and credential POSTs to /api/auth/* (keyed by
  * IP, the auth handler does its own work), cost no DB lookup.
  */
-export function resolveSession({
-  auth,
-  steamSync,
-}: Pick<RouteDeps, 'auth'> & Partial<Pick<RouteDeps, 'steamSync'>>) {
+export function resolveSession({ auth }: Pick<RouteDeps, 'auth'>) {
   return createMiddleware<AppVars>(async (c, next) => {
     const skip = isAuthPost(c);
     let user = null;
@@ -20,8 +17,6 @@ export function resolveSession({
       user = (await auth.api.getSession({ headers: c.req.raw.headers }))?.user ?? null;
     }
     c.set('sessionUser', user);
-    // Off the request path: not awaited, never throws.
-    if (user) steamSync?.maybeAuto(user.id, user.steamId);
     await next();
   });
 }

@@ -79,6 +79,8 @@ export function createAuth(db: Db, env: ApiEnv, rawMailer: Mailer) {
       additionalFields: {
         /** SteamID64; set only by our Steam OpenID flow, never from client input. */
         steamId: { type: 'string', required: false, input: false },
+        /** Last Steam library import; written only by the sync code. */
+        steamSyncedAt: { type: 'date', required: false, input: false },
       },
     },
     // Only providers with credentials are registered; the Account page and login buttons key off this.

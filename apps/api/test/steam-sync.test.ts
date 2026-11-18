@@ -189,24 +189,39 @@ describe.skipIf(!testUrl)('steam library sync', () => {
     expect(await res.json()).toMatchObject({ error: 'steam_unavailable' });
   });
 
-  it('auto-syncs off the request path after a session fetch, at most every 6 hours', async () => {
+  it('auto-syncs off the request path on an account fetch, at most every 6 hours', async () => {
     mode = 'ok';
     const u = await signedIn(ctx, true);
     steamCalls = 0;
-    const me = await ctx.app.request('/api/me', { headers: { cookie: u.cookie } });
-    expect(me.status).toBe(200);
+    const res = await ctx.app.request('/api/account', { headers: { cookie: u.cookie } });
+    expect(res.status).toBe(200);
     await vi.waitFor(async () => expect(await entries(u.id)).toHaveLength(2));
     expect(steamCalls).toBe(1);
-    // Fresh sync: later requests never call Steam again.
-    for (let i = 0; i < 3; i++) await ctx.app.request('/api/me', { headers: { cookie: u.cookie } });
+    // Fresh sync: later fetches never call Steam again.
+    for (let i = 0; i < 3; i++)
+      await ctx.app.request('/api/account', { headers: { cookie: u.cookie } });
     await new Promise((r) => setTimeout(r, 50));
     expect(steamCalls).toBe(1);
   });
 
-  it('never lets an auto-sync failure reach the request', async () => {
+  it('does not sync from ordinary requests', async () => {
+    mode = 'ok';
+    const u = await signedIn(ctx, true);
+    steamCalls = 0;
+    for (let i = 0; i < 3; i++) await ctx.app.request('/api/me', { headers: { cookie: u.cookie } });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(steamCalls).toBe(0);
+  });
+
+  it('never lets an auto-sync failure reach the request, and retries on the next fetch', async () => {
     mode = 'down';
     const u = await signedIn(ctx, true);
-    const me = await ctx.app.request('/api/me', { headers: { cookie: u.cookie } });
-    expect(me.status).toBe(200);
+    const res = await ctx.app.request('/api/account', { headers: { cookie: u.cookie } });
+    expect(res.status).toBe(200);
+    await vi.waitFor(async () => {
+      const [row] = await ctx.db.select().from(schema.users).where(eq(schema.users.id, u.id));
+      expect(steamCalls).toBeGreaterThan(0);
+      expect(row?.steamSyncedAt).toBeNull();
+    });
   });
 });

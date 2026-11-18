@@ -1,4 +1,10 @@
-import { STEAM_PRIVATE_HELP, type SteamSyncResult } from '@perch/core';
+import {
+  STEAM_NOT_CONFIGURED_HELP,
+  STEAM_NOT_LINKED_HELP,
+  STEAM_PRIVATE_HELP,
+  STEAM_UNAVAILABLE_HELP,
+  type SteamSyncResult,
+} from '@perch/core';
 
 /** "Synced 3 h ago" for the Steam section; `iso` is the API's `steamSyncedAt`. */
 export function syncedAgo(iso: string | null, now: Date): string {
@@ -25,11 +31,11 @@ export function steamSyncErrorText(err: unknown): string {
     case 'steam_profile_private':
       return STEAM_PRIVATE_HELP;
     case 'steam_not_configured':
-      return 'Steam library sync is not set up on this server.';
+      return STEAM_NOT_CONFIGURED_HELP;
     case 'steam_unavailable':
-      return 'Steam could not be reached. Try again in a moment.';
+      return STEAM_UNAVAILABLE_HELP;
     case 'steam_not_linked':
-      return 'Link your Steam account before syncing.';
+      return STEAM_NOT_LINKED_HELP;
     default:
       return err.message;
   }

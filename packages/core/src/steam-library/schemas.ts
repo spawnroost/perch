@@ -48,3 +48,6 @@ export type SteamSyncError = z.infer<typeof steamSyncErrorSchema>;
 
 export const STEAM_PRIVATE_HELP =
   'Your Steam game details are private. In Steam open Privacy Settings and set Game details to Public, then sync again.';
+export const STEAM_NOT_CONFIGURED_HELP = 'Steam library sync is not set up on this server.';
+export const STEAM_UNAVAILABLE_HELP = 'Steam could not be reached. Try again in a moment.';
+export const STEAM_NOT_LINKED_HELP = 'Link your Steam account before syncing.';

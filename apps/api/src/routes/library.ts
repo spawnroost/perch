@@ -14,9 +14,12 @@ import {
   rebuildProfile,
   updateLibraryEntry,
   upsertLibraryGame,
+  STEAM_NOT_CONFIGURED_HELP,
+  STEAM_NOT_LINKED_HELP,
   STEAM_PRIVATE_HELP,
+  STEAM_UNAVAILABLE_HELP,
+  SteamAccountChangedError,
   SteamNetworkError,
-  SteamNotConfiguredError,
   SteamProfilePrivateError,
   type ImportPreviewResponse,
   type SteamSyncError,
@@ -66,31 +69,25 @@ export function libraryRoutes(deps: RouteDeps) {
   r.post('/steam/sync', async (c) => {
     const { id, steamId } = c.get('user');
     if (!steamId)
-      return steamError(c, 400, {
-        error: 'steam_not_linked',
-        message: 'Link your Steam account before syncing.',
-      });
+      return steamError(c, 400, { error: 'steam_not_linked', message: STEAM_NOT_LINKED_HELP });
     requireIgdb(deps);
     if (!deps.env.STEAM_API_KEY)
       return steamError(c, 503, {
         error: 'steam_not_configured',
-        message: 'Steam library sync is not set up on this server.',
+        message: STEAM_NOT_CONFIGURED_HELP,
       });
     try {
       return c.json(await deps.steamSync.run(id, steamId));
     } catch (err) {
       if (err instanceof SteamProfilePrivateError)
         return steamError(c, 409, { error: 'steam_profile_private', message: STEAM_PRIVATE_HELP });
-      if (err instanceof SteamNotConfiguredError)
-        return steamError(c, 503, {
-          error: 'steam_not_configured',
-          message: 'Steam library sync is not set up on this server.',
-        });
+      if (err instanceof SteamAccountChangedError)
+        return steamError(c, 400, { error: 'steam_not_linked', message: STEAM_NOT_LINKED_HELP });
       if (err instanceof SteamNetworkError) {
         console.error(err);
         return steamError(c, 502, {
           error: 'steam_unavailable',
-          message: 'Steam could not be reached. Try again in a moment.',
+          message: STEAM_UNAVAILABLE_HELP,
         });
       }
       throw err;

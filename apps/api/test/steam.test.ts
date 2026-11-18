@@ -193,8 +193,14 @@ describe.skipIf(!testUrl)('steam openid', () => {
     const steamId = newSteamId();
     const { callbackPath, cookie } = await begin('link', steamId, u.cookie);
     await call(callbackPath, cookie);
+    await ctx.db
+      .update(schema.users)
+      .set({ steamSyncedAt: new Date() })
+      .where(eq(schema.users.id, u.id));
     const res = await call('/api/account/steam/unlink', u.cookie, 'POST');
     expect(res.status).toBe(200);
+    const [after] = await ctx.db.select().from(schema.users).where(eq(schema.users.id, u.id));
+    expect(after?.steamSyncedAt).toBeNull();
     const me = await call('/api/account', u.cookie);
     expect(await me.json()).toMatchObject({ steamId: null });
   });

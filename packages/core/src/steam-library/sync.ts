@@ -1,14 +1,16 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { libraryEntries, users, type Db } from '@perch/db';
 import type { IgdbCache } from '../igdb/cache.js';
 import type { IgdbClient } from '../igdb/client.js';
 import { buildLibraryRow } from '../library/rows.js';
 import { bumpRecsVersion } from '../recommendation-cache/version.js';
+import { SteamAccountChangedError } from './errors.js';
 import { resolveSteamAppIds } from './map.js';
 import type { OwnedGame, SteamSyncResult } from './schemas.js';
 import { steamImportStatus } from './status.js';
 
 export const STEAM_PLATFORM = 'pc';
+const INSERT_CHUNK = 500;
 
 export interface SteamSyncDeps {
   db: Db;
@@ -23,7 +25,8 @@ const toHours = (minutes: number) => Math.round((minutes / 60) * 10) / 10;
 
 /**
  * Imports the user's Steam library as PC entries. Existing entries only gain data: hours and
- * last-played never go down, status and source are left alone, owned becomes true.
+ * last-played never go down, status and source are left alone, owned becomes true. Writes
+ * nothing if the user's linked Steam id is no longer `steamId` by the time it writes.
  */
 export async function syncSteamLibrary(
   deps: SteamSyncDeps,
@@ -52,64 +55,58 @@ export async function syncSteamLibrary(
 
   const found = new Set((await cache.getGames([...merged.keys()])).map((g) => g.igdbId));
   const ids = [...merged.keys()].filter((id) => found.has(id));
-  const existing = new Map(
-    ids.length === 0
-      ? []
-      : (
-          await db
-            .select()
-            .from(libraryEntries)
-            .where(
-              and(
-                eq(libraryEntries.userId, userId),
-                eq(libraryEntries.platform, STEAM_PLATFORM),
-                inArray(libraryEntries.igdbId, ids),
-              ),
-            )
-        ).map((e) => [e.igdbId, e]),
-  );
+  const unmatched = owned.filter((g) => {
+    const igdbId = map.get(g.appid);
+    return igdbId === undefined || !found.has(igdbId);
+  }).length;
+
+  const rows = ids.map((igdbId) => {
+    const { minutes, lastPlayed } = merged.get(igdbId)!;
+    // Status only applies to a new row: the conflict update below never touches it.
+    return buildLibraryRow({
+      userId,
+      igdbId,
+      platform: STEAM_PLATFORM,
+      source: 'steam',
+      owned: true,
+      hours: minutes > 0 ? toHours(minutes) : undefined,
+      lastPlayed: lastPlayed ?? undefined,
+      status: steamImportStatus({ minutes, lastPlayed, now }),
+    }).insert;
+  });
 
   let imported = 0;
   let updated = 0;
   await db.transaction(async (tx) => {
-    for (const igdbId of ids) {
-      const { minutes, lastPlayed } = merged.get(igdbId)!;
-      const hours = toHours(minutes);
-      const prev = existing.get(igdbId);
-      const { insert, update } = buildLibraryRow({
-        userId,
-        igdbId,
-        platform: STEAM_PLATFORM,
-        source: 'steam',
-        owned: true,
-        // Existing rows keep their status and only ever gain hours / a later last-played.
-        ...(prev
-          ? {
-              hours: hours > (prev.hoursPlayed ?? 0) ? hours : undefined,
-              lastPlayed:
-                lastPlayed && (!prev.lastPlayed || lastPlayed > prev.lastPlayed)
-                  ? lastPlayed
-                  : undefined,
-            }
-          : {
-              hours,
-              lastPlayed: lastPlayed ?? undefined,
-              status: steamImportStatus({ minutes, lastPlayed, now }),
-            }),
-      });
-      await tx
+    const [owner] = await tx
+      .select({ steamId: users.steamId })
+      .from(users)
+      .where(eq(users.id, userId))
+      .for('update');
+    if (owner?.steamId !== steamId) throw new SteamAccountChangedError();
+
+    for (let i = 0; i < rows.length; i += INSERT_CHUNK) {
+      const res = await tx
         .insert(libraryEntries)
-        .values(insert)
+        .values(rows.slice(i, i + INSERT_CHUNK))
         .onConflictDoUpdate({
           target: [libraryEntries.userId, libraryEntries.igdbId, libraryEntries.platform],
-          set: update,
-        });
-      if (prev) updated++;
-      else imported++;
+          set: {
+            hoursPlayed: sql`greatest(${libraryEntries.hoursPlayed}, excluded.hours_played)`,
+            lastPlayed: sql`greatest(${libraryEntries.lastPlayed}, excluded.last_played)`,
+            owned: true,
+          },
+        })
+        // xmax is 0 only on a freshly inserted row; an ON CONFLICT update sets it.
+        .returning({ inserted: sql<boolean>`(xmax = 0)` });
+      for (const r of res) {
+        if (r.inserted) imported++;
+        else updated++;
+      }
     }
     await tx.update(users).set({ steamSyncedAt: now }).where(eq(users.id, userId));
     await bumpRecsVersion(tx, userId);
   });
 
-  return { imported, updated, unmatched: owned.length - ids.length, total: owned.length };
+  return { imported, updated, unmatched, total: owned.length };
 }
