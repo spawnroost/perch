@@ -75,36 +75,23 @@ export function coopLabels(coop: Facts['about']['coop']): string[] {
 
 export interface AboutRow {
   label: string;
-  value: string;
+  /** null when unknown: the UI shows a muted "Unknown" so every game has the same rows. */
+  value: string | null;
 }
 
-/** Labelled rows of the About block in a fixed order; rows with no data are left out. */
+const joined = (items: readonly string[]) => (items.length > 0 ? items.join(', ') : null);
+const countOrNull = (n: number) => (n > 0 ? count(n) : null);
+
+/** The Details rows: always the same eight, in a fixed order; a row with no data has a null value. */
 export function aboutRows(about: Facts['about']): AboutRow[] {
-  const extras = [
-    about.dlcCount > 0 ? `${count(about.dlcCount)} DLC` : null,
-    about.expansionCount > 0 ? plural(about.expansionCount, 'expansion') : null,
-  ].filter((s): s is string => s !== null);
-  const coop = coopLabels(about.coop);
-  const candidates: Array<AboutRow | null> = [
-    about.developers.length > 0
-      ? {
-          label: about.developers.length === 1 ? 'Developer' : 'Developers',
-          value: about.developers.join(', '),
-        }
-      : null,
-    about.publishers.length > 0
-      ? {
-          label: about.publishers.length === 1 ? 'Publisher' : 'Publishers',
-          value: about.publishers.join(', '),
-        }
-      : null,
-    about.series ? { label: 'Series', value: about.series } : null,
-    about.modes.length > 0 ? { label: 'Modes', value: about.modes.join(', ') } : null,
-    about.perspectives.length > 0
-      ? { label: 'Perspective', value: about.perspectives.join(', ') }
-      : null,
-    coop.length > 0 ? { label: 'Co-op', value: coop.join(', ') } : null,
-    extras.length > 0 ? { label: 'Extras', value: extras.join(', ') } : null,
+  return [
+    { label: about.developers.length > 1 ? 'Developers' : 'Developer', value: joined(about.developers) },
+    { label: about.publishers.length > 1 ? 'Publishers' : 'Publisher', value: joined(about.publishers) },
+    { label: 'Series', value: about.series },
+    { label: 'Modes', value: joined(about.modes) },
+    { label: 'Perspective', value: joined(about.perspectives) },
+    { label: 'Co-op', value: joined(coopLabels(about.coop)) },
+    { label: 'DLC', value: countOrNull(about.dlcCount) },
+    { label: 'Expansions', value: countOrNull(about.expansionCount) },
   ];
-  return candidates.filter((r): r is AboutRow => r !== null);
 }

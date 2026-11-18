@@ -11,7 +11,7 @@ import {
   Hero,
   LoadError,
 } from '../molecules';
-import { GameFactsRail } from './GameFactsRail';
+import { GameFactsBody, GameFactsRail } from './GameFactsRail';
 import { useAddToLibrary, useFeedback, useGameDetail, useLibrary } from '@/hooks/queries';
 import { useReduced } from '@/hooks/useMotionPrefs';
 import { accentStyle } from '@/lib/accent';
@@ -186,7 +186,7 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
         }
       />
       <div className="grid gap-x-12 gap-y-8 px-gutter lg:grid-cols-[minmax(0,1fr)_var(--container-rail)]">
-        <div className="flex max-w-3xl flex-col gap-8">
+        <div className="flex min-w-0 flex-col gap-8">
           {add.isError && <Notice tone="error">{add.error.message}</Notice>}
           {feedbackError && <Notice tone="error">{feedbackError.message}</Notice>}
           {seeded ? (
@@ -194,11 +194,9 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
           ) : (
             <Reveal>
               <div className="flex flex-col gap-8">
-                {game.summary && (
-                  <DetailSection title="About">
-                    <p className="text-base text-fg">{game.summary}</p>
-                  </DetailSection>
-                )}
+                <DetailSection title="About" empty={game.summary ? undefined : 'No description yet.'}>
+                  <p className="max-w-prose text-base text-fg">{game.summary}</p>
+                </DetailSection>
 
                 <DetailSection title="Why it's recommended">
                   {why.length > 0 ? (
@@ -219,11 +217,14 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
               </div>
             </Reveal>
           )}
+          {!seeded && (
+            <GameFactsBody facts={facts} timeToBeat={timeToBeat} steamAppId={game.steamAppId} />
+          )}
         </div>
 
         <aside
           style={accentStyle(game.accent)}
-          className="-m-1.5 flex flex-col gap-6 p-1.5 lg:sticky lg:top-16 lg:max-h-[calc(100dvh-5rem)] lg:self-start lg:overflow-y-auto"
+          className="flex flex-col gap-8 lg:sticky lg:top-16 lg:self-start"
         >
           {seeded && fit.length === 0 ? (
             <DetailSection title="Will it run">

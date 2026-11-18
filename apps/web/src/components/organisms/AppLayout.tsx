@@ -1,4 +1,5 @@
 import { Link, Outlet, useLocation } from 'react-router';
+import { Logo } from '../atoms';
 import { NavBar } from '../molecules';
 import { AccountMenu } from './AccountMenu';
 import { GlobalSearch } from './GlobalSearch';
@@ -13,7 +14,11 @@ export function AppLayout() {
       <header className="sticky top-0 z-10 border-b border-line bg-ground">
         <div className="flex h-12 w-full items-center justify-between gap-4 px-gutter">
           <div className="flex items-center gap-4">
-            <Link to="/" className="rounded-sm text-lg font-semibold tracking-display text-fg">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 rounded-sm text-lg font-semibold tracking-display text-fg"
+            >
+              <Logo aria-hidden className="size-6" />
               Perch
             </Link>
             <NavBar />

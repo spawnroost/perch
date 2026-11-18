@@ -26,4 +26,4 @@ export { LibraryEntryEditor } from './LibraryEntryEditor';
 export { LibraryView } from './LibraryView';
 export { GlobalSearch } from './GlobalSearch';
 export { ProviderAuthOptions } from './ProviderAuthOptions';
-export { GameFactsRail } from './GameFactsRail';
+export { GameFactsBody, GameFactsRail } from './GameFactsRail';

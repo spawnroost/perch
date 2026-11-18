@@ -95,10 +95,21 @@ describe('aboutRows', () => {
     expansionCount: 0,
     series: null,
   };
-  it('is empty with no data', () => {
-    expect(aboutRows(empty)).toEqual([]);
+  it('always returns the same eight rows, in order, with null values when unknown', () => {
+    const rows = aboutRows(empty);
+    expect(rows.map((r) => r.label)).toEqual([
+      'Developer',
+      'Publisher',
+      'Series',
+      'Modes',
+      'Perspective',
+      'Co-op',
+      'DLC',
+      'Expansions',
+    ]);
+    expect(rows.every((r) => r.value === null)).toBe(true);
   });
-  it('builds labelled rows in a fixed order and skips empty ones', () => {
+  it('fills the rows from the data', () => {
     expect(
       aboutRows({
         developers: ['Supergiant Games'],
@@ -117,18 +128,14 @@ describe('aboutRows', () => {
       { label: 'Modes', value: 'Single player' },
       { label: 'Perspective', value: 'Bird view / Isometric' },
       { label: 'Co-op', value: 'Online co-op up to 4' },
-      { label: 'Extras', value: '1 DLC, 2 expansions' },
+      { label: 'DLC', value: '1' },
+      { label: 'Expansions', value: '2' },
     ]);
   });
-  it('pluralises developers and omits zero counts', () => {
-    const rows = aboutRows({
-      ...empty,
-      developers: ['A', 'B'],
-      expansionCount: 1,
-    });
-    expect(rows).toEqual([
-      { label: 'Developers', value: 'A, B' },
-      { label: 'Extras', value: '1 expansion' },
-    ]);
+  it('pluralises developers and shows zero counts as null', () => {
+    const rows = aboutRows({ ...empty, developers: ['A', 'B'], expansionCount: 1 });
+    expect(rows[0]).toEqual({ label: 'Developers', value: 'A, B' });
+    expect(rows[6]).toEqual({ label: 'DLC', value: null });
+    expect(rows[7]).toEqual({ label: 'Expansions', value: '1' });
   });
 });
