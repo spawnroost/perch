@@ -19,12 +19,11 @@ export function criticSummary(critic: Facts['critic']): { score: string; caption
 export function steamReviewsSummary(
   reviews: Facts['steamReviews'],
   steamAppId: number | null,
-): { desc: string; score: string; pct: string; total: string; url: string | null } | null {
+): { desc: string; score: string; total: string; url: string | null } | null {
   if (!reviews) return null;
   return {
     desc: reviews.desc,
     score: `${reviews.pct}%`,
-    pct: `${reviews.pct}% positive`,
     total: plural(reviews.total, 'review'),
     url:
       steamAppId === null
@@ -85,6 +84,7 @@ export function aboutRows(about: Facts['about']): AboutRow[] {
     about.dlcCount > 0 ? `${count(about.dlcCount)} DLC` : null,
     about.expansionCount > 0 ? plural(about.expansionCount, 'expansion') : null,
   ].filter((s): s is string => s !== null);
+  const coop = coopLabels(about.coop);
   const candidates: Array<AboutRow | null> = [
     about.developers.length > 0
       ? {
@@ -103,9 +103,7 @@ export function aboutRows(about: Facts['about']): AboutRow[] {
     about.perspectives.length > 0
       ? { label: 'Perspective', value: about.perspectives.join(', ') }
       : null,
-    coopLabels(about.coop).length > 0
-      ? { label: 'Co-op', value: coopLabels(about.coop).join(', ') }
-      : null,
+    coop.length > 0 ? { label: 'Co-op', value: coop.join(', ') } : null,
     extras.length > 0 ? { label: 'Extras', value: extras.join(', ') } : null,
   ];
   return candidates.filter((r): r is AboutRow => r !== null);

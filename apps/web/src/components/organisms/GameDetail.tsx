@@ -223,7 +223,7 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
 
         <aside
           style={accentStyle(game.accent)}
-          className="-mx-1 flex flex-col gap-6 px-1 lg:sticky lg:top-16 lg:max-h-[calc(100dvh-5rem)] lg:self-start lg:overflow-y-auto"
+          className="-m-1.5 flex flex-col gap-6 p-1.5 lg:sticky lg:top-16 lg:max-h-[calc(100dvh-5rem)] lg:self-start lg:overflow-y-auto"
         >
           {seeded && fit.length === 0 ? (
             <DetailSection title="Will it run">
@@ -255,15 +255,9 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
             </Reveal>
           )}
           {seeded ? (
-            <DetailSection title="Details">
-              <Skeleton className="h-40 w-full" aria-busy />
-            </DetailSection>
+            <Skeleton className="h-40 w-full" aria-busy />
           ) : (
-            <Reveal>
-              <div className="flex flex-col gap-6">
-                <GameFactsRail facts={facts} timeToBeat={timeToBeat} steamAppId={game.steamAppId} />
-              </div>
-            </Reveal>
+            <GameFactsRail facts={facts} timeToBeat={timeToBeat} steamAppId={game.steamAppId} />
           )}
         </aside>
       </div>

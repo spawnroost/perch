@@ -2,20 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { timeToBeatHours, timeToBeatLabel, timeToBeatTiers } from '../src/lib/timeToBeat.js';
 
 describe('timeToBeatLabel', () => {
-  it('prefers the main-story time and falls back to the other figures', () => {
+  it('uses the Story tier first and falls back to the other figures', () => {
     expect(
       timeToBeatLabel({ hastilyHours: 8, normallyHours: 15, completelyHours: 40, submissions: 5 }),
-    ).toBe('About 15 h to beat');
+    ).toBe('About 8 h to beat');
     expect(
       timeToBeatLabel({
-        hastilyHours: 8.5,
-        normallyHours: null,
+        hastilyHours: null,
+        normallyHours: 15.5,
         completelyHours: 40,
         submissions: 5,
       }),
-    ).toBe('About 8.5 h to beat');
+    ).toBe('About 15.5 h to beat');
   });
-  it('is null with no data', () => {
+  it('is null with no data and treats zero hours as missing', () => {
     expect(timeToBeatLabel(null)).toBeNull();
     expect(
       timeToBeatLabel({
@@ -25,13 +25,19 @@ describe('timeToBeatLabel', () => {
         submissions: 5,
       }),
     ).toBeNull();
+    expect(
+      timeToBeatLabel({ hastilyHours: 0, normallyHours: 0, completelyHours: 0, submissions: 5 }),
+    ).toBeNull();
   });
 });
 
 describe('timeToBeatHours', () => {
-  it('uses the same figure as the label, null with no data', () => {
+  it('uses the same figure as the label, skipping zero and null', () => {
     expect(
       timeToBeatHours({ hastilyHours: 8, normallyHours: 15, completelyHours: 40, submissions: 5 }),
+    ).toBe(8);
+    expect(
+      timeToBeatHours({ hastilyHours: 0, normallyHours: 15, completelyHours: 40, submissions: 5 }),
     ).toBe(15);
     expect(
       timeToBeatHours({
@@ -42,12 +48,7 @@ describe('timeToBeatHours', () => {
       }),
     ).toBe(40);
     expect(
-      timeToBeatHours({
-        hastilyHours: null,
-        normallyHours: null,
-        completelyHours: null,
-        submissions: 5,
-      }),
+      timeToBeatHours({ hastilyHours: 0, normallyHours: 0, completelyHours: 0, submissions: 5 }),
     ).toBeNull();
     expect(timeToBeatHours(null)).toBeNull();
   });

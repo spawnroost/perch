@@ -34,6 +34,6 @@ export { RatingTile } from './RatingTile';
 export type { RatingTileProps } from './RatingTile';
 export { TimeToBeatBars } from './TimeToBeatBars';
 export { StoreLinks } from './StoreLinks';
-export type { StoreLinksProps } from './StoreLinks';
+export { ExternalLinks } from './ExternalLinks';
 export { AboutList } from './AboutList';
 export { DetailSection } from './DetailSection';

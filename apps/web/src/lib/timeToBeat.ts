@@ -2,15 +2,17 @@ import type { GameDetailResponse } from '@perch/core';
 
 type TimeToBeat = GameDetailResponse['timeToBeat'];
 
-/** Main-story hours (else the closest figure); null with no data. */
+const hasHours = (h: number | null): h is number => h !== null && h > 0;
+
+/** Story-tier hours (else Story + extras, else 100%); null with no data. Zero counts as missing. */
 export function timeToBeatHours(t: TimeToBeat): number | null {
   if (!t) return null;
-  return t.normallyHours ?? t.hastilyHours ?? t.completelyHours;
+  return [t.hastilyHours, t.normallyHours, t.completelyHours].find(hasHours) ?? null;
 }
 
 const hoursText = (h: number) => `${Number.isInteger(h) ? h : h.toFixed(1)} h`;
 
-/** "About 15 h to beat" from the main-story time (else the closest figure); null with no data. */
+/** "About 15 h to beat" from the Story tier (else the closest figure); null with no data. */
 export function timeToBeatLabel(t: TimeToBeat): string | null {
   const hours = timeToBeatHours(t);
   if (hours === null) return null;
@@ -38,7 +40,7 @@ export function timeToBeatTiers(
   if (!t) return null;
   const known = TIERS.flatMap((tier) => {
     const h = t[tier.field];
-    return h !== null && h > 0 ? [{ tier, h }] : [];
+    return hasHours(h) ? [{ tier, h }] : [];
   });
   if (known.length === 0) return null;
   const longest = Math.max(...known.map((k) => k.h));

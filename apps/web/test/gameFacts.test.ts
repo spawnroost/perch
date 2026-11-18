@@ -34,7 +34,6 @@ describe('steamReviewsSummary', () => {
       {
         desc: 'Very Positive',
         score: '96%',
-        pct: '96% positive',
         total: '123,456 reviews',
         url: 'https://store.steampowered.com/app/1145360#app_reviews_hash',
       },
