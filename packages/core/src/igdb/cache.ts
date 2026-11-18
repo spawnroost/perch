@@ -34,9 +34,9 @@ export interface IgdbCache {
    */
   backfillArt(): Promise<{ checked: number; updated: number }>;
   /**
-   * Refetches cached games that have neither a critic rating nor store links (rows cached before
-   * those fields existed, or games IGDB has no data for) and upserts them. `updated` counts the
-   * games that now have either.
+   * Refetches cached games whose About fields were never fetched, or that have neither a critic
+   * rating nor store links (rows cached before those fields existed), and upserts them. `updated`
+   * counts the games that now have any of the facts.
    */
   backfillFacts(): Promise<{ checked: number; updated: number }>;
   /** Resolves when all background work (accent downloads, time-to-beat warm-ups) has finished. */
@@ -77,6 +77,12 @@ function toGame(row: typeof games.$inferSelect): Game {
     criticRating: row.criticRating,
     criticRatingCount: row.criticRatingCount,
     websites: row.websites,
+    developers: row.developers,
+    publishers: row.publishers,
+    multiplayer: row.multiplayer,
+    dlcCount: row.dlcCount,
+    expansionCount: row.expansionCount,
+    seriesName: row.seriesName,
   };
 }
 
@@ -156,6 +162,7 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
             accent: null,
             accentSource: null,
             artCheckedAt: fetchedAt,
+            aboutFetchedAt: fetchedAt,
             fetchedAt,
             ...(mapVocab ? { vocab: mapVocab(g) } : {}),
           })),
@@ -188,6 +195,13 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
             criticRating: sql`excluded.critic_rating`,
             criticRatingCount: sql`excluded.critic_rating_count`,
             websites: sql`excluded.websites`,
+            developers: sql`excluded.developers`,
+            publishers: sql`excluded.publishers`,
+            multiplayer: sql`excluded.multiplayer`,
+            dlcCount: sql`excluded.dlc_count`,
+            expansionCount: sql`excluded.expansion_count`,
+            seriesName: sql`excluded.series_name`,
+            aboutFetchedAt: sql`excluded.about_fetched_at`,
             fetchedAt: sql`excluded.fetched_at`,
             // Without a mapper, vocab is derived elsewhere and an upsert must not reset it.
             ...(mapVocab ? { vocab: sql`excluded.vocab` } : {}),
@@ -316,13 +330,26 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
     const rows = await db
       .select({ id: games.igdbId })
       .from(games)
-      .where(and(isNull(games.criticRating), sql`${games.websites} = '[]'::jsonb`))
+      .where(
+        or(
+          isNull(games.aboutFetchedAt),
+          and(isNull(games.criticRating), sql`${games.websites} = '[]'::jsonb`),
+        ),
+      )
       .orderBy(games.igdbId);
     // client.getGames batches the ids itself.
     const fetched = await upsertGames(await client.getGames(rows.map((r) => r.id)));
     return {
       checked: rows.length,
-      updated: fetched.filter((g) => g.criticRating !== null || g.websites.length > 0).length,
+      updated: fetched.filter(
+        (g) =>
+          g.criticRating !== null ||
+          g.websites.length > 0 ||
+          g.developers.length > 0 ||
+          g.multiplayer !== null ||
+          g.dlcCount + g.expansionCount > 0 ||
+          g.seriesName !== null,
+      ).length,
     };
   }
 

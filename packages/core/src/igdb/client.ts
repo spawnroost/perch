@@ -1,3 +1,4 @@
+import { parseCompanies, parseMultiplayer, pickSeriesName } from '../game-facts/about.js';
 import { parseStoreWebsites } from '../game-facts/stores.js';
 import { imageUrl } from './image.js';
 import type { z } from 'zod';
@@ -42,8 +43,18 @@ const GAME_FIELDS = [
   'game_modes',
   'platforms',
   'similar_games',
-  'collections',
-  'franchises',
+  'collections.name',
+  'franchises.name',
+  'involved_companies.company.name',
+  'involved_companies.developer',
+  'involved_companies.publisher',
+  'multiplayer_modes.campaigncoop',
+  'multiplayer_modes.onlinecoop',
+  'multiplayer_modes.onlinecoopmax',
+  'multiplayer_modes.offlinecoop',
+  'multiplayer_modes.splitscreen',
+  'dlcs',
+  'expansions',
   'external_games.uid',
   'external_games.external_game_source',
 ].join(',');
@@ -127,6 +138,11 @@ function toGame(g: RawGame): Game {
     criticRating: g.aggregated_rating ?? null,
     criticRatingCount: g.aggregated_rating_count ?? null,
     websites: parseStoreWebsites(g.websites),
+    ...parseCompanies(g.involved_companies),
+    multiplayer: parseMultiplayer(g.multiplayer_modes),
+    dlcCount: g.dlcs?.length ?? 0,
+    expansionCount: g.expansions?.length ?? 0,
+    seriesName: pickSeriesName(g.collections, g.franchises),
   };
 }
 

@@ -174,6 +174,12 @@ describe('row builders', () => {
     criticRating: null,
     criticRatingCount: null,
     websites: [],
+    developers: [],
+    publishers: [],
+    multiplayer: null,
+    dlcCount: 0,
+    expansionCount: 0,
+    seriesName: null,
   };
   it('buildGameRow adds vocab and fetchedAt', () => {
     const now = new Date('2026-01-01T00:00:00Z');

@@ -42,6 +42,12 @@ function game(igdbId: number, name: string, extra: Partial<Game> = {}): Game {
     criticRating: null,
     criticRatingCount: null,
     websites: [],
+    developers: [],
+    publishers: [],
+    multiplayer: null,
+    dlcCount: 0,
+    expansionCount: 0,
+    seriesName: null,
     ...extra,
   };
 }
@@ -53,6 +59,14 @@ const catalog = [
     criticRating: 84.4,
     criticRatingCount: 12,
     websites: [{ store: 'gog', url: 'https://www.gog.com/game/alpha' }],
+    developers: ['Alpha Studio'],
+    publishers: ['Alpha Studio', 'Big Pub'],
+    gameModes: [1, 3],
+    perspectives: [2],
+    multiplayer: { campaign: true, online: true, onlineMax: 4, local: false, splitscreen: false },
+    dlcCount: 2,
+    expansionCount: 1,
+    seriesName: 'Alpha Saga',
     summary: 'An alpha summary.',
     heroUrl: 'https://img.test/alpha-hero.jpg',
     coverUrlSmall: 'https://img.test/alpha-small.jpg',
@@ -273,6 +287,17 @@ describe.skipIf(!testUrl)('api routes', () => {
           { label: 'OpenCritic', url: 'https://opencritic.com/search?criteria=Routetest%20Alpha' },
           { label: 'Reddit', url: 'https://www.reddit.com/search/?q=Routetest%20Alpha' },
         ],
+        about: {
+          developers: ['Alpha Studio'],
+          publishers: ['Alpha Studio', 'Big Pub'],
+          modes: ['Single player', 'Co-operative'],
+          perspectives: ['Third person'],
+          coop: { campaign: true, online: true, onlineMax: 4, local: false, splitscreen: false },
+          dlcCount: 2,
+          expansionCount: 1,
+          series: 'Alpha Saga',
+        },
+        timeToBeat: { story: 1, extras: 2, completionist: null, submissions: 50 },
       });
       expect(Object.fromEntries(body.fit.map((f) => [f.deviceName, f.status]))).toEqual({
         'Steam Deck': 'green',
@@ -290,6 +315,10 @@ describe.skipIf(!testUrl)('api routes', () => {
       expect(body.facts.steamReviews).toBeNull();
       expect(body.facts.stores).toEqual([]);
       expect(body.facts.links).toHaveLength(2);
+      expect(body.facts).toMatchObject({
+        timeToBeat: null,
+        about: { developers: [], modes: [], coop: null, dlcCount: 0, series: null },
+      });
     });
 
     it('batches per-device fit and deck by game id; unknown ids are absent', async () => {

@@ -40,6 +40,12 @@ const game = (igdbId: number): Game =>
     criticRating: null,
     criticRatingCount: null,
     websites: [],
+    developers: [],
+    publishers: [],
+    multiplayer: null,
+    dlcCount: 0,
+    expansionCount: 0,
+    seriesName: null,
   }) as Game;
 
 const igdb: IgdbClient = {

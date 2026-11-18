@@ -164,6 +164,22 @@ export const games = pgTable(
     criticRatingCount: integer('critic_rating_count'),
     /** Store links from IGDB websites: [{ store, url }]. */
     websites: jsonb('websites').$type<StoreLink[]>().notNull().default([]),
+    /** Studios from IGDB involved_companies. */
+    developers: jsonb('developers').$type<string[]>().notNull().default([]),
+    publishers: jsonb('publishers').$type<string[]>().notNull().default([]),
+    /** Merged multiplayer modes; null when IGDB lists none. */
+    multiplayer: jsonb('multiplayer').$type<{
+      campaign: boolean;
+      online: boolean;
+      onlineMax: number | null;
+      local: boolean;
+      splitscreen: boolean;
+    }>(),
+    dlcCount: integer('dlc_count').notNull().default(0),
+    expansionCount: integer('expansion_count').notNull().default(0),
+    seriesName: text('series_name'),
+    /** When the About fields were last fetched; null = never (backfill target). */
+    aboutFetchedAt: ts('about_fetched_at'),
     /** Steam user-review summary; desc/pct/total are null when the app has no reviews. */
     steamReviewDesc: text('steam_review_desc'),
     steamReviewPct: integer('steam_review_pct'),

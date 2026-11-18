@@ -12,7 +12,23 @@ export function seedGameDetail(
   feeds: ReadonlyArray<readonly Recommendation[] | undefined>,
   library: readonly LibraryEntry[] | undefined,
 ): GameDetailResponse | undefined {
-  const noFacts = { critic: null, steamReviews: null, stores: [], links: [] };
+  const noFacts: GameDetailResponse['facts'] = {
+    critic: null,
+    steamReviews: null,
+    stores: [],
+    links: [],
+    about: {
+      developers: [],
+      publishers: [],
+      modes: [],
+      perspectives: [],
+      coop: null,
+      dlcCount: 0,
+      expansionCount: 0,
+      series: null,
+    },
+    timeToBeat: null,
+  };
   const base = { slug: '', summary: null, platforms: [], ratingCount: null, steamAppId: null };
   for (const feed of feeds) {
     const rec = feed?.find((r) => r.game.igdbId === igdbId);

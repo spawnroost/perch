@@ -1,8 +1,17 @@
 import { z } from 'zod';
 import type { StoreLink } from '../game-facts/stores.js';
+import type { Multiplayer } from '../game-facts/about.js';
 
 /** Raw IGDB response shapes (only the fields we request). IGDB omits fields that are null. */
 const ids = z.array(z.number().int()).optional();
+
+/** Bare ids, or `{ id, name }` objects when the query expands `.name`. */
+const namedRefs = z
+  .array(
+    z.union([z.number().int(), z.object({ id: z.number().int(), name: z.string().optional() })]),
+  )
+  .optional()
+  .transform((refs) => refs?.map((r) => (typeof r === 'number' ? { id: r } : r)));
 
 export const igdbSearchResultSchema = z.object({
   id: z.number().int(),
@@ -37,8 +46,30 @@ export const igdbGameSchema = z.object({
   game_modes: ids,
   platforms: ids,
   similar_games: ids,
-  collections: ids,
-  franchises: ids,
+  collections: namedRefs,
+  franchises: namedRefs,
+  involved_companies: z
+    .array(
+      z.object({
+        company: z.object({ name: z.string().optional() }).optional(),
+        developer: z.boolean().optional(),
+        publisher: z.boolean().optional(),
+      }),
+    )
+    .optional(),
+  multiplayer_modes: z
+    .array(
+      z.object({
+        campaigncoop: z.boolean().optional(),
+        onlinecoop: z.boolean().optional(),
+        onlinecoopmax: z.number().optional(),
+        offlinecoop: z.boolean().optional(),
+        splitscreen: z.boolean().optional(),
+      }),
+    )
+    .optional(),
+  dlcs: ids,
+  expansions: ids,
   external_games: z
     .array(
       z.object({
@@ -76,11 +107,14 @@ export const twitchTokenSchema = z.object({
 export const FRANCHISE_ID_OFFSET = 1_000_000;
 
 /** One series id list from IGDB `collections` and `franchises` (deduplicated). */
-export function seriesIds(raw: { collections?: number[]; franchises?: number[] }): number[] {
+export function seriesIds(raw: {
+  collections?: Array<{ id: number }> | undefined;
+  franchises?: Array<{ id: number }> | undefined;
+}): number[] {
   return [
     ...new Set([
-      ...(raw.collections ?? []),
-      ...(raw.franchises ?? []).map((id) => id + FRANCHISE_ID_OFFSET),
+      ...(raw.collections ?? []).map((c) => c.id),
+      ...(raw.franchises ?? []).map((f) => f.id + FRANCHISE_ID_OFFSET),
     ]),
   ];
 }
@@ -119,6 +153,14 @@ export interface Game {
   criticRatingCount: number | null;
   /** Store links from IGDB websites. */
   websites: StoreLink[];
+  developers: string[];
+  publishers: string[];
+  /** Merged co-op / split-screen info; null when IGDB lists no multiplayer modes. */
+  multiplayer: Multiplayer | null;
+  dlcCount: number;
+  expansionCount: number;
+  /** Display name of the first collection (else franchise); null when none. */
+  seriesName: string | null;
 }
 
 export interface GameCandidate {

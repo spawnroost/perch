@@ -192,11 +192,19 @@ describe('getGame', () => {
   it('requests collections and franchises, and maps them to one series id list', async () => {
     const net = fakeFetch({
       intercept: () =>
-        json([{ id: 9, name: 'X', slug: 'x', collections: [5, 6], franchises: [5, 7] }]),
+        json([
+          {
+            id: 9,
+            name: 'X',
+            slug: 'x',
+            collections: [{ id: 5, name: 'A' }, { id: 6 }],
+            franchises: [5, { id: 7 }],
+          },
+        ]),
     });
     const game = await make(net).getGame(9);
     expect(game?.series).toEqual([5, 6, 1_000_005, 1_000_007]);
-    expect(net.apiCalls()[0]?.body).toMatch(/collections,franchises/);
+    expect(net.apiCalls()[0]?.body).toMatch(/collections\.name,franchises\.name/);
   });
 
   it('requests and maps the summary, null when IGDB has none', async () => {
@@ -240,6 +248,48 @@ describe('getGame', () => {
     expect(y).toMatchObject({ criticRating: null, criticRatingCount: null, websites: [] });
     expect(net.apiCalls()[0]?.body).toMatch(
       /aggregated_rating,aggregated_rating_count,websites\.url,websites\.type/,
+    );
+  });
+
+  it('requests and maps studios, multiplayer, DLC counts and the series name', async () => {
+    const net = fakeFetch({
+      intercept: () =>
+        json([
+          {
+            id: 9,
+            name: 'X',
+            slug: 'x',
+            involved_companies: [
+              { company: { name: 'Dev Co' }, developer: true, publisher: false },
+              { company: { name: 'Pub Co' }, developer: false, publisher: true },
+            ],
+            multiplayer_modes: [{ campaigncoop: true, onlinecoopmax: 4, splitscreen: true }],
+            dlcs: [1, 2, 3],
+            expansions: [4],
+            collections: [{ id: 5, name: 'The X Series' }],
+          },
+          { id: 10, name: 'Y', slug: 'y' },
+        ]),
+    });
+    const [x, y] = await make(net).getGames([9, 10]);
+    expect(x).toMatchObject({
+      developers: ['Dev Co'],
+      publishers: ['Pub Co'],
+      multiplayer: { campaign: true, online: false, onlineMax: 4, local: false, splitscreen: true },
+      dlcCount: 3,
+      expansionCount: 1,
+      seriesName: 'The X Series',
+    });
+    expect(y).toMatchObject({
+      developers: [],
+      publishers: [],
+      multiplayer: null,
+      dlcCount: 0,
+      expansionCount: 0,
+      seriesName: null,
+    });
+    expect(net.apiCalls()[0]?.body).toMatch(
+      /involved_companies\.company\.name,.*multiplayer_modes\.campaigncoop.*,dlcs,expansions/,
     );
   });
 

@@ -1,5 +1,10 @@
 import { STORE_IDS, type StoreLink } from './stores.js';
 import type { SteamReviews } from '../steam-reviews/summary.js';
+import { buildAbout, type AboutInput, type GameAbout } from './about.js';
+import { toTimeToBeatTiers, type TimeToBeatTiers } from '../igdb/time-to-beat.js';
+import type { TimeToBeat } from '../igdb/schemas.js';
+
+export * from './about.js';
 
 export { STORE_IDS, STORE_WEBSITE_TYPE, parseStoreWebsites } from './stores.js';
 export type { StoreId, StoreLink } from './stores.js';
@@ -15,9 +20,12 @@ export interface GameFacts {
   steamReviews: SteamReviews | null;
   stores: StoreLink[];
   links: ExternalLink[];
+  about: GameAbout;
+  /** Story / story + extras / 100% in hours; null when IGDB has too little data. */
+  timeToBeat: TimeToBeatTiers | null;
 }
 
-export interface GameFactsInput {
+export interface GameFactsInput extends AboutInput {
   name: string;
   steamAppId: number | null;
   websites: readonly StoreLink[];
@@ -47,7 +55,11 @@ export function externalLinks(name: string): ExternalLink[] {
   ];
 }
 
-export function buildGameFacts(game: GameFactsInput, steamReviews: SteamReviews | null): GameFacts {
+export function buildGameFacts(
+  game: GameFactsInput,
+  steamReviews: SteamReviews | null,
+  timeToBeat: TimeToBeat | null = null,
+): GameFacts {
   return {
     critic:
       game.criticRating === null
@@ -56,5 +68,7 @@ export function buildGameFacts(game: GameFactsInput, steamReviews: SteamReviews 
     steamReviews,
     stores: storeLinks(game),
     links: externalLinks(game.name),
+    about: buildAbout(game),
+    timeToBeat: toTimeToBeatTiers(timeToBeat),
   };
 }

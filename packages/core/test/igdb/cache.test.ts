@@ -445,6 +445,23 @@ describe.skipIf(!url)('igdb db cache', () => {
       expect(row).toMatchObject({ criticRating: 88, websites: [{ store: 'gog' }] });
     });
 
+    it('backfillFacts also fills the About fields, once', async () => {
+      const raw = {
+        id: hades.igdbId,
+        name: 'Hades',
+        slug: 'hades',
+        involved_companies: [{ company: { name: 'Supergiant' }, developer: true }],
+        dlcs: [1],
+      };
+      const { cache } = setup({ intercept: () => json([raw]) });
+      await cache.getGame(hades.igdbId);
+      await db.update(games).set({ aboutFetchedAt: null }).where(eq(games.igdbId, hades.igdbId));
+      expect((await cache.backfillFacts()).checked).toBeGreaterThanOrEqual(1);
+      const [row] = await db.select().from(games).where(eq(games.igdbId, hades.igdbId));
+      expect(row).toMatchObject({ developers: ['Supergiant'], dlcCount: 1 });
+      expect(row?.aboutFetchedAt).not.toBeNull();
+    });
+
     it('backfillArt does not refetch a game that has no art', async () => {
       const bare = { id: hades.igdbId, name: 'Hades', slug: 'hades' };
       const { cache, net } = setup({ intercept: () => json([bare]) });

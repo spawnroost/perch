@@ -104,6 +104,14 @@ describe('buildGameFacts', () => {
     websites: [],
     criticRating: 93.529,
     criticRatingCount: 17,
+    developers: ['Supergiant'],
+    publishers: ['Supergiant'],
+    gameModes: [1],
+    perspectives: [3],
+    multiplayer: null,
+    dlcCount: 0,
+    expansionCount: 0,
+    seriesName: null,
   };
   it('combines critic, Steam reviews, stores and links', () => {
     const f = buildGameFacts(game, { desc: 'Overwhelmingly Positive', pct: 98, total: 200000 });
@@ -111,6 +119,17 @@ describe('buildGameFacts', () => {
     expect(f.steamReviews).toEqual({ desc: 'Overwhelmingly Positive', pct: 98, total: 200000 });
     expect(f.stores.map((s) => s.store)).toEqual(['steam']);
     expect(f.links.map((l) => l.label)).toEqual(['OpenCritic', 'Reddit']);
+  });
+  it('adds the about block and time-to-beat tiers', () => {
+    const f = buildGameFacts(game, null, {
+      hastilySeconds: 36000,
+      normallySeconds: 54000,
+      completelySeconds: null,
+      count: 9,
+    });
+    expect(f.about).toMatchObject({ developers: ['Supergiant'], modes: ['Single player'] });
+    expect(f.timeToBeat).toEqual({ story: 10, extras: 15, completionist: null, submissions: 9 });
+    expect(buildGameFacts(game, null).timeToBeat).toBeNull();
   });
   it('has null critic and reviews when the data is missing', () => {
     const f = buildGameFacts({ ...game, criticRating: null, criticRatingCount: null }, null);

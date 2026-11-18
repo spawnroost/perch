@@ -49,6 +49,12 @@ describe.skipIf(!url)('recs_version', () => {
       criticRating: null,
       criticRatingCount: null,
       websites: [],
+      developers: [],
+      publishers: [],
+      multiplayer: null,
+      dlcCount: 0,
+      expansionCount: 0,
+      seriesName: null,
     }) satisfies Game;
   const cache = {
     async getGame(id: number) {
