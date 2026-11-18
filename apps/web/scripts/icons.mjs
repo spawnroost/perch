@@ -1,4 +1,5 @@
 // Rasterize public/icon.svg into the PNG app icons. Run: pnpm icons
+/* global URL, console */
 import sharp from 'sharp';
 import { readFile } from 'node:fs/promises';
 
