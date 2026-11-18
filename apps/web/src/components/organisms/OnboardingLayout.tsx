@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Logo } from '../atoms';
 import { StepIndicator } from '../molecules';
 import type { Step } from '@/lib/onboarding';
 
@@ -13,7 +14,10 @@ export function OnboardingLayout({ step, title, subtitle, children }: Onboarding
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-6 bg-ground p-6">
       <header className="flex items-center justify-between gap-4 pt-2">
-        <p className="text-lg font-semibold tracking-display text-fg">Perch</p>
+        <p className="flex items-center gap-2 text-lg font-semibold tracking-display text-fg">
+          <Logo aria-hidden className="size-7" />
+          Perch
+        </p>
         <StepIndicator current={step} />
       </header>
       <section className="flex flex-col gap-1">

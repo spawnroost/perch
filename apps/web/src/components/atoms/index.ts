@@ -1,5 +1,6 @@
 export { Badge, DeckBadge, FitBadge, badgeVariants } from './Badge';
 export type { BadgeProps } from './Badge';
+export { Logo } from './Logo';
 export { Button, buttonVariants } from './Button';
 export type { ButtonProps } from './Button';
 export { Card, cardVariants } from './Card';

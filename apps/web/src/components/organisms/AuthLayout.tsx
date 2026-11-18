@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Card } from '../atoms';
+import { Card, Logo } from '../atoms';
 import { cn } from '@/lib/cn';
 import { AUTH_COVER_IDS, coverUrl, mosaicColumns } from '@/lib/authMosaic';
 
@@ -49,7 +49,10 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
   return (
     <main className="relative flex min-h-dvh flex-col items-center justify-center gap-6 p-6">
       <CoverMosaic />
-      <p className="relative font-title text-2xl text-fg">Perch</p>
+      <p className="relative flex items-center gap-2.5 font-title text-2xl text-fg">
+        <Logo aria-hidden className="size-9" />
+        Perch
+      </p>
       <Card className="relative flex w-full max-w-sm flex-col gap-5 bg-surface-1/85 p-6 shadow-overlay backdrop-blur-md">
         <header className="flex flex-col gap-1">
           <h1 className="font-title text-2xl text-fg">{title}</h1>
