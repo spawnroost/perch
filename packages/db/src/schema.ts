@@ -35,6 +35,8 @@ export const users = pgTable('users', {
   plan: text('plan').default('free').notNull(),
   /** Bumped by every write that feeds the recommendations; the cache only serves its own version. */
   recsVersion: integer('recs_version').default(0).notNull(),
+  /** When the Steam library was last imported; null until the first sync. */
+  steamSyncedAt: ts('steam_synced_at'),
   createdAt: ts('created_at').defaultNow().notNull(),
   updatedAt: ts('updated_at')
     .defaultNow()
@@ -229,6 +231,16 @@ export const devices = pgTable(
   ],
 );
 
+/**
+ * Steam appid -> IGDB game. A hit is kept for good; a miss (igdbId null) is looked up again
+ * once it is older than the retry window.
+ */
+export const steamAppMap = pgTable('steam_app_map', {
+  appid: integer('appid').primaryKey(),
+  igdbId: integer('igdb_id'),
+  checkedAt: ts('checked_at').defaultNow().notNull(),
+});
+
 export const libraryEntries = pgTable(
   'library_entries',
   {
@@ -246,7 +258,7 @@ export const libraryEntries = pgTable(
     /** 'playing' | 'finished' | 'dropped' | 'backlog' */
     status: text('status').notNull().default('backlog'),
     owned: boolean('owned').default(true).notNull(),
-    /** 'manual' | 'import' (platform sync sources join later) */
+    /** 'manual' | 'import' | 'steam' */
     source: text('source').notNull().default('manual'),
     addedAt: ts('added_at').defaultNow().notNull(),
   },

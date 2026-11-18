@@ -11,3 +11,4 @@ export * from './schemas/index.js';
 export * from './steam-auth/index.js';
 export * from './social-auth/index.js';
 export * from './recommendation-cache/index.js';
+export * from './steam-library/index.js';

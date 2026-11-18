@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import {
   IMPORT_MAX_LINES,
   deleteLibraryEntry,
@@ -14,7 +14,12 @@ import {
   rebuildProfile,
   updateLibraryEntry,
   upsertLibraryGame,
+  STEAM_PRIVATE_HELP,
+  SteamNetworkError,
+  SteamNotConfiguredError,
+  SteamProfilePrivateError,
   type ImportPreviewResponse,
+  type SteamSyncError,
 } from '@perch/core';
 import type { AppVars, RouteDeps } from '../app.js';
 import { parseBody, parseParams } from '../http.js';
@@ -53,6 +58,43 @@ export function libraryRoutes(deps: RouteDeps) {
     const entry = await findLibraryEntry(db, userId, body.igdbId, body.platform);
     if (!entry) return c.json({ error: 'library entry not found' }, 404);
     return c.json({ entry: libraryDto(entry) }, created ? 201 : 200);
+  });
+
+  const steamError = (c: Context, status: 400 | 409 | 502 | 503, body: SteamSyncError) =>
+    c.json(body, status);
+
+  r.post('/steam/sync', async (c) => {
+    const { id, steamId } = c.get('user');
+    if (!steamId)
+      return steamError(c, 400, {
+        error: 'steam_not_linked',
+        message: 'Link your Steam account before syncing.',
+      });
+    requireIgdb(deps);
+    if (!deps.env.STEAM_API_KEY)
+      return steamError(c, 503, {
+        error: 'steam_not_configured',
+        message: 'Steam library sync is not set up on this server.',
+      });
+    try {
+      return c.json(await deps.steamSync.run(id, steamId));
+    } catch (err) {
+      if (err instanceof SteamProfilePrivateError)
+        return steamError(c, 409, { error: 'steam_profile_private', message: STEAM_PRIVATE_HELP });
+      if (err instanceof SteamNotConfiguredError)
+        return steamError(c, 503, {
+          error: 'steam_not_configured',
+          message: 'Steam library sync is not set up on this server.',
+        });
+      if (err instanceof SteamNetworkError) {
+        console.error(err);
+        return steamError(c, 502, {
+          error: 'steam_unavailable',
+          message: 'Steam could not be reached. Try again in a moment.',
+        });
+      }
+      throw err;
+    }
   });
 
   // Registered before '/:id' so "import" is never read as an id.

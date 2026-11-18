@@ -17,6 +17,7 @@ import {
 import type { Db } from '@perch/db';
 import { mapGame, VOCAB } from '@perch/taste-vocab';
 import { createAuth, type Auth } from './auth.js';
+import { createSteamSync, type SteamSync } from './steam-sync.js';
 import type { ApiEnv } from './env.js';
 import type { Mailer } from './mailer.js';
 import { requireAuth, resolveSession } from './middleware.js';
@@ -42,6 +43,8 @@ export interface AppDeps {
   accentFor?: (coverUrl: string) => Promise<string | null>;
   /** Overrides the Steam client (tests); the default talks to Steam. */
   steam?: SteamClient;
+  /** Fetch used for Steam Web API calls (tests stub it); defaults to the global fetch. */
+  steamFetch?: typeof fetch;
   /** Verifies Steam OpenID assertions; the default asks Steam (tests stub it). */
   steamOpenId?: SteamOpenIdVerifier;
   /** Overrides the default limits (tests). */
@@ -65,6 +68,8 @@ export interface RouteDeps extends AppDeps {
   /** Null when no IGDB client is configured. */
   cache: IgdbCache | null;
   mapVocab: typeof mapGame;
+  /** Steam library import, shared by the sync route and the auto-sync triggers. */
+  steamSync: SteamSync;
   /** Taste-vocab id -> label, for reasons. */
   labels: Record<string, string>;
 }
@@ -72,7 +77,7 @@ export interface RouteDeps extends AppDeps {
 export function createApp(appDeps: AppDeps) {
   const { db, env, mailer, igdb, rateLimit: limits } = appDeps;
   const auth = createAuth(db, env, mailer);
-  const deps: RouteDeps = {
+  const base: Omit<RouteDeps, 'steamSync'> = {
     ...appDeps,
     auth,
     cache: igdb
@@ -86,6 +91,7 @@ export function createApp(appDeps: AppDeps) {
     mapVocab: mapGame,
     labels: Object.fromEntries(VOCAB.map((v) => [v.id, v.label])),
   };
+  const deps: RouteDeps = { ...base, steamSync: createSteamSync(base) };
   const app = new Hono<AppVars>();
 
   app.use('/api/*', cors({ origin: env.WEB_ORIGIN, credentials: true }));

@@ -95,6 +95,9 @@ const fakeIgdb: IgdbClient = {
   async keywordNames() {
     return {};
   },
+  async steamAppIds() {
+    return new Map();
+  },
 };
 
 const deck: DeckCategory = 'verified';

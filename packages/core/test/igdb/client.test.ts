@@ -410,3 +410,36 @@ describe('keywordNames', () => {
     expect(net.apiCalls()).toHaveLength(2);
   });
 });
+
+describe('steamAppIds', () => {
+  it('maps Steam appids to IGDB ids via external_games', async () => {
+    const net = fakeFetch({
+      intercept: ({ url }) =>
+        url.endsWith('/external_games')
+          ? json([
+              { id: 1, uid: '10', game: 111 },
+              { id: 2, uid: '10', game: 999 },
+              { id: 3, uid: '20', game: 222 },
+            ])
+          : undefined,
+    });
+    const map = await make(net).steamAppIds([10, 20, 30, 10]);
+    expect([...map]).toEqual([
+      [10, 111],
+      [20, 222],
+    ]);
+    const call = net.apiCalls()[0]!;
+    expect(call.url).toBe('https://api.igdb.com/v4/external_games');
+    expect(call.body).toContain('external_game_source = 1');
+    expect(call.body).toContain('uid = ("10","20","30")');
+  });
+
+  it('makes no request for no appids and batches 500 uids per query', async () => {
+    const net = fakeFetch({ intercept: () => json([]) });
+    const client = make(net);
+    expect((await client.steamAppIds([])).size).toBe(0);
+    expect(net.apiCalls()).toHaveLength(0);
+    await client.steamAppIds(Array.from({ length: 1001 }, (_, i) => i + 1));
+    expect(net.apiCalls()).toHaveLength(3);
+  });
+});

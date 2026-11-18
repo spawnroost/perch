@@ -81,6 +81,10 @@ export function steamErrorMessage(code: string | null | undefined): string | nul
 export const AccountResponseSchema = z.object({
   email: z.string(),
   steamId: z.string().nullable(),
+  /** ISO time of the last Steam library import; null if never. */
+  steamSyncedAt: z.string().nullable(),
+  /** False when the server has no Steam key (or no game database), so the sync button is hidden. */
+  steamSyncAvailable: z.boolean(),
   hasPassword: z.boolean(),
   /** Linked Google/Discord accounts that are currently enabled (provider ids). */
   linkedProviders: z.array(z.string()),

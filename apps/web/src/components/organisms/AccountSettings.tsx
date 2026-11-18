@@ -9,11 +9,12 @@ import {
   canUnlinkSteam,
   socialProviderLabel,
 } from '@perch/core';
-import { useAccount, useAuthProviders, useUnlinkSteam } from '@/hooks/queries';
+import { useAccount, useAuthProviders, useSyncSteamLibrary, useUnlinkSteam } from '@/hooks/queries';
 import { useAuthError } from '@/hooks/useAuthError';
 import { useAction } from '@/hooks/useAction';
 import { useSignOut } from '@/hooks/useSignOut';
 import { authClient, unwrapAuth } from '@/lib/auth-client';
+import { steamSyncErrorText, steamSyncSummary, syncedAgo } from '@/lib/steamSync';
 
 function Section({
   title,
@@ -85,6 +86,27 @@ function ChangePassword() {
   );
 }
 
+function SteamSync({ syncedAt }: { syncedAt: string | null }) {
+  const sync = useSyncSteamLibrary();
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          variant="primary"
+          className="w-fit"
+          loading={sync.isPending}
+          onClick={() => sync.mutate()}
+        >
+          Sync Steam library
+        </Button>
+        <span className="text-sm text-fg-muted">{syncedAgo(syncedAt, new Date())}</span>
+      </div>
+      {sync.data && <Notice tone="success">{steamSyncSummary(sync.data)}</Notice>}
+      {sync.error && <Notice tone="error">{steamSyncErrorText(sync.error)}</Notice>}
+    </div>
+  );
+}
+
 function SteamLink() {
   const account = useAccount();
   const unlink = useUnlinkSteam();
@@ -102,6 +124,7 @@ function SteamLink() {
       }
     >
       {(authError ?? unlinkError) && <Notice tone="error">{authError ?? unlinkError}</Notice>}
+      {data && linked && data.steamSyncAvailable && <SteamSync syncedAt={data.steamSyncedAt} />}
       {data &&
         (linked ? (
           canUnlinkSteam(data) ? (

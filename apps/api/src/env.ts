@@ -18,6 +18,8 @@ const ApiEnvShape = z.object({
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   DISCORD_CLIENT_ID: z.string().optional(),
   DISCORD_CLIENT_SECRET: z.string().optional(),
+  /** Steam Web API key for the library import; unset answers the sync with 503. */
+  STEAM_API_KEY: z.string().optional(),
   NODE_ENV: z.string().optional(),
 });
 

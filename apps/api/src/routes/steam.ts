@@ -99,6 +99,7 @@ export function steamAuthRoutes(deps: RouteDeps) {
       if (!me) return webRedirect(c, '/login', 'auth');
       if (owner && owner.id !== me.id) return webRedirect(c, '/account', 'conflict');
       await db.update(schema.users).set({ steamId }).where(eq(schema.users.id, me.id));
+      deps.steamSync.maybeAuto(me.id, steamId);
       return webRedirect(c, '/account');
     }
 
@@ -107,6 +108,7 @@ export function steamAuthRoutes(deps: RouteDeps) {
       userId = await createSteamUser(steamId);
     }
     await startSession(c, userId);
+    deps.steamSync.maybeAuto(userId, steamId);
     return webRedirect(c, '/');
   });
 
@@ -153,7 +155,7 @@ export function steamAuthRoutes(deps: RouteDeps) {
 }
 
 /** `/api/account`: the signed-in user's account state and Steam link management. */
-export function accountRoutes({ db, env }: RouteDeps) {
+export function accountRoutes({ db, env, steamSync }: RouteDeps) {
   const enabled = new Set<string>(Object.keys(socialProviderConfig(env)));
   const r = new Hono<AppVars>();
   r.use('*', requireAuth());
@@ -174,7 +176,17 @@ export function accountRoutes({ db, env }: RouteDeps) {
 
   r.get('/', async (c) => {
     const { id, email, steamId } = c.get('user');
-    return c.json({ email, steamId: steamId ?? null, ...(await signInMethods(id)) });
+    const [row] = await db
+      .select({ at: schema.users.steamSyncedAt })
+      .from(schema.users)
+      .where(eq(schema.users.id, id));
+    return c.json({
+      email,
+      steamId: steamId ?? null,
+      steamSyncedAt: row?.at?.toISOString() ?? null,
+      steamSyncAvailable: steamSync.configured,
+      ...(await signInMethods(id)),
+    });
   });
 
   r.post('/steam/unlink', async (c) => {

@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-query';
 import type {
   AccountResponse,
+  SteamSyncResult,
   AuthProviders,
   DeviceCreate,
   DevicePatchInput,
@@ -315,6 +316,14 @@ export function useAccount() {
   return useQuery({
     queryKey: queryKeys.account,
     queryFn: ({ signal }) => api.get<AccountResponse>('/api/account', { signal }),
+  });
+}
+
+export function useSyncSteamLibrary() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<SteamSyncResult>('/api/library/steam/sync'),
+    onSuccess: () => invalidateAll(qc, [...libraryAffected, queryKeys.account]),
   });
 }
 
