@@ -469,6 +469,18 @@ describe('queryByTags', () => {
     expect(body).toContain('limit 100;');
   });
 
+  it("match 'all' needs a genre and a theme at once", async () => {
+    const net = fakeFetch({ intercept: () => json([]) });
+    await make(net).queryByTags({
+      genres: [12, 31],
+      themes: [17],
+      match: 'all',
+      minRatingCount: 50,
+      limit: 100,
+    });
+    expect(net.apiCalls()[0]!.body).toContain('(genres = (12,31) & themes = (17))');
+  });
+
   it('caps the limit at 500 and skips the request when there are no tags', async () => {
     const net = fakeFetch({ intercept: () => json([]) });
     const client = make(net);

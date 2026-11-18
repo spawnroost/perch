@@ -21,6 +21,7 @@ import { createSteamSync, type SteamSync } from './steam-sync.js';
 import type { ApiEnv } from './env.js';
 import type { Mailer } from './mailer.js';
 import { requireAuth, resolveSession } from './middleware.js';
+import { browseRoutes } from './routes/browse.js';
 import { devicesRoutes, hardwareRoutes } from './routes/devices.js';
 import { feedbackRoutes, profileRoutes } from './routes/feedback.js';
 import { gamesRoutes } from './routes/games.js';
@@ -116,6 +117,7 @@ export function createApp(appDeps: AppDeps) {
   app.route('/api/devices', devicesRoutes(deps));
   app.route('/api/hardware', hardwareRoutes());
   app.route('/api/recommendations', recommendationsRoutes(deps));
+  app.route('/api/browse', browseRoutes(deps));
   app.route('/api/session', sessionRoutes(deps));
   app.route('/api/feedback', feedbackRoutes(deps));
   app.route('/api/profile', profileRoutes(deps));

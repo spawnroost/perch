@@ -13,6 +13,7 @@ import {
   type FitRequirements,
   type FitStatus,
 } from './filters.js';
+import { browse } from './browse.js';
 import { createFitFetchers, loadDevices, loadRecommendInput } from './load.js';
 import { buildProfile } from './profile.js';
 import { computeIdf } from './rank.js';
@@ -77,6 +78,51 @@ export async function recommendForUser(
 ): Promise<UserRecommendation[]> {
   const picks = await recommendPicks(deps, userId, opts);
   return picks.map(withoutGpu);
+}
+
+/**
+ * Browse by category for a user (see `browse`): games with a chosen genre and theme, never owned
+ * or hidden, ranked by taste, filtered by `device` as in `recommendForUser`, each with the same
+ * cover/fit/time-to-beat fields. Writes nothing beyond the IGDB cache.
+ */
+export async function browseForUser(
+  deps: UserEngineDeps,
+  userId: string,
+  opts: {
+    genres: readonly number[];
+    themes: readonly number[];
+    device?: string;
+    limit: number;
+    offset: number;
+    warmTimeToBeat?: boolean;
+  },
+): Promise<{ picks: UserRecommendation[]; hasMore: boolean }> {
+  const { db, cache, mapVocab, labels, steam } = deps;
+  const { library, feedback } = await loadRecommendInput(db, userId, mapVocab);
+  const allDevices = await loadDevices(db, userId);
+  const fetchers = createFitFetchers(db, steam);
+  const { items, hasMore } = await browse(
+    {
+      getGames: (ids) => cache.getGames(ids),
+      queryByTags: (q) => cache.queryByTags(q),
+      mapVocab,
+      ...fetchers,
+      explain: createNoneProvider({ labels }),
+    },
+    {
+      library,
+      feedback,
+      genres: opts.genres,
+      themes: opts.themes,
+      limit: opts.limit,
+      offset: opts.offset,
+      devices: selectDevices(allDevices, opts.device),
+    },
+  );
+  const picks = await enrichPicks(deps, items, allDevices, fetchers, {
+    warmTimeToBeat: opts.warmTimeToBeat,
+  });
+  return { picks: picks.map(withoutGpu), hasMore };
 }
 
 type SessionPick = UserRecommendation & {

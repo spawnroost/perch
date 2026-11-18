@@ -8,6 +8,7 @@ import {
   type Game,
   type IgdbClient,
   type RecommendationsResponse,
+  type TagQuery,
 } from '@perch/core';
 import { schema } from '@perch/db';
 import { cachedRecommendations } from '../src/recommendation-cache.js';
@@ -77,9 +78,11 @@ const catalog = [
     coverUrl: 'https://img.test/beta.jpg',
     coverUrlSmall: 'https://img.test/beta-small.jpg',
   }),
-  game(C, 'Routetest Gamma', { genres: [31] }),
+  game(C, 'Routetest Gamma', { genres: [31], themes: [17] }),
   game(D, 'Routetest Delta', { genres: [5] }),
 ];
+
+const tagQueries: TagQuery[] = [];
 
 /** An IGDB client that never touches the network. */
 const fakeIgdb: IgdbClient = {
@@ -104,8 +107,13 @@ const fakeIgdb: IgdbClient = {
   async getGames(ids) {
     return catalog.filter((g) => ids.includes(g.igdbId));
   },
-  async queryByTags() {
-    return [];
+  async queryByTags(q) {
+    tagQueries.push(q);
+    // Only browse asks for match 'all'; the recommendations keep an empty tag pool.
+    if (q.match !== 'all') return [];
+    const has = (have: number[], want: readonly number[]) =>
+      want.length === 0 || have.some((id) => want.includes(id));
+    return catalog.filter((g) => has(g.genres, q.genres) && has(g.themes, q.themes));
   },
   async getTimeToBeat(id) {
     return id === A
@@ -205,6 +213,8 @@ describe.skipIf(!testUrl)('api routes', () => {
       ['PATCH', `/api/devices/${crypto.randomUUID()}`],
       ['DELETE', `/api/devices/${crypto.randomUUID()}`],
       ['GET', '/api/recommendations'],
+      ['GET', '/api/browse?genres=12'],
+      ['GET', '/api/browse/facets'],
       ['GET', '/api/session?minutes=30'],
       ['GET', '/api/feedback'],
       ['POST', '/api/feedback'],
@@ -786,6 +796,103 @@ describe.skipIf(!testUrl)('api routes', () => {
       expect((await get('/api/recommendations?limit=abc', mine.cookie)).status).toBe(400);
       expect((await get('/api/recommendations?limit=61', mine.cookie)).status).toBe(400);
       expect((await get(`/api/recommendations?device=${device.id}`, mine.cookie)).status).toBe(404);
+    });
+  });
+
+  describe('browse', () => {
+    type Browse = {
+      recommendations: {
+        rank: number;
+        game: { igdbId: number; coverUrl: string | null; accent: string | null };
+        fit?: { status: string; deviceId: string };
+        fits: unknown[];
+      }[];
+      hasMore: boolean;
+    };
+    const ids = (b: Browse) => b.recommendations.map((r) => r.game.igdbId);
+    const browse = async (path: string, cookie: string) => {
+      const res = await get(`/api/browse${path}`, cookie);
+      expect(res.status).toBe(200);
+      return (await res.json()) as Browse;
+    };
+
+    it('lists the IGDB genre and theme facets', async () => {
+      const u = await newUser();
+      const body = (await (await get('/api/browse/facets', u.cookie)).json()) as {
+        genres: { id: number; name: string }[];
+        themes: { id: number; name: string }[];
+      };
+      expect(body.genres).toContainEqual({ id: 12, name: 'Role-playing (RPG)' });
+      expect(body.themes).toContainEqual({ id: 17, name: 'Fantasy' });
+    });
+
+    it('needs a genre and a theme at once when both are given, same card shape as recommendations', async () => {
+      const u = await newUser();
+      const either = await browse('?genres=12,31&limit=20', u.cookie);
+      expect(ids(either).sort()).toEqual([A, B, C].sort());
+      expect(either.hasMore).toBe(false);
+      const both = await browse('?genres=12,31&themes=17', u.cookie);
+      expect(ids(both)).toEqual([C]);
+      const card = both.recommendations[0]!;
+      expect(card.rank).toBe(1);
+      expect(card).toHaveProperty('fits');
+      expect(card.game).toHaveProperty('coverUrl');
+      expect(card.game).toHaveProperty('accent');
+    });
+
+    it('leaves out owned and disliked games, and pages with offset', async () => {
+      const u = await newUser();
+      await call('POST', '/api/library', u.cookie, {
+        igdbId: A,
+        hoursPlayed: 50,
+        status: 'playing',
+      });
+      const open = await browse('?genres=12,31', u.cookie);
+      expect(ids(open).sort()).toEqual([B, C].sort());
+
+      const first = await browse('?genres=12,31&limit=1', u.cookie);
+      expect(first.hasMore).toBe(true);
+      const second = await browse('?genres=12,31&limit=1&offset=1', u.cookie);
+      expect(second.hasMore).toBe(false);
+      expect(second.recommendations[0]?.rank).toBe(2);
+      expect([...ids(first), ...ids(second)].sort()).toEqual([B, C].sort());
+
+      await call('POST', '/api/feedback', u.cookie, { igdbId: B, kind: 'down' });
+      expect(ids(await browse('?genres=12,31', u.cookie))).toEqual([C]);
+    });
+
+    it('filters to one device or to any of the user devices', async () => {
+      const u = await newUser();
+      const added = await call('POST', '/api/devices', u.cookie, { preset: 'ps5' });
+      const { device } = (await added.json()) as { device: { id: string } };
+      // Beta is on PS5 (167); Gamma only on platform 6.
+      const one = await browse(`?genres=12,31&deviceId=${device.id}`, u.cookie);
+      expect(ids(one)).toEqual([B]);
+      expect(one.recommendations[0]?.fit).toMatchObject({ deviceId: device.id });
+      const any = await browse('?genres=12,31', u.cookie);
+      expect(ids(any)).toEqual([B]);
+    });
+
+    it('asks IGDB once for the same tags', async () => {
+      const u = await newUser();
+      const before = tagQueries.length;
+      await browse('?genres=5,9&themes=1', u.cookie);
+      await browse('?genres=9,5&themes=1&limit=5', u.cookie);
+      expect(tagQueries.length - before).toBe(1);
+    });
+
+    it('400 without tags or with a bad limit, 404 for a device that is not yours', async () => {
+      const mine = await newUser();
+      const theirs = await newUser();
+      const added = await call('POST', '/api/devices', theirs.cookie, { preset: 'switch' });
+      const { device } = (await added.json()) as { device: { id: string } };
+      expect((await get('/api/browse', mine.cookie)).status).toBe(400);
+      expect((await get('/api/browse?genres=abc', mine.cookie)).status).toBe(400);
+      expect((await get('/api/browse?genres=12&limit=61', mine.cookie)).status).toBe(400);
+      expect((await get('/api/browse?genres=12&limit=0', mine.cookie)).status).toBe(400);
+      expect((await get(`/api/browse?genres=12&deviceId=${device.id}`, mine.cookie)).status).toBe(
+        404,
+      );
     });
   });
 

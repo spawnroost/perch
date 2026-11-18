@@ -93,6 +93,11 @@ export interface TagQuery {
   /** IGDB genre / theme ids; a game matches if it has any of them. */
   genres: readonly number[];
   themes: readonly number[];
+  /**
+   * 'any' (default): a game matches if it has any selected genre or theme. 'all': it must have a
+   * selected genre (when any are given) and a selected theme (when any are given).
+   */
+  match?: 'any' | 'all';
   minRatingCount: number;
   /** Capped at 500 (the IGDB maximum per query). */
   limit: number;
@@ -252,14 +257,14 @@ export function createIgdbClient(opts: IgdbClientOptions): IgdbClient {
       return out;
     },
 
-    async queryByTags({ genres, themes, minRatingCount, limit }) {
+    async queryByTags({ genres, themes, match, minRatingCount, limit }) {
       const tags: string[] = [];
       if (genres.length > 0) tags.push(`genres = (${idList(genres)})`);
       if (themes.length > 0) tags.push(`themes = (${idList(themes)})`);
       if (tags.length === 0) return [];
       const rows = await query(
         'games',
-        `fields ${LEAN_FIELDS}; where (${tags.join(' | ')}) & total_rating_count >= ${Math.trunc(minRatingCount)} & game_type = 0; ` +
+        `fields ${LEAN_FIELDS}; where (${tags.join(match === 'all' ? ' & ' : ' | ')}) & total_rating_count >= ${Math.trunc(minRatingCount)} & game_type = 0; ` +
           `sort total_rating desc; limit ${Math.min(Math.max(Math.trunc(limit), 1), IGDB_MAX_LIMIT)};`,
         igdbGamesResponseSchema,
       );

@@ -45,6 +45,7 @@ export { hiddenIds, isBacklog } from './visibility.js';
 export { batteryMatters, isBatteryAwareKind, rankForSession } from './session.js';
 export type { SessionDevice, SessionOptions, SessionRanked, SessionRec } from './session.js';
 export {
+  browseForUser,
   explainGameForUser,
   gameFitForUser,
   gameFitsForUser,
@@ -53,3 +54,5 @@ export {
   similarForUser,
 } from './for-user.js';
 export type { DeviceFit, GameFit, UserEngineDeps, UserRecommendation } from './for-user.js';
+export { browse, BROWSE_POOL } from './browse.js';
+export type { BrowseInput } from './browse.js';
