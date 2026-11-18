@@ -39,6 +39,9 @@ function game(igdbId: number, name: string, extra: Partial<Game> = {}): Game {
     rating: 80,
     ratingCount: 100,
     steamAppId: null,
+    criticRating: null,
+    criticRatingCount: null,
+    websites: [],
     ...extra,
   };
 }
@@ -47,6 +50,9 @@ const catalog = [
   game(A, 'Routetest Alpha', {
     similarIds: [B],
     steamAppId: 4_000_001,
+    criticRating: 84.4,
+    criticRatingCount: 12,
+    websites: [{ store: 'gog', url: 'https://www.gog.com/game/alpha' }],
     summary: 'An alpha summary.',
     heroUrl: 'https://img.test/alpha-hero.jpg',
     coverUrlSmall: 'https://img.test/alpha-small.jpg',
@@ -107,6 +113,9 @@ const fakeSteam = {
   },
   async getDeckCompat() {
     return deck;
+  },
+  async getReviewSummary() {
+    return { desc: 'Very Positive', pct: 91, total: 1234 };
   },
 };
 
@@ -233,6 +242,7 @@ describe.skipIf(!testUrl)('api routes', () => {
         timeToBeat: unknown;
         deck: string;
         why: string[];
+        facts: unknown;
       };
       expect(body.game).toMatchObject({
         igdbId: A,
@@ -252,11 +262,34 @@ describe.skipIf(!testUrl)('api routes', () => {
         'PlayStation 5': 'Not released on this device',
       });
       expect(body.deck).toBe('verified');
+      expect(body.facts).toEqual({
+        critic: { score: 84, count: 12 },
+        steamReviews: { desc: 'Very Positive', pct: 91, total: 1234 },
+        stores: [
+          { store: 'steam', url: 'https://store.steampowered.com/app/4000001' },
+          { store: 'gog', url: 'https://www.gog.com/game/alpha' },
+        ],
+        links: [
+          { label: 'OpenCritic', url: 'https://opencritic.com/search?criteria=Routetest%20Alpha' },
+          { label: 'Reddit', url: 'https://www.reddit.com/search/?q=Routetest%20Alpha' },
+        ],
+      });
       expect(Object.fromEntries(body.fit.map((f) => [f.deviceName, f.status]))).toEqual({
         'Steam Deck': 'green',
         'PlayStation 5': 'hidden',
       });
       expect(body.why).toHaveLength(1);
+    });
+
+    it('facts are empty when the game has no critic, reviews or store data', async () => {
+      const u = await newUser();
+      const body = (await (await get(`/api/games/${C}`, u.cookie)).json()) as {
+        facts: { critic: unknown; steamReviews: unknown; stores: unknown[]; links: unknown[] };
+      };
+      expect(body.facts.critic).toBeNull();
+      expect(body.facts.steamReviews).toBeNull();
+      expect(body.facts.stores).toEqual([]);
+      expect(body.facts.links).toHaveLength(2);
     });
 
     it('batches per-device fit and deck by game id; unknown ids are absent', async () => {

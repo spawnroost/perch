@@ -68,6 +68,9 @@ function toGame(row: typeof games.$inferSelect): Game {
     rating: row.rating,
     ratingCount: row.ratingCount,
     steamAppId: row.steamAppId,
+    criticRating: row.criticRating,
+    criticRatingCount: row.criticRatingCount,
+    websites: row.websites,
   };
 }
 
@@ -176,6 +179,9 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
             rating: sql`excluded.rating`,
             ratingCount: sql`excluded.rating_count`,
             steamAppId: sql`excluded.steam_app_id`,
+            criticRating: sql`excluded.critic_rating`,
+            criticRatingCount: sql`excluded.critic_rating_count`,
+            websites: sql`excluded.websites`,
             fetchedAt: sql`excluded.fetched_at`,
             // Without a mapper, vocab is derived elsewhere and an upsert must not reset it.
             ...(mapVocab ? { vocab: sql`excluded.vocab` } : {}),

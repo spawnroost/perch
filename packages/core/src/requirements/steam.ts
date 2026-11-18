@@ -2,8 +2,10 @@ import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { gameRequirements, games, type Db } from '@perch/db';
 import { RateQueue } from '../igdb/queue.js';
+import { parseReviewSummary, type SteamReviews } from '../steam-reviews/summary.js';
 import { htmlToLines, parseSteamRequirements, scoreRequirements } from './parse.js';
 
+const REVIEWS_URL = 'https://store.steampowered.com/appreviews';
 const API_URL = 'https://store.steampowered.com/api/appdetails';
 export const REQUIREMENTS_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 /** Per block, so a long minimum section cannot crowd out the recommended one. */
@@ -46,6 +48,8 @@ export interface SteamClient {
   getPcRequirements(appId: number): Promise<PcRequirementsHtml>;
   /** Steam Deck compatibility; 'unknown' when Steam has no (readable) report for the app. */
   getDeckCompat(appId: number): Promise<DeckCategory>;
+  /** User-review summary; null when the app has no reviews or Steam answers unreadably. */
+  getReviewSummary(appId: number): Promise<SteamReviews | null>;
 }
 
 const DECK_URL = 'https://store.steampowered.com/saleaction/ajaxgetdeckappcompatibilityreport';
@@ -139,6 +143,17 @@ export function createSteamClient(opts: SteamClientOptions = {}): SteamClient {
       return (
         (parsed.success && DECK_CATEGORIES[parsed.data.results.resolved_category]) || 'unknown'
       );
+    },
+
+    async getReviewSummary(appId) {
+      const id = Math.trunc(appId);
+      const url = `${REVIEWS_URL}/${id}?json=1&num_per_page=0&language=all&purchase_type=all`;
+      const res = await request(url, 'reviews', id);
+      try {
+        return parseReviewSummary(JSON.parse(await res.text()));
+      } catch {
+        return null;
+      }
     },
   };
 }

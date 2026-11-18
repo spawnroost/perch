@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import {
+  buildGameFacts,
   explainGameForUser,
   gameFitForUser,
   gameFitQuerySchema,
@@ -8,6 +9,7 @@ import {
   igdbIdParamSchema,
   similarForUser,
   similarQuerySchema,
+  steamReviewsFor,
   toTimeToBeatHours,
   type GameDetailResponse,
   type GameFitsResponse,
@@ -70,11 +72,13 @@ export function gamesRoutes(deps: RouteDeps) {
     const userId = c.get('user').id;
     const game = await cache.getGame(igdbId);
     if (!game) return c.json({ error: 'game not found' }, 404);
-    const [{ deck, fits }, why, timeToBeat] = await Promise.all([
+    const [{ deck, fits }, why, timeToBeat, steamReviews] = await Promise.all([
       gameFitForUser(deps, userId, game),
       explainGameForUser(deps, userId, game),
       // IGDB hiccups on this extra must not fail the page.
       cache.getTimeToBeat(igdbId).catch(() => null),
+      // Warmed in the background; the first visit may answer without it.
+      steamReviewsFor(deps.db, game, { client: deps.steam }),
     ]);
     return c.json({
       game: {
@@ -95,6 +99,7 @@ export function gamesRoutes(deps: RouteDeps) {
       fit: fits,
       timeToBeat: toTimeToBeatHours(timeToBeat),
       deck,
+      facts: buildGameFacts(game, steamReviews),
       why,
     } satisfies GameDetailResponse);
   });

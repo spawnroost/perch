@@ -58,6 +58,9 @@ const game = (igdbId: number): Game =>
     rating: null,
     ratingCount: null,
     steamAppId: null,
+    criticRating: null,
+    criticRatingCount: null,
+    websites: [],
   }) as Game;
 
 describe.skipIf(!url)('syncSteamLibrary', () => {

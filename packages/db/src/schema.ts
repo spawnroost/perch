@@ -110,6 +110,23 @@ export const verifications = pgTable(
 
 // ---- Shared caches (not user-owned; filled from IGDB / Steam / Deck) ----
 
+export const STORE_IDS = [
+  'steam',
+  'gog',
+  'epic',
+  'playstation',
+  'xbox',
+  'nintendo',
+  'app-store',
+  'google-play',
+  'itch',
+] as const;
+export type StoreId = (typeof STORE_IDS)[number];
+export interface StoreLink {
+  store: StoreId;
+  url: string;
+}
+
 export const games = pgTable(
   'games',
   {
@@ -142,6 +159,17 @@ export const games = pgTable(
     rating: real('rating'),
     ratingCount: integer('rating_count'),
     steamAppId: integer('steam_app_id'),
+    /** IGDB `aggregated_rating` (critic average, 0-100) and its review count. */
+    criticRating: real('critic_rating'),
+    criticRatingCount: integer('critic_rating_count'),
+    /** Store links from IGDB websites: [{ store, url }]. */
+    websites: jsonb('websites').$type<StoreLink[]>().notNull().default([]),
+    /** Steam user-review summary; desc/pct/total are null when the app has no reviews. */
+    steamReviewDesc: text('steam_review_desc'),
+    steamReviewPct: integer('steam_review_pct'),
+    steamReviewTotal: integer('steam_review_total'),
+    /** When the Steam summary was last asked for; null = never. */
+    steamReviewFetchedAt: ts('steam_review_fetched_at'),
     /** Taste vocabulary: { vocabId: weight }. */
     vocab: jsonb('vocab').$type<Record<string, number>>().notNull().default({}),
     fetchedAt: ts('fetched_at').defaultNow().notNull(),

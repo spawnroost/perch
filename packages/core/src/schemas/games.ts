@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { STORE_IDS } from '../game-facts/stores.js';
 import { isoDate } from './common.js';
 
 export const gameSearchQuerySchema = z.object({ q: z.string().trim().min(1).max(100) });
@@ -37,6 +38,16 @@ export const timeToBeatSchema = z
   })
   .nullable();
 
+/** Critic score, Steam reviews and where to buy / read more; each part is empty when unknown. */
+export const gameFactsSchema = z.object({
+  critic: z.object({ score: z.number().int(), count: z.number().nullable() }).nullable(),
+  steamReviews: z
+    .object({ desc: z.string(), pct: z.number().int(), total: z.number().int() })
+    .nullable(),
+  stores: z.array(z.object({ store: z.enum(STORE_IDS), url: z.string() })),
+  links: z.array(z.object({ label: z.string(), url: z.string() })),
+});
+
 export const gameDetailResponseSchema = z.object({
   game: z.object({
     igdbId: z.number().int(),
@@ -60,6 +71,7 @@ export const gameDetailResponseSchema = z.object({
   timeToBeat: timeToBeatSchema,
   /** Steam Deck category; null when the game has no Steam app or Steam could not be read. */
   deck: deckCategorySchema.nullable(),
+  facts: gameFactsSchema,
   /** Why the engine would pick it; empty when the library says nothing yet. */
   why: z.array(z.string()),
 });

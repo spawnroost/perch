@@ -1,3 +1,4 @@
+import { parseStoreWebsites } from '../game-facts/stores.js';
 import { imageUrl } from './image.js';
 import type { z } from 'zod';
 import { RateQueue } from './queue.js';
@@ -30,6 +31,10 @@ const GAME_FIELDS = [
   'first_release_date',
   'total_rating',
   'total_rating_count',
+  'aggregated_rating',
+  'aggregated_rating_count',
+  'websites.url',
+  'websites.type',
   'genres',
   'themes',
   'keywords',
@@ -119,6 +124,9 @@ function toGame(g: RawGame): Game {
     rating: g.total_rating ?? null,
     ratingCount: g.total_rating_count ?? null,
     steamAppId: steam?.uid ? Number(steam.uid) : null,
+    criticRating: g.aggregated_rating ?? null,
+    criticRatingCount: g.aggregated_rating_count ?? null,
+    websites: parseStoreWebsites(g.websites),
   };
 }
 

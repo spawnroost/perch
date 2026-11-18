@@ -46,6 +46,9 @@ describe.skipIf(!url)('recs_version', () => {
       rating: null,
       ratingCount: null,
       steamAppId: null,
+      criticRating: null,
+      criticRatingCount: null,
+      websites: [],
     }) satisfies Game;
   const cache = {
     async getGame(id: number) {

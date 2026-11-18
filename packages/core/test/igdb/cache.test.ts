@@ -85,6 +85,29 @@ describe.skipIf(!url)('igdb db cache', () => {
     expect(row?.series).toEqual([3, 1_000_004]);
   });
 
+  it('stores and returns critic rating and store websites, and updates them on refresh', async () => {
+    const raw = (rating: number) => ({
+      id: hades.igdbId,
+      name: 'Hades',
+      slug: 'hades',
+      aggregated_rating: rating,
+      aggregated_rating_count: 17,
+      websites: [{ url: 'https://www.gog.com/game/hades', type: 17 }],
+    });
+    const first = setup({ intercept: () => json([raw(90)]) });
+    const game = await first.cache.getGame(hades.igdbId);
+    expect(game).toMatchObject({ criticRating: 90, criticRatingCount: 17 });
+    const [row] = await db.select().from(games).where(eq(games.igdbId, hades.igdbId));
+    expect(row).toMatchObject({
+      criticRating: 90,
+      criticRatingCount: 17,
+      websites: [{ store: 'gog', url: 'https://www.gog.com/game/hades' }],
+    });
+    const second = setup({ intercept: () => json([raw(75)]) });
+    second.setNow(new Date(+T0 + CACHE_TTL_MS + DAY));
+    expect((await second.cache.getGame(hades.igdbId))?.criticRating).toBe(75);
+  });
+
   it('refreshAll refetches every cached row by id and upserts it', async () => {
     const first = setup();
     await first.cache.getGame(hades.igdbId);

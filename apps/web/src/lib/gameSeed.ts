@@ -12,6 +12,7 @@ export function seedGameDetail(
   feeds: ReadonlyArray<readonly Recommendation[] | undefined>,
   library: readonly LibraryEntry[] | undefined,
 ): GameDetailResponse | undefined {
+  const noFacts = { critic: null, steamReviews: null, stores: [], links: [] };
   const base = { slug: '', summary: null, platforms: [], ratingCount: null, steamAppId: null };
   for (const feed of feeds) {
     const rec = feed?.find((r) => r.game.igdbId === igdbId);
@@ -22,6 +23,7 @@ export function seedGameDetail(
       fit: rec.fits,
       timeToBeat: rec.timeToBeat,
       deck: rec.deck,
+      facts: noFacts,
       why: [],
     };
   }
@@ -42,6 +44,7 @@ export function seedGameDetail(
     fit: [],
     timeToBeat: null,
     deck: null,
+    facts: noFacts,
     why: [],
   };
 }

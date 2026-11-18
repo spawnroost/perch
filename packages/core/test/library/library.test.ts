@@ -171,6 +171,9 @@ describe('row builders', () => {
     rating: 90,
     ratingCount: 10,
     steamAppId: null,
+    criticRating: null,
+    criticRatingCount: null,
+    websites: [],
   };
   it('buildGameRow adds vocab and fetchedAt', () => {
     const now = new Date('2026-01-01T00:00:00Z');

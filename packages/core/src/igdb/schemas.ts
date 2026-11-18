@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { StoreLink } from '../game-facts/stores.js';
 
 /** Raw IGDB response shapes (only the fields we request). IGDB omits fields that are null. */
 const ids = z.array(z.number().int()).optional();
@@ -24,6 +25,11 @@ export const igdbGameSchema = z.object({
   first_release_date: z.number().optional(),
   total_rating: z.number().optional(),
   total_rating_count: z.number().optional(),
+  aggregated_rating: z.number().optional(),
+  aggregated_rating_count: z.number().optional(),
+  websites: z
+    .array(z.object({ url: z.string().optional(), type: z.number().int().optional() }))
+    .optional(),
   genres: ids,
   themes: ids,
   keywords: ids,
@@ -108,6 +114,11 @@ export interface Game {
   rating: number | null;
   ratingCount: number | null;
   steamAppId: number | null;
+  /** IGDB `aggregated_rating` (critic average, 0-100) and how many critics. */
+  criticRating: number | null;
+  criticRatingCount: number | null;
+  /** Store links from IGDB websites. */
+  websites: StoreLink[];
 }
 
 export interface GameCandidate {

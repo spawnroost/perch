@@ -92,6 +92,13 @@
       "when": 1794995916326,
       "tag": "0012_mature_madame_web",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795002568977,
+      "tag": "0013_sudden_goliath",
+      "breakpoints": true
     }
   ]
 }

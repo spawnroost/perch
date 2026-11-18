@@ -213,6 +213,36 @@ describe('getGame', () => {
     expect(net.apiCalls()[0]?.body).toMatch(/summary/);
   });
 
+  it('requests and maps the critic rating and store websites', async () => {
+    const net = fakeFetch({
+      intercept: () =>
+        json([
+          {
+            id: 9,
+            name: 'X',
+            slug: 'x',
+            aggregated_rating: 91.2,
+            aggregated_rating_count: 14,
+            websites: [
+              { url: 'https://store.steampowered.com/app/5', type: 13 },
+              { url: 'https://example.com', type: 1 },
+            ],
+          },
+          { id: 10, name: 'Y', slug: 'y' },
+        ]),
+    });
+    const [x, y] = await make(net).getGames([9, 10]);
+    expect(x).toMatchObject({
+      criticRating: 91.2,
+      criticRatingCount: 14,
+      websites: [{ store: 'steam', url: 'https://store.steampowered.com/app/5' }],
+    });
+    expect(y).toMatchObject({ criticRating: null, criticRatingCount: null, websites: [] });
+    expect(net.apiCalls()[0]?.body).toMatch(
+      /aggregated_rating,aggregated_rating_count,websites\.url,websites\.type/,
+    );
+  });
+
   it('series is [] when IGDB sends neither collections nor franchises', async () => {
     const net = fakeFetch({ intercept: () => json([{ id: 9, name: 'X', slug: 'x' }]) });
     expect((await make(net).getGame(9))?.series).toEqual([]);
