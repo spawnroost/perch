@@ -1,5 +1,6 @@
 import {
   keepPreviousData,
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
@@ -8,6 +9,8 @@ import {
 } from '@tanstack/react-query';
 import type {
   AccountResponse,
+  BrowseFacetsResponse,
+  BrowseResponse,
   SteamSyncResult,
   AuthProviders,
   DeviceCreate,
@@ -39,7 +42,8 @@ import {
   revertFeedback,
   type FeedbackMap,
 } from '@/lib/feedback';
-import { FOR_YOU_LIMIT } from '@/lib/forYou';
+import { BROWSE_LIMIT, nextOffset } from '@/lib/browse';
+import { ALL_TAB, FOR_YOU_LIMIT } from '@/lib/forYou';
 import { seedGameDetail } from '@/lib/gameSeed';
 import { devicesAffected, libraryAffected } from '@/lib/invalidation';
 import { shouldRetry } from '@/lib/retry';
@@ -142,6 +146,46 @@ export function useRecommendations(
 
 /** The For you feed for a device; switching devices keeps the old picks until the new ones land. */
 export const useForYouFeed = (device: string) => useRecommendations(device, FOR_YOU_LIMIT, true);
+
+/** The genre and theme chips; the lists are fixed, so they are fetched once. */
+export function useBrowseFacets() {
+  return useQuery({
+    queryKey: queryKeys.browseFacets,
+    queryFn: ({ signal }) => api.get<BrowseFacetsResponse>('/api/browse/facets', { signal }),
+    staleTime: Infinity,
+  });
+}
+
+/**
+ * Games with a chosen genre and theme, a page at a time ("Load more" asks for the next offset).
+ * Idle until `enabled`; the previous selection's games stay until the new ones land.
+ */
+export function useBrowse(
+  genres: readonly number[],
+  themes: readonly number[],
+  device: string,
+  enabled: boolean,
+) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.browse(genres, themes, device),
+    queryFn: ({ pageParam, signal }) =>
+      api.get<BrowseResponse>('/api/browse', {
+        query: {
+          genres: genres.join(','),
+          themes: themes.join(','),
+          limit: BROWSE_LIMIT,
+          offset: pageParam,
+          ...(device === ALL_TAB ? {} : { deviceId: device }),
+        },
+        signal,
+      }),
+    initialPageParam: 0,
+    getNextPageParam: nextOffset,
+    select: (data) => data.pages.flatMap((page) => page.recommendations),
+    enabled,
+    placeholderData: keepPreviousData,
+  });
+}
 
 /** Games like one game, filtered by device; the title comes with the answer. */
 export function useSimilar(igdbId: number | null, device: string, enabled = true) {

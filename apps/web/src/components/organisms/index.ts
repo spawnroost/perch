@@ -17,6 +17,7 @@ export { SignupForm } from './SignupForm';
 export { SimilarGames } from './SimilarGames';
 export { VerifyEmailNotice } from './VerifyEmailNotice';
 export { AccountSettings } from './AccountSettings';
+export { BrowseView } from './BrowseView';
 export { DeviceAdder } from './DeviceAdder';
 export { DevicesView } from './DevicesView';
 export { GameSearchAdd } from './GameSearchAdd';

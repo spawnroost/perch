@@ -1,4 +1,5 @@
 export { AccountPage } from './AccountPage';
+export { BrowsePage } from './BrowsePage';
 export { DevicesPage } from './DevicesPage';
 export { ForgotPasswordPage } from './ForgotPasswordPage';
 export { ForYouShelfPage } from './ForYouShelfPage';

@@ -3,6 +3,7 @@ import { cn } from '@/lib/cn';
 
 const NAV_ITEMS = [
   { to: '/', label: 'For you', end: true },
+  { to: '/browse', label: 'Browse', end: false },
   { to: '/library', label: 'Library', end: false },
   { to: '/devices', label: 'Devices', end: false },
 ] as const;

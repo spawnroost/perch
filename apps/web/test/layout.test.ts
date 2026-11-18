@@ -10,6 +10,8 @@ describe('layoutKind', () => {
       '/library',
       '/library/',
       '/devices',
+      '/browse',
+      '/browse/',
       '/for-you/source-10',
       '/for-you/more/',
       '/for-you/like/42',

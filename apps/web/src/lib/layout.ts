@@ -4,7 +4,7 @@ export type LayoutKind = 'edge' | 'narrow';
 export function layoutKind(pathname: string): LayoutKind {
   if (
     pathname === '/' ||
-    /^\/(games\/[^/]+|for-you\/(?:like\/\d+|[^/]+)|library|devices)\/?$/.test(pathname)
+    /^\/(games\/[^/]+|for-you\/(?:like\/\d+|[^/]+)|library|devices|browse)\/?$/.test(pathname)
   )
     return 'edge';
   return 'narrow';

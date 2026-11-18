@@ -5,6 +5,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { AppLayout } from '@/components/organisms';
 import {
   AccountPage,
+  BrowsePage,
   DevicesPage,
   ForgotPasswordPage,
   ForYouShelfPage,
@@ -45,6 +46,7 @@ export function App() {
                 <Route index element={<HomePage />} />
                 <Route path="for-you/like/:igdbId" element={<SimilarPage />} />
                 <Route path="for-you/:shelfKey" element={<ForYouShelfPage />} />
+                <Route path="browse" element={<BrowsePage />} />
                 <Route path="library" element={<LibraryPage />} />
                 <Route path="devices" element={<DevicesPage />} />
                 <Route path="games/:id" element={<GamePage />} />
