@@ -873,6 +873,18 @@ describe.skipIf(!testUrl)('api routes', () => {
       expect(ids(any)).toEqual([B]);
     });
 
+    it('serves stable pages from one remembered list, and a library change refreshes it', async () => {
+      const u = await newUser();
+      const before = ids(await browse('?genres=12,31', u.cookie));
+      expect(before.sort()).toEqual([A, B, C].sort());
+      await call('POST', '/api/library', u.cookie, {
+        igdbId: C,
+        hoursPlayed: 20,
+        status: 'playing',
+      });
+      expect(ids(await browse('?genres=12,31', u.cookie)).sort()).toEqual([A, B].sort());
+    });
+
     it('asks IGDB once for the same tags', async () => {
       const u = await newUser();
       const before = tagQueries.length;

@@ -1,5 +1,6 @@
 import { and, eq, inArray, isNotNull, isNull, ne, or, sql } from 'drizzle-orm';
 import { games, timeToBeat, type Db } from '@perch/db';
+import { createTtlMemo } from '../browse/ttl-memo.js';
 import type { IgdbClient, TagQuery } from './client.js';
 import { sharedAccentQueue, type AccentQueue } from './accent.js';
 import type { Game, TimeToBeat } from './schemas.js';
@@ -273,8 +274,13 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
     return ids.flatMap((id) => found.get(id) ?? stale.get(id) ?? []);
   }
 
+  /** Pools of games per tag set, for 10 minutes: pages, chip toggles and feeds share one IGDB query. */
+  const tagPools = createTtlMemo<Game[]>({ now: () => now().getTime() });
+  const tagIds = (list: readonly number[]) => [...list].sort((a, b) => a - b).join(',');
+
   async function queryByTags(q: TagQuery): Promise<Game[]> {
-    return upsertGames(await client.queryByTags(q));
+    const key = `${tagIds(q.genres)}|${tagIds(q.themes)}|${q.match ?? 'any'}|${q.minRatingCount}|${q.limit}`;
+    return tagPools.get(key, async () => upsertGames(await client.queryByTags(q)));
   }
 
   /** Fetches and stores one game's time-to-beat; null when the game is unknown or has none. */

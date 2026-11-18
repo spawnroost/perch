@@ -1,8 +1,10 @@
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
-import type { RecommendationsResponse } from '@perch/core';
+import type { InfiniteData } from '@tanstack/react-query';
+import type { BrowseResponse, RecommendationsResponse } from '@perch/core';
 import {
   applyFeedback,
+  dropFromBrowse,
   dropRecommendation,
   feedbackChange,
   removesFromPicks,
@@ -66,6 +68,37 @@ describe('similar lists', () => {
     await applyFeedback(qc, { igdbId: 2, kind: 'not_interested', undo: false });
     const data = qc.getQueryData<RecommendationsResponse>(queryKeys.similar(42, 'all'));
     expect(data?.recommendations.map((r) => r.game.igdbId)).toEqual([1]);
+  });
+});
+
+describe('browse pages', () => {
+  const pages = (...pageIds: number[][]): InfiniteData<BrowseResponse, number> => ({
+    pages: pageIds.map((ids) => ({ recommendations: ids.map(pick), hasMore: true })),
+    pageParams: pageIds.map((_, i) => i * 10),
+  });
+  const idsOf = (d: InfiniteData<BrowseResponse, number> | undefined) =>
+    d?.pages.map((p) => p.recommendations.map((r) => r.game.igdbId));
+
+  it('dropFromBrowse removes the game from every page and keeps the paging', () => {
+    const next = dropFromBrowse(pages([1, 2], [3, 2, 4]), 2);
+    expect(idsOf(next)).toEqual([[1], [3, 4]]);
+    expect(next?.pageParams).toEqual([0, 10]);
+    expect(next?.pages.every((p) => p.hasMore)).toBe(true);
+    expect(dropFromBrowse(undefined, 2)).toBeUndefined();
+  });
+
+  it('their key root is browse, not recommendations; a feedback drop prunes them without a refetch', async () => {
+    const key = queryKeys.browse([12], [17], 'all');
+    expect(key.slice(0, queryKeys.browseAll.length)).toEqual(queryKeys.browseAll);
+    expect(key[0]).not.toBe(queryKeys.recommendationsAll[0]);
+    expect(queryKeys.browseFacets.slice(0, 2)).not.toEqual(queryKeys.browseAll);
+    const qc = new QueryClient();
+    qc.setQueryData(key, pages([1, 2, 3]));
+    await applyFeedback(qc, { igdbId: 2, kind: 'down', undo: false });
+    expect(idsOf(qc.getQueryData(key))).toEqual([[1, 3]]);
+    // A like keeps it.
+    await applyFeedback(qc, { igdbId: 3, kind: 'up', undo: false });
+    expect(idsOf(qc.getQueryData(key))).toEqual([[1, 3]]);
   });
 });
 

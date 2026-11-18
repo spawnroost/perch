@@ -280,6 +280,20 @@ describe.skipIf(!url)('igdb db cache', () => {
     });
   });
 
+  it('queryByTags: asks IGDB once per tag set within 10 minutes, whatever the id order', async () => {
+    const { net, cache, setNow } = setup({ intercept: () => json([...hades.game]) });
+    const q = { genres: [12, 31], themes: [17], minRatingCount: 50, limit: 10 };
+    await cache.queryByTags(q);
+    await cache.queryByTags({ ...q, genres: [31, 12] });
+    const calls = () => net.apiCalls().filter((c) => c.body.includes('genres =')).length;
+    expect(calls()).toBe(1);
+    await cache.queryByTags({ ...q, match: 'all' });
+    expect(calls()).toBe(2);
+    setNow(new Date(T0.getTime() + 11 * 60_000));
+    await cache.queryByTags(q);
+    expect(calls()).toBe(3);
+  });
+
   describe('art and accent', () => {
     const art = {
       id: hades.igdbId,

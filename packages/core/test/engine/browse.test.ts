@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { IGDB_PLATFORM as P } from '../../src/devices/presets.js';
-import { browse, BROWSE_POOL } from '../../src/engine/browse.js';
+import { browse, BROWSE_POOL, createBrowseList } from '../../src/engine/browse.js';
 import { createNoneProvider } from '../../src/engine/explain.js';
 import type { FilterDevice } from '../../src/engine/filters.js';
 import type { EngineGame, FeedbackItem, LibraryItem, RawGame } from '../../src/engine/types.js';
@@ -159,5 +159,59 @@ describe('browse', () => {
   it('returns nothing when no game matches', async () => {
     const res = await setup([]).run();
     expect(res).toEqual({ items: [], hasMore: false });
+  });
+});
+
+describe('createBrowseList', () => {
+  const pc: FilterDevice = {
+    id: 'pc1',
+    kind: 'pc',
+    platformIds: [P.windows],
+    gpuScore: 5000,
+    cpuScore: 5000,
+    ramGb: 16,
+  };
+  const pool = Array.from({ length: 10 }, (_, i) => mk(10 + i, 90 - i, { steamAppId: 100 + i }));
+  const input = { library: [], feedback: [], genres: [12], themes: [] as number[], devices: [pc] };
+  const make = () => {
+    const fetchRequirements = vi.fn(async () => null);
+    const queryByTags = vi.fn(async () => pool.map(toRaw));
+    const deps = {
+      getGames: async () => [],
+      queryByTags,
+      mapVocab: () => ({ rpg: 1 }),
+      explain: createNoneProvider({ labels: {} }),
+      now: () => NOW,
+      fetchRequirements,
+    };
+    return { deps, fetchRequirements, queryByTags };
+  };
+
+  it('queries once and checks devices only as far as a page needs, resuming for later pages', async () => {
+    const { deps, fetchRequirements, queryByTags } = make();
+    const list = await createBrowseList(deps, input);
+    const p1 = await list.page(0, 2);
+    expect(p1.items.map((r) => r.game.igdbId)).toEqual([10, 11]);
+    expect(p1.hasMore).toBe(true);
+    expect(fetchRequirements).toHaveBeenCalledTimes(3); // offset + limit + 1
+    const p2 = await list.page(2, 2);
+    expect(p2.items.map((r) => r.game.igdbId)).toEqual([12, 13]);
+    expect(fetchRequirements).toHaveBeenCalledTimes(5); // only the new ones
+    expect((await list.page(0, 2)).items.map((r) => r.game.igdbId)).toEqual([10, 11]);
+    expect(fetchRequirements).toHaveBeenCalledTimes(5); // a repeat page costs nothing
+    expect(queryByTags).toHaveBeenCalledTimes(1);
+  });
+
+  it('concurrent pages do not check a game twice, and the last page has no more', async () => {
+    const { deps, fetchRequirements } = make();
+    const list = await createBrowseList(deps, input);
+    const [a, b] = await Promise.all([list.page(0, 4), list.page(4, 4)]);
+    expect(a.items.map((r) => r.rank)).toEqual([1, 2, 3, 4]);
+    expect(b.items.map((r) => r.rank)).toEqual([5, 6, 7, 8]);
+    expect(fetchRequirements).toHaveBeenCalledTimes(9);
+    const last = await list.page(8, 4);
+    expect(last.items.map((r) => r.game.igdbId)).toEqual([18, 19]);
+    expect(last.hasMore).toBe(false);
+    expect(fetchRequirements).toHaveBeenCalledTimes(10);
   });
 });

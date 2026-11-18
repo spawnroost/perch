@@ -42,8 +42,38 @@ export interface RecommendInput {
 export type Fit = NonNullable<Recommendation['fit']>;
 
 /**
+ * The best fit of one game over `devices`, fetching Steam info only if still needed (cheapest
+ * first: a console may already settle it, and a green PC makes the Deck lookup moot). A fetch
+ * error counts as unknown. Null when no device can run it.
+ */
+export async function bestFitForGame(
+  deps: RecommendDeps,
+  game: EngineGame,
+  devices: readonly FilterDevice[],
+  opts: FitOptions,
+): Promise<Fit | null> {
+  const info: FitInfo = {};
+  const fit = () => bestFit(game, devices, () => info, opts);
+  let best = fit();
+  const appId = game.steamAppId ?? null;
+  if (best.status !== 'green' && appId !== null) {
+    const live = devices.filter((d) => platformMatches(game, d));
+    if (deps.fetchRequirements && live.some((d) => deviceKind(d) === 'pc')) {
+      info.requirements = await deps.fetchRequirements(game).catch(() => null);
+      best = fit();
+    }
+    if (best.status !== 'green' && deps.fetchDeck && live.some((d) => deviceKind(d) === 'deck')) {
+      info.deck = await deps.fetchDeck(appId).catch(() => undefined);
+      best = fit();
+    }
+  }
+  if (best.status === 'hidden' || best.deviceId === null) return null;
+  return { status: best.status, deviceId: best.deviceId };
+}
+
+/**
  * Walks `ranked` in order, fetching Steam info only for games that still need it, until `limit`
- * games are kept. A fetch error counts as unknown. Steam is rate limited, so never fetch ahead.
+ * games are kept. Steam is rate limited, so never fetch ahead.
  */
 export async function filterByDevices<T extends { game: EngineGame }>(
   deps: RecommendDeps,
@@ -55,25 +85,8 @@ export async function filterByDevices<T extends { game: EngineGame }>(
   const kept: { item: T; fit: Fit }[] = [];
   for (const item of ranked) {
     if (kept.length >= limit) break;
-    const { game } = item;
-    // Cheapest first: a console may already settle it, and a green PC makes the Deck lookup moot.
-    const info: FitInfo = {};
-    const fit = () => bestFit(game, devices, () => info, opts);
-    let best = fit();
-    const appId = game.steamAppId ?? null;
-    if (best.status !== 'green' && appId !== null) {
-      const live = devices.filter((d) => platformMatches(game, d));
-      if (deps.fetchRequirements && live.some((d) => deviceKind(d) === 'pc')) {
-        info.requirements = await deps.fetchRequirements(game).catch(() => null);
-        best = fit();
-      }
-      if (best.status !== 'green' && deps.fetchDeck && live.some((d) => deviceKind(d) === 'deck')) {
-        info.deck = await deps.fetchDeck(appId).catch(() => undefined);
-        best = fit();
-      }
-    }
-    if (best.status === 'hidden' || best.deviceId === null) continue;
-    kept.push({ item, fit: { status: best.status, deviceId: best.deviceId } });
+    const fit = await bestFitForGame(deps, item.game, devices, opts);
+    if (fit) kept.push({ item, fit });
   }
   return kept;
 }

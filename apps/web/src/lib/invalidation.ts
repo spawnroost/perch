@@ -4,6 +4,7 @@ import { queryKeys } from './queryKeys';
 export const libraryAffected = [
   queryKeys.library,
   queryKeys.recommendationsAll,
+  queryKeys.browseAll,
   queryKeys.gameDetailAll,
   queryKeys.gameFitsAll,
 ] as const;
@@ -12,6 +13,7 @@ export const libraryAffected = [
 export const devicesAffected = [
   queryKeys.devices,
   queryKeys.recommendationsAll,
+  queryKeys.browseAll,
   queryKeys.gameDetailAll,
   queryKeys.gameFitsAll,
 ] as const;

@@ -13,7 +13,9 @@ import {
   type FitRequirements,
   type FitStatus,
 } from './filters.js';
-import { browse } from './browse.js';
+import { createBrowseList, type BrowseList } from './browse.js';
+import type { TtlMemo } from '../browse/ttl-memo.js';
+import { getRecsVersion } from '../recommendation-cache/version.js';
 import { createFitFetchers, loadDevices, loadRecommendInput } from './load.js';
 import { buildProfile } from './profile.js';
 import { computeIdf } from './rank.js';
@@ -29,6 +31,8 @@ export interface UserEngineDeps {
   /** Taste-vocab mapper and labels, injected so core does not depend on taste-vocab. */
   mapVocab: (game: Game & Partial<typeof games.$inferSelect>) => Vocab;
   labels: Readonly<Record<string, string>>;
+  /** Remembers browse lists between requests (see `browseForUser`); without it each call builds one. */
+  browseLists?: TtlMemo<BrowseList>;
   /** Overrides the Steam client (tests). */
   steam?: SteamClient;
   /** How long a session waits for the time-to-beat warm-up before answering (default 1500). */
@@ -98,32 +102,47 @@ export async function browseForUser(
   },
 ): Promise<{ picks: UserRecommendation[]; hasMore: boolean }> {
   const { db, cache, mapVocab, labels, steam } = deps;
-  const { library, feedback } = await loadRecommendInput(db, userId, mapVocab);
   const allDevices = await loadDevices(db, userId);
+  const devices = selectDevices(allDevices, opts.device); // throws for a device that is not theirs
   const fetchers = createFitFetchers(db, steam);
-  const { items, hasMore } = await browse(
-    {
-      getGames: (ids) => cache.getGames(ids),
-      queryByTags: (q) => cache.queryByTags(q),
-      mapVocab,
-      ...fetchers,
-      explain: createNoneProvider({ labels }),
-    },
-    {
-      library,
-      feedback,
-      genres: opts.genres,
-      themes: opts.themes,
-      limit: opts.limit,
-      offset: opts.offset,
-      devices: selectDevices(allDevices, opts.device),
-    },
-  );
+  const make = async () => {
+    const { library, feedback } = await loadRecommendInput(db, userId, mapVocab);
+    return createBrowseList(
+      {
+        getGames: (ids) => cache.getGames(ids),
+        queryByTags: (q) => cache.queryByTags(q),
+        mapVocab,
+        ...fetchers,
+        explain: createNoneProvider({ labels }),
+      },
+      { library, feedback, genres: opts.genres, themes: opts.themes, devices },
+    );
+  };
+  // The ranked, device-filtered list is remembered per user and tag set, and dropped whenever a
+  // write feeds the engine (the user's recs version moves), so pages are stable and cheap.
+  const list = deps.browseLists
+    ? await deps.browseLists.get(
+        browseKey(userId, await getRecsVersion(db, userId), opts.genres, opts.themes, opts.device),
+        make,
+      )
+    : await make();
+  const { items, hasMore } = await list.page(opts.offset, opts.limit);
   const picks = await enrichPicks(deps, items, allDevices, fetchers, {
     warmTimeToBeat: opts.warmTimeToBeat,
   });
   return { picks: picks.map(withoutGpu), hasMore };
 }
+
+const browseKey = (
+  userId: string,
+  version: number,
+  genres: readonly number[],
+  themes: readonly number[],
+  device: string | undefined,
+) => {
+  const ids = (list: readonly number[]) => [...list].sort((a, b) => a - b).join(',');
+  return [userId, version, ids(genres), ids(themes), device ?? 'all'].join('|');
+};
 
 type SessionPick = UserRecommendation & {
   /** GPU score the game wants (recommended, else minimum); null when unknown or not asked for. */

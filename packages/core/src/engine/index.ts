@@ -54,5 +54,5 @@ export {
   similarForUser,
 } from './for-user.js';
 export type { DeviceFit, GameFit, UserEngineDeps, UserRecommendation } from './for-user.js';
-export { browse, BROWSE_POOL } from './browse.js';
-export type { BrowseInput } from './browse.js';
+export { browse, BROWSE_POOL, createBrowseList } from './browse.js';
+export type { BrowseInput, BrowseList, BrowsePage } from './browse.js';

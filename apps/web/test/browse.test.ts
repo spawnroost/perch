@@ -74,8 +74,9 @@ describe('nextOffset', () => {
 });
 
 describe('queryKeys.browse', () => {
-  it('sits under the recommendations prefix, so feedback and library changes refresh it', () => {
+  it('has its own root, so recommendation refreshes leave it alone', () => {
     const key = queryKeys.browse([1], [2], 'all');
-    expect(key.slice(0, queryKeys.recommendationsAll.length)).toEqual(queryKeys.recommendationsAll);
+    expect(key.slice(0, queryKeys.browseAll.length)).toEqual(queryKeys.browseAll);
+    expect(key[0]).toBe('browse');
   });
 });

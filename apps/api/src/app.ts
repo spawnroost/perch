@@ -10,9 +10,12 @@ import {
   authProvidersFor,
   createAccentFetcher,
   createIgdbCache,
+  createTtlMemo,
+  type BrowseList,
   type IgdbCache,
   type IgdbClient,
   type SteamClient,
+  type TtlMemo,
 } from '@perch/core';
 import type { Db } from '@perch/db';
 import { mapGame, VOCAB } from '@perch/taste-vocab';
@@ -73,6 +76,8 @@ export interface RouteDeps extends AppDeps {
   steamSync: SteamSync;
   /** Taste-vocab id -> label, for reasons. */
   labels: Record<string, string>;
+  /** Ranked browse lists, remembered between requests (keyed by user, recs version and tags). */
+  browseLists: TtlMemo<BrowseList>;
 }
 
 export function createApp(appDeps: AppDeps) {
@@ -91,6 +96,7 @@ export function createApp(appDeps: AppDeps) {
       : null,
     mapVocab: mapGame,
     labels: Object.fromEntries(VOCAB.map((v) => [v.id, v.label])),
+    browseLists: createTtlMemo<BrowseList>({ max: 50 }),
   };
   const deps: RouteDeps = { ...base, steamSync: createSteamSync(base) };
   const app = new Hono<AppVars>();

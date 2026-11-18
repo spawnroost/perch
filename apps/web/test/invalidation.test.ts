@@ -7,6 +7,7 @@ describe('invalidation', () => {
     expect(libraryAffected).toEqual([
       queryKeys.library,
       queryKeys.recommendationsAll,
+      queryKeys.browseAll,
       queryKeys.gameDetailAll,
       queryKeys.gameFitsAll,
     ]);
@@ -15,6 +16,7 @@ describe('invalidation', () => {
     expect(devicesAffected).toEqual([
       queryKeys.devices,
       queryKeys.recommendationsAll,
+      queryKeys.browseAll,
       queryKeys.gameDetailAll,
       queryKeys.gameFitsAll,
     ]);

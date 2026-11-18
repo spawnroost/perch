@@ -43,7 +43,7 @@ export function BrowseView() {
       <div>
         <h1 className="font-title text-3xl text-fg">Browse</h1>
         <p className="text-sm text-fg-muted">
-          Pick a genre and a theme to see games that match both, ranked for your taste.
+          With both groups, a game must match one genre and one theme you picked.
         </p>
       </div>
 
@@ -85,7 +85,9 @@ export function BrowseView() {
       {failure && (
         <LoadError message={failure.error.message} onRetry={() => void failure.refetch()} />
       )}
-      {!filtered && !failure && <Notice>Pick a genre or theme to start browsing.</Notice>}
+      {!filtered && !failure && (
+        <Notice>Pick genres or themes to see matching games, ranked for your taste.</Notice>
+      )}
       {filtered && !failure && picks === undefined && (
         <div aria-busy className={CARD_GRID}>
           {Array.from({ length: 12 }, (_, i) => (

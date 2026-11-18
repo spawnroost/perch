@@ -23,9 +23,10 @@ export const queryKeys = {
   /** Under `recommendationsAll`, so optimistic feedback drops also prune "More like this". */
   similar: (igdbId: number, device: string) =>
     ['recommendations', 'similar', igdbId, device] as const,
-  /** Under `recommendationsAll`, so library and feedback changes refresh browse too. */
+  /** Browse pages (infinite queries). Its own root: feedback prunes them in place, never refetches. */
+  browseAll: ['browse', 'feed'] as const,
   browse: (genres: readonly number[], themes: readonly number[], device: string) =>
-    ['recommendations', 'browse', genres, themes, device] as const,
+    ['browse', 'feed', genres, themes, device] as const,
   browseFacets: ['browse', 'facets'] as const,
   recommendations: (device: string, limit: number) =>
     ['recommendations', 'feed', device, limit] as const,

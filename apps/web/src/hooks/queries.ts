@@ -1,6 +1,7 @@
 import {
   keepPreviousData,
   useInfiniteQuery,
+  type InfiniteData,
   useMutation,
   useQuery,
   useQueryClient,
@@ -158,7 +159,7 @@ export function useBrowseFacets() {
 
 /**
  * Games with a chosen genre and theme, a page at a time ("Load more" asks for the next offset).
- * Idle until `enabled`; the previous selection's games stay until the new ones land.
+ * Idle until `enabled`. A new selection starts from nothing (skeleton), never from the last one's games.
  */
 export function useBrowse(
   genres: readonly number[],
@@ -183,7 +184,6 @@ export function useBrowse(
     getNextPageParam: nextOffset,
     select: (data) => data.pages.flatMap((page) => page.recommendations),
     enabled,
-    placeholderData: keepPreviousData,
   });
 }
 
@@ -224,8 +224,11 @@ export function useGameDetail(igdbId: number | null) {
       const feeds = qc
         .getQueriesData<RecommendationsResponse>({ queryKey: queryKeys.recommendationsAll })
         .map(([, data]) => data?.recommendations);
+      const browsed = qc
+        .getQueriesData<InfiniteData<BrowseResponse, number>>({ queryKey: queryKeys.browseAll })
+        .map(([, data]) => data?.pages.flatMap((page) => page.recommendations));
       const library = qc.getQueryData<{ entries: LibraryEntry[] }>(queryKeys.library)?.entries;
-      return seedGameDetail(igdbId, feeds, library);
+      return seedGameDetail(igdbId, [...feeds, ...browsed], library);
     },
   });
 }

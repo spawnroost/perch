@@ -1,5 +1,10 @@
-import type { QueryClient } from '@tanstack/react-query';
-import type { FeedbackKind, FeedbackListResponse, RecommendationsResponse } from '@perch/core';
+import type { InfiniteData, QueryClient } from '@tanstack/react-query';
+import type {
+  BrowseResponse,
+  FeedbackKind,
+  FeedbackListResponse,
+  RecommendationsResponse,
+} from '@perch/core';
 import { queryKeys } from './queryKeys';
 
 /** The user's current feedback, by IGDB id (what `GET /api/feedback` returns). */
@@ -18,6 +23,21 @@ export function dropRecommendation<T extends RecommendationsResponse>(
 ): T | undefined {
   if (!data) return data;
   return { ...data, recommendations: data.recommendations.filter((r) => r.game.igdbId !== igdbId) };
+}
+
+/** Browse pages with one game taken out of each (the paging offsets stay as fetched). */
+export function dropFromBrowse(
+  data: InfiniteData<BrowseResponse, number> | undefined,
+  igdbId: number,
+): InfiniteData<BrowseResponse, number> | undefined {
+  if (!data) return data;
+  return {
+    ...data,
+    pages: data.pages.map((page) => ({
+      ...page,
+      recommendations: page.recommendations.filter((r) => r.game.igdbId !== igdbId),
+    })),
+  };
 }
 
 /** One game's feedback in the map; `undefined` clears it. */
@@ -62,6 +82,7 @@ export async function applyFeedback(
   await Promise.all([
     qc.cancelQueries({ queryKey: queryKeys.feedback }),
     qc.cancelQueries({ queryKey: queryKeys.recommendationsAll }),
+    qc.cancelQueries({ queryKey: queryKeys.browseAll }),
   ]);
   const previous = qc.getQueryData<FeedbackMap>(queryKeys.feedback)?.[igdbId];
   qc.setQueryData<FeedbackMap>(queryKeys.feedback, (map = NO_FEEDBACK) =>
@@ -70,6 +91,11 @@ export async function applyFeedback(
   if (!undo && removesFromPicks(kind)) {
     qc.setQueriesData<RecommendationsResponse>({ queryKey: queryKeys.recommendationsAll }, (data) =>
       dropRecommendation(data, igdbId),
+    );
+    // The optimistic drop is all browse needs: the server list is fixed for the page offsets.
+    qc.setQueriesData<InfiniteData<BrowseResponse, number>>(
+      { queryKey: queryKeys.browseAll },
+      (data) => dropFromBrowse(data, igdbId),
     );
   }
   return previous;
