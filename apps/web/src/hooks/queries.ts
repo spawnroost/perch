@@ -29,7 +29,7 @@ import type {
   SimilarResponse,
   SessionQuery,
   SessionResponse,
-} from '@perch/core';
+} from '@perch/core/browser';
 import { api } from '@/lib/api';
 import {
   applyFeedback,

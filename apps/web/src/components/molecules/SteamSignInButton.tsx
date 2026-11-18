@@ -1,4 +1,4 @@
-import { providerButtonLabel, steamStartPath } from '@perch/core';
+import { providerButtonLabel, steamStartPath } from '@perch/core/browser';
 import { Button, ProviderMark } from '../atoms';
 
 export interface SteamSignInButtonProps {

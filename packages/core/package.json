@@ -8,7 +8,8 @@
     ".": "./src/index.ts",
     "./presets": "./src/devices/presets.ts",
     "./igdb-image": "./src/igdb/image.ts",
-    "./session": "./src/engine/session.ts"
+    "./session": "./src/engine/session.ts",
+    "./browser": "./src/browser.ts"
   },
   "dependencies": {
     "@perch/db": "workspace:*",

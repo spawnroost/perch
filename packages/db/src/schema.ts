@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import { STORE_IDS, type StoreId, type StoreLink } from './stores.js';
 import {
   boolean,
   check,
@@ -110,22 +111,7 @@ export const verifications = pgTable(
 
 // ---- Shared caches (not user-owned; filled from IGDB / Steam / Deck) ----
 
-export const STORE_IDS = [
-  'steam',
-  'gog',
-  'epic',
-  'playstation',
-  'xbox',
-  'nintendo',
-  'app-store',
-  'google-play',
-  'itch',
-] as const;
-export type StoreId = (typeof STORE_IDS)[number];
-export interface StoreLink {
-  store: StoreId;
-  url: string;
-}
+export { STORE_IDS, type StoreId, type StoreLink };
 
 /** Co-op / split-screen modes; core's `multiplayerSchema` is checked against this shape. */
 export interface Multiplayer {

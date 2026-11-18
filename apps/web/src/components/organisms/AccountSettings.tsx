@@ -8,7 +8,7 @@ import {
   accountSubtitle,
   canUnlinkSteam,
   socialProviderLabel,
-} from '@perch/core';
+} from '@perch/core/browser';
 import { useAccount, useAuthProviders, useSyncSteamLibrary, useUnlinkSteam } from '@/hooks/queries';
 import { useAuthError } from '@/hooks/useAuthError';
 import { useAction } from '@/hooks/useAction';

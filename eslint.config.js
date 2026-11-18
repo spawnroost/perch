@@ -20,4 +20,23 @@ export default tseslint.config(
       'react-hooks/exhaustive-deps': 'warn',
     },
   },
+  {
+    // '@perch/core' re-exports server modules (postgres, node:crypto): it blanked the web app with
+    // "Buffer is not defined". Web values come from the browser-safe '@perch/core/browser'.
+    files: ['apps/web/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@perch/core',
+              message: "Import values from '@perch/core/browser' (type-only imports are fine).",
+              allowTypeImports: true,
+            },
+          ],
+        },
+      ],
+    },
+  },
 );

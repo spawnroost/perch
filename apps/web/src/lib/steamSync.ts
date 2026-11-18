@@ -4,7 +4,7 @@ import {
   STEAM_PRIVATE_HELP,
   STEAM_UNAVAILABLE_HELP,
   type SteamSyncResult,
-} from '@perch/core';
+} from '@perch/core/browser';
 
 /** "Synced 3 h ago" for the Steam section; `iso` is the API's `steamSyncedAt`. */
 export function syncedAgo(iso: string | null, now: Date): string {

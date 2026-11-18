@@ -1,4 +1,4 @@
-import { enabledProviderList } from '@perch/core';
+import { enabledProviderList } from '@perch/core/browser';
 import { Notice } from '../atoms';
 import { ProviderButton } from '../molecules';
 import { useAuthError } from '@/hooks/useAuthError';

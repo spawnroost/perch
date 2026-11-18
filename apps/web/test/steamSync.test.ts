@@ -4,7 +4,7 @@ import {
   STEAM_NOT_LINKED_HELP,
   STEAM_PRIVATE_HELP,
   STEAM_UNAVAILABLE_HELP,
-} from '@perch/core';
+} from '@perch/core/browser';
 import { steamSyncErrorText, steamSyncSummary, syncedAgo } from '../src/lib/steamSync.js';
 import { ApiError } from '../src/lib/api.js';
 

@@ -1,4 +1,4 @@
-import { STORE_IDS, type StoreId, type StoreLink } from '@perch/db';
+import { STORE_IDS, type StoreId, type StoreLink } from '@perch/db/stores';
 
 export { STORE_IDS };
 export type { StoreId, StoreLink };

@@ -1,4 +1,4 @@
-import { providerButtonLabel, type SocialProvider } from '@perch/core';
+import { providerButtonLabel, type SocialProvider } from '@perch/core/browser';
 import { Button, ProviderMark } from '../atoms';
 import { useAction } from '@/hooks/useAction';
 import { appUrl, authClient, unwrapAuth } from '@/lib/auth-client';
