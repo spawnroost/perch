@@ -56,9 +56,11 @@ export function createSteamSync(
     try {
       await run(userId, steamId);
     } catch (err) {
-      // Give the slot back so the next trigger retries and "last synced" stays truthful.
+      // A private profile keeps the claim: retrying before 6 h would just hit Steam again for nothing.
+      if (err instanceof SteamProfilePrivateError) return;
+      // Otherwise give the slot back so the next trigger retries and "last synced" stays truthful.
       await releaseSteamAutoSync(db, userId, claim).catch(() => undefined);
-      if (!(err instanceof SteamProfilePrivateError)) console.error('steam auto-sync failed', err);
+      console.error('steam auto-sync failed', err);
     }
   }
 
