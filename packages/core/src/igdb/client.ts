@@ -6,6 +6,7 @@ import { RateQueue } from './queue.js';
 import {
   igdbGameSchema,
   igdbExternalGamesResponseSchema,
+  igdbNamedGamesResponseSchema,
   igdbGamesResponseSchema,
   igdbKeywordsResponseSchema,
   igdbSearchResponseSchema,
@@ -13,6 +14,7 @@ import {
   seriesIds,
   type Game,
   type GameCandidate,
+  type NamedGame,
   type SearchResult,
   type TimeToBeat,
 } from './schemas.js';
@@ -21,6 +23,8 @@ import { TokenProvider } from './token.js';
 const API_BASE = 'https://api.igdb.com/v4';
 /** `external_game_source` id for Steam (the `category` field is deprecated). */
 export const STEAM_SOURCE_ID = 1;
+/** `external_game_source` id for GOG. */
+export const GOG_SOURCE_ID = 5;
 
 /** Fields for bulk candidate queries; the About fields are left out to keep responses small. */
 const LEAN = [
@@ -105,6 +109,7 @@ export interface TagQuery {
 
 /** IGDB's maximum page size, and so the id-batch size for getGames. */
 export const IGDB_MAX_LIMIT = 500;
+const NAME_BATCH = 50;
 
 export interface IgdbClient {
   searchGames(name: string): Promise<SearchResult>;
@@ -121,6 +126,10 @@ export interface IgdbClient {
   keywordNames(ids: readonly number[]): Promise<Record<number, string>>;
   /** Steam appid -> IGDB game id via `external_games` (<= 500 uids per query). Unknown appids are omitted. */
   steamAppIds(appids: readonly number[]): Promise<Map<number, number>>;
+  /** Store uid -> IGDB game id for one `external_game_source` (<= 500 uids per query). Unknown uids are omitted. */
+  externalGameIds(sourceId: number, uids: readonly string[]): Promise<Map<string, number>>;
+  /** Games whose name equals one of `names` exactly (case-sensitive); callers compare normalised. <= 50 names per query. */
+  gamesByExactName(names: readonly string[]): Promise<NamedGame[]>;
 }
 
 type RawGame = z.output<typeof igdbGameSchema>;
@@ -209,7 +218,38 @@ export function createIgdbClient(opts: IgdbClientOptions): IgdbClient {
     }
   }
 
+  async function externalGameIds(
+    sourceId: number,
+    uidList: readonly string[],
+  ): Promise<Map<string, number>> {
+    const unique = [...new Set(uidList)];
+    const out = new Map<string, number>();
+    for (let i = 0; i < unique.length; i += IGDB_MAX_LIMIT) {
+      const uids = unique
+        .slice(i, i + IGDB_MAX_LIMIT)
+        .map((u) => `"${u.replace(/["\\]/g, '')}"`)
+        .join(',');
+      // A uid can have several IGDB entries (bundles, DLC), so a page can fill up with
+      // duplicates: page with an offset until a short page.
+      for (let offset = 0; ; offset += IGDB_MAX_LIMIT) {
+        const rows = await query(
+          'external_games',
+          `fields uid,game; where external_game_source = ${Math.trunc(sourceId)} & uid = (${uids}) & game != null; limit ${IGDB_MAX_LIMIT}; offset ${offset};`,
+          igdbExternalGamesResponseSchema,
+        );
+        for (const r of rows) {
+          // The first IGDB entry per uid wins.
+          if (r.game !== undefined && !out.has(r.uid)) out.set(r.uid, r.game);
+        }
+        if (rows.length < IGDB_MAX_LIMIT) break;
+      }
+    }
+    return out;
+  }
+
   return {
+    externalGameIds,
+
     async searchGames(name) {
       const q = name.replace(/["\\]/g, ' ').trim();
       const rows = await query(
@@ -287,27 +327,33 @@ export function createIgdbClient(opts: IgdbClientOptions): IgdbClient {
     },
 
     async steamAppIds(appids) {
-      const unique = [...new Set(appids)];
-      const out = new Map<number, number>();
-      for (let i = 0; i < unique.length; i += IGDB_MAX_LIMIT) {
-        const uids = unique
-          .slice(i, i + IGDB_MAX_LIMIT)
-          .map((a) => `"${Math.trunc(a)}"`)
+      const found = await externalGameIds(
+        STEAM_SOURCE_ID,
+        [...new Set(appids)].map((a) => String(Math.trunc(a))),
+      );
+      return new Map([...found].map(([uid, game]) => [Number(uid), game]));
+    },
+
+    async gamesByExactName(names) {
+      const unique = [...new Set(names)];
+      const out: NamedGame[] = [];
+      for (let i = 0; i < unique.length; i += NAME_BATCH) {
+        const list = unique
+          .slice(i, i + NAME_BATCH)
+          .map((n) => `"${n.replace(/["\\]/g, ' ').trim()}"`)
           .join(',');
-        // An appid can have several IGDB entries (bundles, DLC), so a page can fill up with
-        // duplicates: page with an offset until a short page.
-        for (let offset = 0; ; offset += IGDB_MAX_LIMIT) {
-          const rows = await query(
-            'external_games',
-            `fields uid,game; where external_game_source = ${STEAM_SOURCE_ID} & uid = (${uids}) & game != null; limit ${IGDB_MAX_LIMIT}; offset ${offset};`,
-            igdbExternalGamesResponseSchema,
-          );
-          for (const r of rows) {
-            // The first IGDB entry per appid wins.
-            if (r.game !== undefined && !out.has(Number(r.uid))) out.set(Number(r.uid), r.game);
-          }
-          if (rows.length < IGDB_MAX_LIMIT) break;
-        }
+        const rows = await query(
+          'games',
+          `fields name,game_type,first_release_date; where name = (${list}); limit ${IGDB_MAX_LIMIT};`,
+          igdbNamedGamesResponseSchema,
+        );
+        for (const r of rows)
+          out.push({
+            igdbId: r.id,
+            name: r.name,
+            gameType: r.game_type ?? null,
+            firstRelease: r.first_release_date ? new Date(r.first_release_date * 1000) : null,
+          });
       }
       return out;
     },

@@ -1,7 +1,8 @@
-import { eq, sql } from 'drizzle-orm';
-import { libraryEntries, users, type Db } from '@perch/db';
+import { eq } from 'drizzle-orm';
+import { users, type Db } from '@perch/db';
 import type { IgdbCache } from '../igdb/cache.js';
 import type { IgdbClient } from '../igdb/client.js';
+import { minutesToHours, upsertImportedEntries } from '../library/bulk.js';
 import { buildLibraryRow } from '../library/rows.js';
 import { bumpRecsVersion } from '../recommendation-cache/version.js';
 import { SteamAccountChangedError } from './errors.js';
@@ -10,7 +11,6 @@ import type { OwnedGame, SteamSyncResult } from './schemas.js';
 import { steamImportStatus } from './status.js';
 
 export const STEAM_PLATFORM = 'pc';
-const INSERT_CHUNK = 500;
 
 export interface SteamSyncDeps {
   db: Db;
@@ -20,8 +20,6 @@ export interface SteamSyncDeps {
   fetchOwned: (steamId: string) => Promise<OwnedGame[]>;
   now?: () => Date;
 }
-
-const toHours = (minutes: number) => Math.round((minutes / 60) * 10) / 10;
 
 /**
  * Imports the user's Steam library as PC entries. Existing entries only gain data: hours and
@@ -69,7 +67,7 @@ export async function syncSteamLibrary(
       platform: STEAM_PLATFORM,
       source: 'steam',
       owned: true,
-      hours: minutes > 0 ? toHours(minutes) : undefined,
+      hours: minutes > 0 ? minutesToHours(minutes) : undefined,
       lastPlayed: lastPlayed ?? undefined,
       status: steamImportStatus({ minutes, lastPlayed, now }),
     }).insert;
@@ -85,25 +83,7 @@ export async function syncSteamLibrary(
       .for('update');
     if (owner?.steamId !== steamId) throw new SteamAccountChangedError();
 
-    for (let i = 0; i < rows.length; i += INSERT_CHUNK) {
-      const res = await tx
-        .insert(libraryEntries)
-        .values(rows.slice(i, i + INSERT_CHUNK))
-        .onConflictDoUpdate({
-          target: [libraryEntries.userId, libraryEntries.igdbId, libraryEntries.platform],
-          set: {
-            hoursPlayed: sql`greatest(${libraryEntries.hoursPlayed}, excluded.hours_played)`,
-            lastPlayed: sql`greatest(${libraryEntries.lastPlayed}, excluded.last_played)`,
-            owned: true,
-          },
-        })
-        // xmax is 0 only on a freshly inserted row; an ON CONFLICT update sets it.
-        .returning({ inserted: sql<boolean>`(xmax = 0)` });
-      for (const r of res) {
-        if (r.inserted) imported++;
-        else updated++;
-      }
-    }
+    ({ imported, updated } = await upsertImportedEntries(tx, rows));
     await tx.update(users).set({ steamSyncedAt: now }).where(eq(users.id, userId));
     await bumpRecsVersion(tx, userId);
   });

@@ -87,6 +87,23 @@ export const igdbExternalGamesResponseSchema = z.array(
   z.object({ uid: z.string(), game: z.number().int().optional() }),
 );
 
+export const igdbNamedGamesResponseSchema = z.array(
+  z.object({
+    id: z.number().int(),
+    name: z.string(),
+    game_type: z.number().int().optional(),
+    first_release_date: z.number().optional(),
+  }),
+);
+
+/** A game found by exact name; `gameType` 0 is a main game. */
+export interface NamedGame {
+  igdbId: number;
+  name: string;
+  gameType: number | null;
+  firstRelease: Date | null;
+}
+
 export const igdbGamesResponseSchema = z.array(igdbGameSchema);
 
 export const igdbTimeToBeatSchema = z.object({

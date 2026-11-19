@@ -2,6 +2,7 @@ export { AccountMenu } from './AccountMenu';
 export { AppLayout } from './AppLayout';
 export { AuthLayout } from './AuthLayout';
 export { DevicesStep } from './DevicesStep';
+export { ExportImport } from './ExportImport';
 export { ForgotPasswordForm } from './ForgotPasswordForm';
 export { ForYou } from './ForYou';
 export { ForYouShelf } from './ForYouShelf';

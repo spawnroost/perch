@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button, Notice, Sheet, SheetContent } from '../atoms';
 import { SteamSignInButton } from '../molecules';
+import { ExportImport } from './ExportImport';
 import { ImportList } from './ImportList';
 import { SteamSync } from './SteamSync';
 import { useAccount, useLibrary } from '@/hooks/queries';
@@ -18,6 +19,7 @@ export function BringYourGames() {
   const library = useLibrary();
   const authError = useAuthError();
   const [pasting, setPasting] = useState(false);
+  const [fromFile, setFromFile] = useState(false);
   const linked = Boolean(account?.steamId);
   const steamOn = Boolean(account?.steamSyncAvailable);
   const waiting = linked && steamOn && !authError && (library.data?.length ?? 1) === 0;
@@ -53,15 +55,26 @@ export function BringYourGames() {
         <Button variant="secondary" className="w-full sm:w-fit" onClick={() => setPasting(true)}>
           Paste a list
         </Button>
+        <Button variant="secondary" className="w-full sm:w-fit" onClick={() => setFromFile(true)}>
+          Import Epic/GOG file
+        </Button>
       </div>
       {waiting && <p className="text-sm text-fg-muted">Importing your Steam library…</p>}
-      <p className="text-xs text-fg-subtle">Epic, GOG, Xbox and PlayStation are coming.</p>
+      <p className="text-xs text-fg-subtle">Xbox and PlayStation are coming.</p>
       <Sheet open={pasting} onOpenChange={setPasting}>
         <SheetContent
           title="Paste a list"
           description="One game per line. Hours, last played and status are optional, split by |."
         >
           <ImportList onDone={() => setPasting(false)} />
+        </SheetContent>
+      </Sheet>
+      <Sheet open={fromFile} onOpenChange={setFromFile}>
+        <SheetContent
+          title="Import Epic/GOG file"
+          description="Pick your Heroic or Playnite export files."
+        >
+          <ExportImport onDone={() => setFromFile(false)} />
         </SheetContent>
       </Sheet>
     </section>

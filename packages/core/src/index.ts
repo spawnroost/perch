@@ -15,3 +15,4 @@ export * from './recommendation-cache/index.js';
 export * from './steam-library/index.js';
 export * from './game-facts/index.js';
 export * from './steam-reviews/index.js';
+export * from './library-export/index.js';

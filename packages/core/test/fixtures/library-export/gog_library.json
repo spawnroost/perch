@@ -1,0 +1,7 @@
+{
+  "games": [
+    { "runner": "gog", "app_name": "1207658924", "title": "The Witcher: Enhanced Edition", "is_installed": false },
+    { "runner": "gog", "app_name": "1207666633", "title": "Hollow Knight", "is_dlc": false },
+    { "runner": "gog", "app_name": "1207666999", "title": "Hollow Knight: Godmaster", "is_dlc": true }
+  ]
+}

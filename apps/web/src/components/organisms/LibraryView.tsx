@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { ListPlus, Pencil, Plus } from 'lucide-react';
+import { FileUp, ListPlus, Pencil, Plus } from 'lucide-react';
 import { Button, Notice, Sheet, SheetContent } from '../atoms';
 import { GameCard, LibraryControls, LoadError } from '../molecules';
+import { ExportImport } from './ExportImport';
 import { GameSearchAdd } from './GameSearchAdd';
 import { ImportList } from './ImportList';
 import { LibraryEntryEditor } from './LibraryEntryEditor';
@@ -18,7 +19,8 @@ import {
 import { CARD_GRID, CARD_GRID_SIZES } from '@/lib/cardWidth';
 import { firstOfEach } from '@/lib/motion';
 
-type Panel = { kind: 'add' } | { kind: 'import' } | { kind: 'edit'; id: string };
+type Panel =
+  { kind: 'add' } | { kind: 'import' } | { kind: 'exportFile' } | { kind: 'edit'; id: string };
 
 export function LibraryView() {
   const library = useLibrary();
@@ -45,10 +47,14 @@ export function LibraryView() {
             <p className="text-sm text-fg-muted tabular-nums">{games(library.data.length)}</p>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           <Button onClick={() => setPanel({ kind: 'import' })}>
             <ListPlus size={14} strokeWidth={1.75} aria-hidden />
             Import list
+          </Button>
+          <Button onClick={() => setPanel({ kind: 'exportFile' })}>
+            <FileUp size={14} strokeWidth={1.75} aria-hidden />
+            Import Epic/GOG file
           </Button>
           <Button variant="primary" onClick={() => setPanel({ kind: 'add' })}>
             <Plus size={14} strokeWidth={1.75} aria-hidden />
@@ -126,6 +132,14 @@ export function LibraryView() {
       <Sheet open={panel?.kind === 'import'} onOpenChange={(open) => !open && close()}>
         <SheetContent title="Import list" description="Paste a list of games, then review.">
           <ImportList onDone={close} />
+        </SheetContent>
+      </Sheet>
+      <Sheet open={panel?.kind === 'exportFile'} onOpenChange={(open) => !open && close()}>
+        <SheetContent
+          title="Import Epic/GOG file"
+          description="Pick your Heroic or Playnite export files."
+        >
+          <ExportImport onDone={close} />
         </SheetContent>
       </Sheet>
       <Sheet open={editing !== undefined} onOpenChange={(open) => !open && close()}>

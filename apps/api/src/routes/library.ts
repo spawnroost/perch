@@ -4,7 +4,9 @@ import {
   deleteLibraryEntry,
   findLibraryEntry,
   idParamSchema,
+  exportImportSchema,
   importConfirmSchema,
+  importExportGames,
   importLibraryGames,
   importPreviewSchema,
   libraryCreateSchema,
@@ -111,6 +113,16 @@ export function libraryRoutes(deps: RouteDeps) {
       })),
       errors,
     } satisfies ImportPreviewResponse);
+  });
+
+  // Bulk, no review: matched games are added, the rest come back as `unmatched`.
+  r.post('/import/export', async (c) => {
+    const userId = c.get('user').id;
+    const { games } = await parseBody(c, exportImportSchema);
+    const { client, cache } = requireIgdb(deps);
+    const result = await importExportGames({ db, cache, client }, userId, games);
+    await rebuild(userId);
+    return c.json(result);
   });
 
   r.post('/import/confirm', async (c) => {

@@ -21,3 +21,14 @@ export type {
   SteamSyncResult,
 } from './steam-library/schemas.js';
 export type { FeedbackKind } from './engine/types.js';
+export { parseLibraryExport } from './library-export/parse.js';
+export type { ExportFile, ParsedExport } from './library-export/parse.js';
+export {
+  EXPORT_MAX_GAMES,
+  EXPORT_SOURCES,
+  EXPORT_UNMATCHED_SHOWN,
+  exportGameSchema,
+  exportImportResultSchema,
+  exportImportSchema,
+} from './library-export/schemas.js';
+export type { ExportGame, ExportImportResult } from './library-export/schemas.js';

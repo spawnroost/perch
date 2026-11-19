@@ -13,6 +13,8 @@ import type {
   BrowseFacetsResponse,
   BrowseResponse,
   SteamSyncResult,
+  ExportGame,
+  ExportImportResult,
   AuthProviders,
   DeviceCreate,
   DevicePatchInput,
@@ -317,6 +319,15 @@ export function useImportConfirm() {
         imported: { igdbId: number; name: string }[];
         failed: { igdbId: number; error: string }[];
       }>('/api/library/import/confirm', body),
+    onSuccess: () => invalidateAll(qc, libraryAffected),
+  });
+}
+
+export function useImportExportGames() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (games: ExportGame[]) =>
+      api.post<ExportImportResult>('/api/library/import/export', { games }),
     onSuccess: () => invalidateAll(qc, libraryAffected),
   });
 }

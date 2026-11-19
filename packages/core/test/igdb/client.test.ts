@@ -575,3 +575,49 @@ describe('steamAppIds', () => {
     expect(net.apiCalls()).toHaveLength(3);
   });
 });
+
+describe('externalGameIds', () => {
+  it('queries the given source and maps uid strings to IGDB ids', async () => {
+    const net = fakeFetch({
+      intercept: ({ url }) =>
+        url.endsWith('/external_games')
+          ? json([
+              { id: 1, uid: '1207658924', game: 111 },
+              { id: 2, uid: '1207658924', game: 999 },
+            ])
+          : undefined,
+    });
+    const map = await make(net).externalGameIds(5, ['1207658924', 'x"y', '1207658924']);
+    expect([...map]).toEqual([['1207658924', 111]]);
+    const body = net.apiCalls()[0]!.body;
+    expect(body).toContain('external_game_source = 5');
+    expect(body).toContain('uid = ("1207658924","xy")');
+  });
+});
+
+describe('gamesByExactName', () => {
+  it('batches 50 names per query and maps rows', async () => {
+    const net = fakeFetch({
+      intercept: ({ url }) =>
+        url.endsWith('/games')
+          ? json([{ id: 7, name: 'Celeste', game_type: 0, first_release_date: 1516838400 }])
+          : undefined,
+    });
+    const names = Array.from({ length: 101 }, (_, i) => (i === 0 ? 'Celeste' : `Game "${i}"`));
+    const out = await make(net).gamesByExactName(names);
+    expect(net.apiCalls()).toHaveLength(3);
+    expect(net.apiCalls()[0]!.body).toContain('where name = ("Celeste","Game  1","Game  2"');
+    expect(out[0]).toEqual({
+      igdbId: 7,
+      name: 'Celeste',
+      gameType: 0,
+      firstRelease: new Date(1516838400 * 1000),
+    });
+  });
+
+  it('makes no request for no names', async () => {
+    const net = fakeFetch({ intercept: () => json([]) });
+    expect(await make(net).gamesByExactName([])).toEqual([]);
+    expect(net.apiCalls()).toHaveLength(0);
+  });
+});

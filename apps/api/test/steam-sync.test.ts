@@ -64,6 +64,12 @@ const igdb: IgdbClient = {
   async getTimeToBeat() {
     return null;
   },
+  async externalGameIds() {
+    return new Map();
+  },
+  async gamesByExactName() {
+    return [];
+  },
   async keywordNames() {
     return {};
   },

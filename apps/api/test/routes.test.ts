@@ -120,6 +120,14 @@ const fakeIgdb: IgdbClient = {
       ? { hastilySeconds: 3600, normallySeconds: 7200, completelySeconds: null, count: 50 }
       : null;
   },
+  async externalGameIds(_source, uids) {
+    return new Map(uids.filter((u) => u === '4242').map((u) => [u, B]));
+  },
+  async gamesByExactName(names) {
+    return catalog
+      .filter((g) => names.includes(g.name))
+      .map((g) => ({ igdbId: g.igdbId, name: g.name, gameType: 0, firstRelease: g.firstRelease }));
+  },
   async keywordNames() {
     return {};
   },
@@ -212,6 +220,7 @@ describe.skipIf(!testUrl)('api routes', () => {
       ['DELETE', `/api/library/${crypto.randomUUID()}`],
       ['POST', '/api/library/import'],
       ['POST', '/api/library/import/confirm'],
+      ['POST', '/api/library/import/export'],
       ['GET', '/api/devices'],
       ['POST', '/api/devices'],
       ['PATCH', `/api/devices/${crypto.randomUUID()}`],
@@ -608,6 +617,49 @@ describe.skipIf(!testUrl)('api routes', () => {
         .from(schema.libraryEntries)
         .where(and(eq(schema.libraryEntries.userId, u.id), eq(schema.libraryEntries.igdbId, A)));
       expect(row).toMatchObject({ source: 'import', status: 'finished', hoursPlayed: 10 });
+    });
+
+    it('imports games from export files: resolves, upserts, reports unmatched', async () => {
+      const u = await newUser();
+      const gameA = catalog.find((g) => g.igdbId === A)!;
+      const res = await call('POST', '/api/library/import/export', u.cookie, {
+        games: [
+          { source: 'epic', title: gameA.name, minutesPlayed: 120 },
+          { source: 'gog', storeId: '4242', title: 'Anything' },
+          { source: 'other', title: 'Not a real game' },
+        ],
+      });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({
+        imported: 2,
+        updated: 0,
+        unmatched: ['Not a real game'],
+        unmatchedCount: 1,
+        total: 3,
+      });
+      const rows = await ctx.db
+        .select()
+        .from(schema.libraryEntries)
+        .where(eq(schema.libraryEntries.userId, u.id));
+      expect(rows.map((r) => [r.igdbId, r.platform, r.source]).sort()).toEqual(
+        [
+          [A, 'epic', 'import'],
+          [B, 'gog', 'import'],
+        ].sort(),
+      );
+      expect(rows.find((r) => r.igdbId === A)?.hoursPlayed).toBe(2);
+    });
+
+    it('400 on a bad export import body', async () => {
+      const u = await newUser();
+      const bad = [
+        {},
+        { games: [{ source: 'steam', title: 'x' }] },
+        { games: [{ source: 'epic', title: '' }] },
+        { games: Array.from({ length: 5001 }, () => ({ source: 'epic', title: 'x' })) },
+      ];
+      for (const body of bad)
+        expect((await call('POST', '/api/library/import/export', u.cookie, body)).status).toBe(400);
     });
 
     it('400 on a bad import body', async () => {
