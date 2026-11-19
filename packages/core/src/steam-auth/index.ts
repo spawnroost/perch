@@ -6,7 +6,14 @@ const IDENTIFIER_SELECT = 'http://specs.openid.net/auth/2.0/identifier_select';
 const CLAIMED_ID_RE = /^https:\/\/steamcommunity\.com\/openid\/id\/(\d{17})$/;
 
 /** Steam sign-in mode: a fresh login, or linking Steam to the signed-in account. */
-export const SteamAuthModeSchema = z.enum(['login', 'link']);
+export const SteamAuthModeSchema = z.enum(['login', 'link', 'onboard']);
+
+/** Where a Steam round trip lands: link modes go back to the page that started them. */
+export function steamReturnPath(mode: string | undefined): string {
+  if (mode === 'link') return '/account';
+  if (mode === 'onboard') return '/onboarding';
+  return '/login';
+}
 export type SteamAuthMode = z.infer<typeof SteamAuthModeSchema>;
 
 /** Redirect URL that sends the browser to Steam's OpenID login page. */

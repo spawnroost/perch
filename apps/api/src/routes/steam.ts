@@ -11,6 +11,7 @@ import {
   parseSteamCallback,
   socialProviderConfig,
   steamPlaceholderEmail,
+  steamReturnPath,
   type SteamAuthMode,
   type SteamErrorCode,
 } from '@perch/core';
@@ -52,7 +53,7 @@ export function steamAuthRoutes(deps: RouteDeps) {
     const parsed = SteamAuthModeSchema.safeParse(c.req.query('mode') ?? 'login');
     if (!parsed.success) throw new HTTPException(400, { message: 'invalid mode' });
     const mode: SteamAuthMode = parsed.data;
-    if (mode === 'link' && !c.get('sessionUser')) return webRedirect(c, '/login', 'auth');
+    if (mode !== 'login' && !c.get('sessionUser')) return webRedirect(c, '/login', 'auth');
     const nonce = crypto.randomUUID();
     await setSignedCookie(c, stateCookie, `${mode}:${nonce}`, env.BETTER_AUTH_SECRET, {
       httpOnly: true,
@@ -72,9 +73,9 @@ export function steamAuthRoutes(deps: RouteDeps) {
     const modeOk = SteamAuthModeSchema.safeParse(mode);
     const query = c.req.query();
     if (!modeOk.success || !nonce || query.state !== nonce) {
-      return webRedirect(c, mode === 'link' ? '/account' : '/login', 'state');
+      return webRedirect(c, steamReturnPath(mode), 'state');
     }
-    const failPath = modeOk.data === 'link' ? '/account' : '/login';
+    const failPath = steamReturnPath(modeOk.data);
 
     if (query['openid.mode'] === 'cancel') return webRedirect(c, failPath, 'cancelled');
     const parsed = parseSteamCallback(query, returnToFor(nonce));
@@ -94,13 +95,13 @@ export function steamAuthRoutes(deps: RouteDeps) {
       .where(eq(schema.users.steamId, steamId))
       .limit(1);
 
-    if (modeOk.data === 'link') {
+    if (modeOk.data !== 'login') {
       const me = c.get('sessionUser');
       if (!me) return webRedirect(c, '/login', 'auth');
-      if (owner && owner.id !== me.id) return webRedirect(c, '/account', 'conflict');
+      if (owner && owner.id !== me.id) return webRedirect(c, failPath, 'conflict');
       await db.update(schema.users).set({ steamId }).where(eq(schema.users.id, me.id));
       deps.steamSync.maybeAuto(me.id, steamId);
-      return webRedirect(c, '/account');
+      return webRedirect(c, failPath);
     }
 
     let userId = owner?.id;

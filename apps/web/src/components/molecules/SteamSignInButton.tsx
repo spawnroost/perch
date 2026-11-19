@@ -1,8 +1,8 @@
-import { providerButtonLabel, steamStartPath } from '@perch/core/browser';
+import { providerButtonLabel, steamStartPath, type SteamAuthMode } from '@perch/core/browser';
 import { Button, ProviderMark } from '../atoms';
 
 export interface SteamSignInButtonProps {
-  mode?: 'login' | 'link';
+  mode?: SteamAuthMode;
 }
 
 /** A plain link: the whole Steam OpenID round trip is server redirects, no client JS. */
@@ -11,7 +11,7 @@ export function SteamSignInButton({ mode = 'login' }: SteamSignInButtonProps) {
     <Button asChild variant="secondary" className="w-full">
       <a href={steamStartPath(mode)}>
         <ProviderMark provider="steam" />
-        {providerButtonLabel('steam', mode)}
+        {mode === 'onboard' ? 'Connect Steam' : providerButtonLabel('steam', mode)}
       </a>
     </Button>
   );

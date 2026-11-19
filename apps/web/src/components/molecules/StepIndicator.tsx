@@ -11,13 +11,13 @@ const LABELS: Record<Step, string> = {
 export function StepIndicator({ current }: { current: Step }) {
   const active = stepIndex(current);
   return (
-    <ol className="flex items-center gap-4" aria-label="Onboarding progress">
+    <ol className="flex items-center gap-3 sm:gap-4" aria-label="Onboarding progress">
       {STEPS.map((step, i) => (
         <li
           key={step}
           aria-current={i === active ? 'step' : undefined}
           className={cn(
-            'flex items-center gap-2 text-sm',
+            'flex items-center gap-2 whitespace-nowrap text-sm',
             i === active ? 'text-fg' : 'text-fg-subtle',
           )}
         >

@@ -27,3 +27,5 @@ export { LibraryView } from './LibraryView';
 export { GlobalSearch } from './GlobalSearch';
 export { ProviderAuthOptions } from './ProviderAuthOptions';
 export { GameFactsBody, GameFactsRail } from './GameFactsRail';
+export { BringYourGames } from './BringYourGames';
+export { SteamSync } from './SteamSync';

@@ -46,7 +46,11 @@ describe.skipIf(!testUrl)('steam openid', () => {
   }
 
   /** Runs /start and returns the state cookie plus a callback URL as Steam would send it. */
-  async function begin(mode: 'login' | 'link', steamId: string, sessionCookie?: string) {
+  async function begin(
+    mode: 'login' | 'link' | 'onboard',
+    steamId: string,
+    sessionCookie?: string,
+  ) {
     const start = await call(`/api/auth/steam/start?mode=${mode}`, sessionCookie);
     expect(start.status).toBe(302);
     const loc = new URL(start.headers.get('location')!);
@@ -118,6 +122,21 @@ describe.skipIf(!testUrl)('steam openid', () => {
     expect(dest(res).href).toBe(`${WEB}/account`);
     const me = await call('/api/account', u.cookie);
     expect(await me.json()).toMatchObject({ steamId, hasPassword: true });
+  });
+
+  it('onboard mode links and returns to onboarding, errors included', async () => {
+    valid = true;
+    const steamId = newSteamId();
+    const a = await passwordUser();
+    const b = await passwordUser();
+    const first = await begin('onboard', steamId, a.cookie);
+    expect(dest(await call(first.callbackPath, first.cookie)).href).toBe(`${WEB}/onboarding`);
+    const second = await begin('onboard', steamId, b.cookie);
+    expect(dest(await call(second.callbackPath, second.cookie)).href).toBe(
+      `${WEB}/onboarding?steamError=conflict`,
+    );
+    const me = await call('/api/account', a.cookie);
+    expect(await me.json()).toMatchObject({ steamId });
   });
 
   it('refuses to link a Steam id that belongs to another user', async () => {

@@ -1,5 +1,4 @@
 export { ActionForm } from './ActionForm';
-export { ConnectorsComingSoon } from './ConnectorsComingSoon';
 export { DevicePresetCard } from './DevicePresetCard';
 export { DeviceSwitcher } from './DeviceSwitcher';
 export type { DeviceSwitcherProps } from './DeviceSwitcher';
@@ -39,3 +38,4 @@ export { StoreLinks } from './StoreLinks';
 export { ExternalLinks } from './ExternalLinks';
 export { AboutList } from './AboutList';
 export { DetailSection } from './DetailSection';
+export { SteamSignInButton } from './SteamSignInButton';
