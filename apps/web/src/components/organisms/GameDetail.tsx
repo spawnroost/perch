@@ -125,6 +125,7 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
               srcSet={image?.srcSet}
               sizes="(min-width: 768px) 14rem, 10rem"
               alt={`${game.name} cover`}
+              label={game.name}
               className="w-full rounded-lg shadow-cover-glow"
             />
           </motion.div>

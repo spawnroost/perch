@@ -60,6 +60,7 @@ export function SearchResultRow({
         srcSet={image?.srcSet}
         sizes={COVER_SIZES}
         alt=""
+        label={name}
         className="w-12 shrink-0"
       />
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">

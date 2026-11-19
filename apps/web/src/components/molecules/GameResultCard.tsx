@@ -47,6 +47,7 @@ export function GameResultCard({
           srcSet={image?.srcSet}
           sizes={COVER_SIZES}
           alt=""
+          label={name}
           className="w-full rounded-lg"
         />
         {added && (

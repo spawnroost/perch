@@ -159,6 +159,7 @@ export function GameCard({
             srcSet={image?.srcSet}
             sizes={sizes}
             alt=""
+            label={title}
             className={cn(
               'w-full rounded-lg transition-shadow duration-base ease-out',
               (lit || glow) && 'shadow-glow',
