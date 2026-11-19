@@ -95,7 +95,7 @@ export function ImportList({ onDone }: { onDone: () => void }) {
           </Notice>
         )}
         {confirm.error && <Notice tone="error">{confirm.error.message}</Notice>}
-        <ul className="overflow-y-auto rounded-lg border border-line bg-surface-1">
+        <ul className="no-scrollbar overflow-y-auto rounded-lg border border-line bg-surface-1">
           {rows.map((r) => (
             <ImportRowItem
               key={r.line}

@@ -141,7 +141,7 @@ function SearchPanel({ onDone }: { onDone: () => void }) {
           <X size={16} strokeWidth={1.75} aria-hidden />
         </SheetClose>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+      <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto p-2">
         <p role="status" className="sr-only">
           {results && !stale
             ? results.length === 0

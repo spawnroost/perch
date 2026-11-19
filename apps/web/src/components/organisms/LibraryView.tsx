@@ -118,7 +118,7 @@ export function LibraryView() {
 
       <Sheet open={panel?.kind === 'add'} onOpenChange={(open) => !open && close()}>
         <SheetContent title="Add a game" description="Search and add it with optional hours.">
-          <div className="overflow-y-auto">
+          <div className="no-scrollbar overflow-y-auto">
             <GameSearchAdd />
           </div>
         </SheetContent>

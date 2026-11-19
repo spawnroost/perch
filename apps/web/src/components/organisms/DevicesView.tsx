@@ -117,7 +117,7 @@ export function DevicesView() {
 
       <Sheet open={panel?.kind === 'add'} onOpenChange={(open) => !open && close()}>
         <SheetContent title="Add a device" description="Pick a console or describe your PC.">
-          <div className="overflow-y-auto">
+          <div className="no-scrollbar overflow-y-auto">
             <DeviceAdder />
           </div>
         </SheetContent>
