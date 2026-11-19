@@ -25,6 +25,7 @@ import {
   SteamNetworkError,
   SteamProfilePrivateError,
   XBOX_BUSY_HELP,
+  XBOX_COOLDOWN_HELP,
   XBOX_NOT_CONFIGURED_HELP,
   XBOX_NOT_FOUND_HELP,
   XBOX_NOT_LINKED_HELP,
@@ -115,6 +116,14 @@ export function libraryRoutes(deps: RouteDeps) {
   const xboxError = (c: Context, status: 400 | 404 | 409 | 429 | 502 | 503, body: XboxSyncError) =>
     c.json(body, status);
 
+  /** Null when the user may call OpenXBL now; else the 429 answer (one call per minute per user). */
+  function xboxThrottled(c: Context, userId: string) {
+    const retryAfter = deps.xboxSync.cooldown(userId);
+    if (retryAfter === 0) return null;
+    c.header('Retry-After', String(retryAfter));
+    return xboxError(c, 429, { error: 'xbox_cooldown', message: XBOX_COOLDOWN_HELP, retryAfter });
+  }
+
   /** Typed Xbox failures as JSON error bodies; anything else is a 500. */
   function xboxFailure(c: Context, err: unknown) {
     if (err instanceof XboxProfilePrivateError)
@@ -139,6 +148,8 @@ export function libraryRoutes(deps: RouteDeps) {
     requireIgdb(deps);
     if (!deps.env.OPENXBL_API_KEY)
       return xboxError(c, 503, { error: 'xbox_not_configured', message: XBOX_NOT_CONFIGURED_HELP });
+    const throttled = xboxThrottled(c, id);
+    if (throttled) return throttled;
     try {
       const profile = await lookupXuid(gamertag, {
         apiKey: deps.env.OPENXBL_API_KEY,
@@ -162,6 +173,8 @@ export function libraryRoutes(deps: RouteDeps) {
     requireIgdb(deps);
     if (!deps.env.OPENXBL_API_KEY)
       return xboxError(c, 503, { error: 'xbox_not_configured', message: XBOX_NOT_CONFIGURED_HELP });
+    const throttled = xboxThrottled(c, id);
+    if (throttled) return throttled;
     try {
       return c.json(await deps.xboxSync.run(id, xboxXuid));
     } catch (err) {

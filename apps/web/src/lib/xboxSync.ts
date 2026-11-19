@@ -1,5 +1,6 @@
 import {
   XBOX_BUSY_HELP,
+  XBOX_COOLDOWN_HELP,
   XBOX_NOT_CONFIGURED_HELP,
   XBOX_NOT_FOUND_HELP,
   XBOX_NOT_LINKED_HELP,
@@ -21,6 +22,8 @@ export function xboxErrorText(err: unknown): string {
       return XBOX_UNAVAILABLE_HELP;
     case 'xbox_not_linked':
       return XBOX_NOT_LINKED_HELP;
+    case 'xbox_cooldown':
+      return XBOX_COOLDOWN_HELP;
     case 'xbox_busy':
       return XBOX_BUSY_HELP;
     default:

@@ -27,6 +27,8 @@ async function get<S extends z.ZodType>(
   path: string,
   schema: S,
   { apiKey, fetch: doFetch = (...a) => fetch(...a) }: XboxClientOptions,
+  /** What a body that stays empty means for this call. */
+  emptyError: () => Error,
 ): Promise<z.infer<S>> {
   if (!apiKey) throw new XboxNotConfiguredError();
   for (let attempt = 0; ; attempt++) {
@@ -43,9 +45,9 @@ async function get<S extends z.ZodType>(
     const text = await res.text().catch(() => '');
     if (!text.trim()) {
       if (attempt === 0) continue;
-      // Twice empty with the budget spent is the limit; otherwise a private or empty profile.
+      // Twice empty with the budget spent is the limit; otherwise it is up to the caller.
       if (res.headers.get('x-ratelimit-remaining') === '0') throw new XboxRateLimitedError();
-      throw new XboxProfilePrivateError();
+      throw emptyError();
     }
     let body: unknown;
     try {
@@ -71,7 +73,12 @@ export async function lookupXuid(
   options: XboxClientOptions,
 ): Promise<XboxProfile> {
   const tag = gamertag.trim();
-  const body = await get(`/search/${encodeURIComponent(tag)}`, xboxSearchResponseSchema, options);
+  const body = await get(
+    `/search/${encodeURIComponent(tag)}`,
+    xboxSearchResponseSchema,
+    options,
+    () => new XboxNetworkError('OpenXBL sent an empty reply'),
+  );
   const hit = body.content.people?.find(
     (p) =>
       same(p.gamertag, tag) || same(p.modernGamertag, tag) || same(p.uniqueModernGamertag, tag),
@@ -89,6 +96,8 @@ export async function fetchTitleHistory(
     `/player/titleHistory/${encodeURIComponent(xuid)}`,
     xboxTitleHistoryResponseSchema,
     options,
+    // No body at all is what a private game history looks like.
+    () => new XboxProfilePrivateError(),
   );
   const titles = body.content.titles ?? [];
   // No titles at all is what a private game history looks like.

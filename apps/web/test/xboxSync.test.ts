@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   XBOX_BUSY_HELP,
+  XBOX_COOLDOWN_HELP,
   XBOX_NOT_CONFIGURED_HELP,
   XBOX_NOT_FOUND_HELP,
   XBOX_NOT_LINKED_HELP,
@@ -18,12 +19,16 @@ describe('xboxErrorText', () => {
     ['xbox_unavailable', XBOX_UNAVAILABLE_HELP],
     ['xbox_not_linked', XBOX_NOT_LINKED_HELP],
     ['xbox_busy', XBOX_BUSY_HELP],
+    ['xbox_cooldown', XBOX_COOLDOWN_HELP],
   ])('maps %s to its help text', (code, text) => {
     expect(xboxErrorText(new ApiError(409, code))).toBe(text);
   });
   it('keeps other messages and has a fallback for non-errors', () => {
     expect(xboxErrorText(new ApiError(400, 'invalid body'))).toBe('invalid body');
     expect(xboxErrorText('x')).toBe('Xbox sync failed. Try again.');
+  });
+  it('tells the user to try again in a minute on a cooldown', () => {
+    expect(xboxErrorText(new ApiError(429, 'xbox_cooldown'))).toBe('Try again in a minute.');
   });
   it('says the sync is busy at the rate limit', () => {
     expect(XBOX_BUSY_HELP).toBe('Xbox sync is busy, try again later.');

@@ -67,6 +67,7 @@ export const XBOX_SYNC_ERROR_CODES = [
   'xbox_private',
   'xbox_not_configured',
   'xbox_busy',
+  'xbox_cooldown',
   'xbox_unavailable',
 ] as const;
 export type XboxSyncErrorCode = (typeof XBOX_SYNC_ERROR_CODES)[number];
@@ -74,6 +75,8 @@ export type XboxSyncErrorCode = (typeof XBOX_SYNC_ERROR_CODES)[number];
 export const xboxSyncErrorSchema = z.object({
   error: z.enum(XBOX_SYNC_ERROR_CODES),
   message: z.string(),
+  /** Seconds until the next try; only with xbox_cooldown. */
+  retryAfter: z.number().int().positive().optional(),
 });
 export type XboxSyncError = z.infer<typeof xboxSyncErrorSchema>;
 
@@ -84,3 +87,4 @@ export const XBOX_UNAVAILABLE_HELP = 'Xbox could not be reached. Try again in a 
 export const XBOX_NOT_LINKED_HELP = 'Link your Xbox gamertag before syncing.';
 export const XBOX_NOT_FOUND_HELP = 'No Xbox profile with that gamertag. Check the spelling.';
 export const XBOX_BUSY_HELP = 'Xbox sync is busy, try again later.';
+export const XBOX_COOLDOWN_HELP = 'Try again in a minute.';

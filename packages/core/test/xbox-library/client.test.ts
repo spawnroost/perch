@@ -54,6 +54,18 @@ describe('lookupXuid', () => {
   });
 });
 
+describe('lookupXuid empty reply', () => {
+  it('is a network error, never a private history', async () => {
+    await expect(
+      lookupXuid('x', { apiKey: 'k', fetch: stub(new Response(''), new Response('')) }),
+    ).rejects.toBeInstanceOf(XboxNetworkError);
+    const spent = () => new Response('', { headers: { 'x-ratelimit-remaining': '0' } });
+    await expect(
+      lookupXuid('x', { apiKey: 'k', fetch: stub(spent(), spent()) }),
+    ).rejects.toBeInstanceOf(XboxRateLimitedError);
+  });
+});
+
 describe('fetchTitleHistory', () => {
   it('returns cleaned games for the xuid', async () => {
     const f = stub(json(titles(game, { titleId: '8', name: 'Netflix', type: 'App' })));

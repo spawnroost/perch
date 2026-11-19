@@ -10,6 +10,7 @@ export {
 } from './errors.js';
 export {
   XBOX_BUSY_HELP,
+  XBOX_COOLDOWN_HELP,
   XBOX_NOT_CONFIGURED_HELP,
   XBOX_NOT_FOUND_HELP,
   XBOX_NOT_LINKED_HELP,

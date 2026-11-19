@@ -181,7 +181,7 @@ export function accountRoutes({ db, env, steamSync, xboxSync }: RouteDeps) {
     // Off the request path: not awaited, never throws.
     if (steamId) steamSync.maybeAuto(id, steamId);
     const { xboxXuid, xboxGamertag, xboxSyncedAt } = c.get('user');
-    xboxSync.maybeAuto(id, xboxXuid);
+    xboxSync.maybeAuto(id, xboxXuid, xboxSyncedAt);
     return c.json({
       email,
       steamId: steamId ?? null,

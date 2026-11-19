@@ -52,6 +52,8 @@ export interface AppDeps {
   steamFetch?: typeof fetch;
   /** Fetch used for OpenXBL calls (tests stub it); defaults to the global fetch. */
   xboxFetch?: typeof fetch;
+  /** Per-user gap between manual Xbox link/sync calls in ms (tests); default one minute. */
+  xboxCooldownMs?: number;
   /** Verifies Steam OpenID assertions; the default asks Steam (tests stub it). */
   steamOpenId?: SteamOpenIdVerifier;
   /** Overrides the default limits (tests). */
@@ -106,7 +108,7 @@ export function createApp(appDeps: AppDeps) {
   const deps: RouteDeps = {
     ...base,
     steamSync: createSteamSync(base),
-    xboxSync: createXboxSync(base),
+    xboxSync: createXboxSync({ ...base, cooldownMs: appDeps.xboxCooldownMs }),
   };
   const app = new Hono<AppVars>();
 

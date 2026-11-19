@@ -27,7 +27,12 @@ export function captureMailer(): Mailer & { sent: Mail[] } {
 export async function setupApi(
   rateLimit?: RateLimitConfig,
   envOverrides: Partial<ApiEnv> = {},
-  extra: Partial<Pick<AppDeps, 'igdb' | 'steam' | 'steamFetch' | 'accentFor' | 'steamOpenId'>> = {},
+  extra: Partial<
+    Pick<
+      AppDeps,
+      'igdb' | 'steam' | 'steamFetch' | 'xboxFetch' | 'xboxCooldownMs' | 'accentFor' | 'steamOpenId'
+    >
+  > = {},
 ) {
   await runMigrations(testUrl!);
   const db: Db = createDb(testUrl!);

@@ -11,6 +11,8 @@ const G1 = 987658001;
 const G2 = 987658002;
 const XUID = '2533274800777';
 const GAMERTAG = 'Perch Test Tag';
+const XUID_B = '2533274800888';
+const GAMERTAG_B = 'Perch Other Tag';
 
 const game = (igdbId: number): Game =>
   ({
@@ -45,6 +47,7 @@ const game = (igdbId: number): Game =>
     seriesName: null,
   }) as Game;
 
+const SYNCED_LONG_AGO = new Date(Date.now() - 7 * 3_600_000);
 const NAMES: Record<string, number> = { 'Xboxsync One': G1, 'Xboxsync Two': G2 };
 
 const igdb: IgdbClient = {
@@ -107,8 +110,11 @@ const titleHistory = {
 describe.skipIf(!testUrl)('xbox library import', () => {
   let ctx: Awaited<ReturnType<typeof setupApi>>;
   let noKey: Awaited<ReturnType<typeof setupApi>>;
+  let limited: Awaited<ReturnType<typeof setupApi>>;
   let calls: string[] = [];
-  let mode: 'ok' | 'private' | 'busy' | 'down' | 'nobody' = 'ok';
+  let mode: 'ok' | 'private' | 'busy' | 'down' | 'nobody' | 'emptySearch' = 'ok';
+  // Holds back the history of XUID (the first account) until released, to overlap imports.
+  let gate: Promise<void> | null = null;
   const xboxFetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
     calls.push(url);
@@ -116,15 +122,18 @@ describe.skipIf(!testUrl)('xbox library import', () => {
     if (mode === 'down') throw new TypeError('fetch failed');
     if (mode === 'busy') return new Response('', { status: 429 });
     if (url.includes('/search/')) {
+      if (mode === 'emptySearch') return new Response('');
       const people =
         mode === 'nobody'
           ? [{ xuid: '9', gamertag: 'Someone Else' }]
           : [
               { xuid: '8', gamertag: 'Perch Test Tag Fan' },
               { xuid: XUID, gamertag: GAMERTAG, modernGamertag: GAMERTAG },
+              { xuid: XUID_B, gamertag: GAMERTAG_B, modernGamertag: GAMERTAG_B },
             ];
       return new Response(JSON.stringify({ content: { people } }));
     }
+    if (gate && url.endsWith(`/${XUID}`)) await gate;
     if (mode === 'private') return new Response('');
     return new Response(JSON.stringify(titleHistory));
   }) as unknown as typeof fetch;
@@ -134,12 +143,19 @@ describe.skipIf(!testUrl)('xbox library import', () => {
     ctx = await setupApi(
       { api: big, auth: big },
       { OPENXBL_API_KEY: 'test-key' },
+      { igdb, xboxFetch, xboxCooldownMs: 0 },
+    );
+    // The real one-minute throttle.
+    limited = await setupApi(
+      { api: big, auth: big },
+      { OPENXBL_API_KEY: 'test-key' },
       { igdb, xboxFetch },
     );
     noKey = await setupApi({ api: big, auth: big }, {}, { igdb, xboxFetch });
   });
   afterAll(async () => {
     await ctx.db.delete(schema.games).where(inArray(schema.games.igdbId, [G1, G2]));
+    await limited?.cleanup();
     await noKey?.cleanup();
     await ctx?.cleanup();
   });
@@ -150,7 +166,7 @@ describe.skipIf(!testUrl)('xbox library import', () => {
     if (linked)
       await c.db
         .update(schema.users)
-        .set({ xboxXuid: XUID, xboxGamertag: GAMERTAG })
+        .set({ xboxXuid: XUID, xboxGamertag: GAMERTAG, xboxSyncedAt: SYNCED_LONG_AGO })
         .where(eq(schema.users.id, id));
     const res = await c.app.request('/api/auth/sign-in/email', {
       method: 'POST',
@@ -322,7 +338,103 @@ describe.skipIf(!testUrl)('xbox library import', () => {
     );
     await vi.waitFor(async () => {
       expect(calls.length).toBeGreaterThan(0);
-      expect((await userRow(u.id)).xboxSyncedAt).toBeNull();
+      expect((await userRow(u.id)).xboxSyncedAt).toEqual(SYNCED_LONG_AGO);
     });
+  });
+
+  it('keeps "last synced" truthful when an auto-sync finds the history private or is rate limited', async () => {
+    for (const m of ['private', 'busy'] as const) {
+      mode = m;
+      const u = await signedIn(ctx, true);
+      calls = [];
+      await ctx.app.request('/api/account', { headers: { cookie: u.cookie } });
+      await vi.waitFor(() => expect(calls.length).toBeGreaterThan(0));
+      await new Promise((r) => setTimeout(r, 50));
+      expect((await userRow(u.id)).xboxSyncedAt).toEqual(SYNCED_LONG_AGO);
+      expect(await entries(u.id)).toHaveLength(0);
+    }
+  });
+
+  it('does not auto-sync a link whose first import failed, so a retry is not blocked or hidden', async () => {
+    mode = 'private';
+    const u = await signedIn(ctx);
+    expect((await link(ctx, u.cookie)).status).toBe(409);
+    calls = [];
+    for (let i = 0; i < 2; i++) {
+      const acct = await account(u.cookie);
+      expect(acct).toMatchObject({ xboxGamertag: GAMERTAG, xboxSyncedAt: null });
+    }
+    await new Promise((r) => setTimeout(r, 50));
+    expect(calls).toHaveLength(0);
+    // Fixing the privacy setting and syncing by hand works.
+    mode = 'ok';
+    expect((await post(ctx, '/sync', u.cookie)).status).toBe(200);
+    expect((await account(u.cookie)).xboxSyncedAt).toEqual(expect.any(String));
+  });
+
+  it('relinks to another gamertag while an auto-sync for the old one runs, quietly', async () => {
+    mode = 'ok';
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const u = await signedIn(ctx, true);
+      let release!: () => void;
+      gate = new Promise<void>((r) => (release = r));
+      calls = [];
+      await ctx.app.request('/api/account', { headers: { cookie: u.cookie } });
+      await vi.waitFor(() => expect(calls.some((c) => c.endsWith(`/${XUID}`))).toBe(true));
+      const res = await link(ctx, u.cookie, GAMERTAG_B);
+      expect(res.status).toBe(200);
+      gate = null;
+      release();
+      await new Promise((r) => setTimeout(r, 100));
+      expect(await userRow(u.id)).toMatchObject({ xboxXuid: XUID_B, xboxGamertag: GAMERTAG_B });
+      expect(await entries(u.id)).toHaveLength(2);
+      expect(errors).not.toHaveBeenCalled();
+    } finally {
+      gate = null;
+      errors.mockRestore();
+    }
+  });
+
+  it('answers 502, not "private", when the gamertag search itself comes back empty', async () => {
+    mode = 'emptySearch';
+    const u = await signedIn(ctx);
+    const res = await link(ctx, u.cookie);
+    expect(res.status).toBe(502);
+    expect(await res.json()).toMatchObject({ error: 'xbox_unavailable' });
+  });
+
+  it('allows one manual Xbox call per user per minute and answers 429 xbox_cooldown after', async () => {
+    mode = 'ok';
+    const u = await signedIn(limited, true);
+    const other = await signedIn(limited, true);
+    expect((await post(limited, '/sync', u.cookie)).status).toBe(200);
+    for (const res of [
+      await post(limited, '/sync', u.cookie),
+      await post(limited, '/link', u.cookie, { gamertag: GAMERTAG }),
+    ]) {
+      expect(res.status).toBe(429);
+      const body = await res.json();
+      expect(body).toMatchObject({ error: 'xbox_cooldown', message: 'Try again in a minute.' });
+      expect(body.retryAfter).toBeGreaterThan(0);
+      expect(body.retryAfter).toBeLessThanOrEqual(60);
+      expect(Number(res.headers.get('retry-after'))).toBe(body.retryAfter);
+    }
+    // Another user, and a request that never reaches OpenXBL, are not throttled.
+    expect((await post(limited, '/sync', other.cookie)).status).toBe(200);
+    const unlinked = await signedIn(limited);
+    expect((await post(limited, '/sync', unlinked.cookie)).status).toBe(400);
+    expect((await post(limited, '/sync', unlinked.cookie)).status).toBe(400);
+  });
+
+  it('auto-sync tries a failing user at most once a minute', async () => {
+    mode = 'down';
+    const u = await signedIn(limited, true);
+    calls = [];
+    for (let i = 0; i < 4; i++) {
+      await limited.app.request('/api/account', { headers: { cookie: u.cookie } });
+      await new Promise((r) => setTimeout(r, 30));
+    }
+    expect(calls).toHaveLength(1);
   });
 });
