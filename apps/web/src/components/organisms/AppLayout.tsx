@@ -10,9 +10,9 @@ import { layoutKind } from '@/lib/layout';
 export function AppLayout() {
   const kind = layoutKind(useLocation().pathname);
   return (
-    <div className="min-h-dvh bg-ground">
-      <header className="sticky top-0 z-10 border-b border-line bg-ground">
-        <div className="flex w-full flex-wrap items-center gap-x-4 px-gutter py-1.5 sm:h-12 sm:flex-nowrap sm:py-0">
+    <div className="min-h-dvh bg-ground pb-14 sm:pb-0">
+      <header className="sticky top-0 z-30 border-b border-line bg-ground">
+        <div className="flex w-full flex-wrap items-center gap-x-4 px-gutter py-2 sm:h-12 sm:flex-nowrap sm:py-0">
           <Link
             to="/"
             className="inline-flex items-center gap-2 rounded-sm text-lg font-semibold tracking-display text-fg"
@@ -20,8 +20,8 @@ export function AppLayout() {
             <Logo aria-hidden className="size-6" />
             Perch
           </Link>
-          {/* Phones: the nav takes its own full-width row under the logo and actions. */}
-          <NavBar className="order-last w-full justify-between sm:order-none sm:w-auto sm:justify-start" />
+          {/* Phones: the nav is a tab bar pinned to the bottom of the screen. */}
+          <NavBar />
           <div className="ml-auto flex items-center gap-2">
             <GlobalSearch />
             <AccountMenu />
