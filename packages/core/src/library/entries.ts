@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { games, libraryEntries, type Db } from '@perch/db';
 import { bumpRecsVersion } from '../recommendation-cache/version.js';
 import type { Status } from './fields.js';
@@ -124,6 +124,21 @@ export async function deleteLibraryEntry(db: Db, userId: string, id: string): Pr
   });
 }
 
+/**
+ * Still worth asking: flagged by an import, still backlog, and not played in the last 30 days
+ * (a later sync or edit may have changed that since the flag was set).
+ */
+const pendingPlayedBefore = (userId: string) =>
+  and(
+    eq(libraryEntries.userId, userId),
+    eq(libraryEntries.playedBeforePending, true),
+    eq(libraryEntries.status, 'backlog'),
+    or(
+      isNull(libraryEntries.lastPlayed),
+      lt(libraryEntries.lastPlayed, sql`now() - interval '30 days'`),
+    ),
+  );
+
 /** Entries an import flagged as played before and the user has not decided on yet, most played first. */
 export async function listPlayedBefore(db: Db, userId: string): Promise<PlayedBefore[]> {
   const rows = await db
@@ -135,7 +150,7 @@ export async function listPlayedBefore(db: Db, userId: string): Promise<PlayedBe
     })
     .from(libraryEntries)
     .innerJoin(games, eq(games.igdbId, libraryEntries.igdbId))
-    .where(and(eq(libraryEntries.userId, userId), eq(libraryEntries.playedBeforePending, true)));
+    .where(pendingPlayedBefore(userId));
   return rows
     .map((r) => ({
       entryId: r.id,
@@ -146,19 +161,47 @@ export async function listPlayedBefore(db: Db, userId: string): Promise<PlayedBe
     .sort((a, b) => (b.minutes ?? -1) - (a.minutes ?? -1) || a.title.localeCompare(b.title));
 }
 
-/** "Keep in Backlog": stops asking about these entries without changing them. Returns how many. */
-export async function dismissPlayedBefore(
+/**
+ * The answer to the played-before prompt in one transaction: `pausedIds` become Paused, `keptIds`
+ * stay as they are and are not asked about again. Ids that are not the user's are skipped.
+ */
+export async function resolvePlayedBefore(
   db: Db,
   userId: string,
+  { pausedIds, keptIds }: { pausedIds: readonly string[]; keptIds: readonly string[] },
+): Promise<{ paused: number; kept: number }> {
+  return db.transaction(async (tx) => {
+    const paused = await setStatusIn(tx, userId, pausedIds, 'paused');
+    let kept = 0;
+    if (keptIds.length > 0) {
+      const rows = await tx
+        .update(libraryEntries)
+        .set({ playedBeforePending: false })
+        .where(
+          and(eq(libraryEntries.userId, userId), inArray(libraryEntries.id, [...new Set(keptIds)])),
+        )
+        .returning({ id: libraryEntries.id });
+      kept = rows.length;
+    }
+    return { paused, kept };
+  });
+}
+
+/** Sets the status (and settles the played-before question) and bumps the recs version once. */
+async function setStatusIn(
+  tx: Pick<Db, 'update'>,
+  userId: string,
   ids: readonly string[],
-): Promise<{ updated: number }> {
-  if (ids.length === 0) return { updated: 0 };
-  const rows = await db
+  status: Status,
+): Promise<number> {
+  if (ids.length === 0) return 0;
+  const rows = await tx
     .update(libraryEntries)
-    .set({ playedBeforePending: false })
+    .set({ status, playedBeforePending: false })
     .where(and(eq(libraryEntries.userId, userId), inArray(libraryEntries.id, [...new Set(ids)])))
     .returning({ id: libraryEntries.id });
-  return { updated: rows.length };
+  if (rows.length > 0) await bumpRecsVersion(tx, userId);
+  return rows.length;
 }
 
 /** Sets one status on several of the user's entries (ids that are not theirs are skipped). */
@@ -168,14 +211,5 @@ export async function setLibraryStatus(
   ids: readonly string[],
   status: Status,
 ): Promise<{ updated: number }> {
-  if (ids.length === 0) return { updated: 0 };
-  return db.transaction(async (tx) => {
-    const rows = await tx
-      .update(libraryEntries)
-      .set({ status, playedBeforePending: false })
-      .where(and(eq(libraryEntries.userId, userId), inArray(libraryEntries.id, [...new Set(ids)])))
-      .returning({ id: libraryEntries.id });
-    if (rows.length > 0) await bumpRecsVersion(tx, userId);
-    return { updated: rows.length };
-  });
+  return { updated: await db.transaction((tx) => setStatusIn(tx, userId, ids, status)) };
 }

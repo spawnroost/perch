@@ -5,7 +5,12 @@ import {
   STEAM_PRIVATE_HELP,
   STEAM_UNAVAILABLE_HELP,
 } from '@perch/core/browser';
-import { steamSyncErrorText, steamSyncSummary, syncedAgo } from '../src/lib/steamSync.js';
+import {
+  autoSyncMayRun,
+  steamSyncErrorText,
+  steamSyncSummary,
+  syncedAgo,
+} from '../src/lib/steamSync.js';
 import { ApiError } from '../src/lib/api.js';
 
 const now = new Date('2026-06-01T12:00:00Z');
@@ -50,5 +55,33 @@ describe('steamSyncErrorText', () => {
       'Could not reach the server.',
     );
     expect(steamSyncErrorText('boom')).toBe('Steam sync failed. Try again.');
+  });
+});
+
+describe('autoSyncMayRun', () => {
+  const none = {
+    steamId: null,
+    steamSyncAvailable: false,
+    steamSyncedAt: null,
+    xboxGamertag: null,
+    xboxSyncAvailable: false,
+    xboxSyncedAt: null,
+  };
+  const hours = (h: number) => new Date(now.getTime() - h * 3_600_000).toISOString();
+  it('is false with nothing linked or syncing unavailable', () => {
+    expect(autoSyncMayRun(none, now)).toBe(false);
+    expect(autoSyncMayRun({ ...none, steamId: '1', steamSyncedAt: null }, now)).toBe(false);
+  });
+  it('is true for a linked Steam account that never synced or synced 6 h ago', () => {
+    const steam = { ...none, steamId: '1', steamSyncAvailable: true };
+    expect(autoSyncMayRun(steam, now)).toBe(true);
+    expect(autoSyncMayRun({ ...steam, steamSyncedAt: hours(7) }, now)).toBe(true);
+    expect(autoSyncMayRun({ ...steam, steamSyncedAt: hours(1) }, now)).toBe(false);
+  });
+  it('treats Xbox as due only after a first import, like the server', () => {
+    const xbox = { ...none, xboxGamertag: 'Tag', xboxSyncAvailable: true };
+    expect(autoSyncMayRun(xbox, now)).toBe(false);
+    expect(autoSyncMayRun({ ...xbox, xboxSyncedAt: hours(8) }, now)).toBe(true);
+    expect(autoSyncMayRun({ ...xbox, xboxSyncedAt: hours(2) }, now)).toBe(false);
   });
 });

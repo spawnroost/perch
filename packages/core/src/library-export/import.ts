@@ -70,7 +70,11 @@ export async function importExportGames(
       lastPlayed: lastPlayed ?? undefined,
       status,
     }).insert;
-    row.playedBeforePending = isPlayedBefore({ status, minutes, lastPlayed });
+    row.playedBeforePending = isPlayedBefore({
+      status,
+      minutes: minutes > 0 ? minutes : undefined,
+      lastPlayed,
+    });
     return row;
   });
 

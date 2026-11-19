@@ -22,6 +22,7 @@ export type {
 } from './steam-library/schemas.js';
 export { PLAYED_BEFORE_MIN_MINUTES, playedBeforeSchema } from './library/played-before.js';
 export type { PlayedBefore } from './library/played-before.js';
+export { shouldAutoSync } from './steam-library/status.js';
 export type { FeedbackKind } from './engine/types.js';
 export { parseLibraryExport } from './library-export/parse.js';
 export type { ExportFile, ParsedExport } from './library-export/parse.js';

@@ -1,8 +1,10 @@
 import {
+  shouldAutoSync,
   STEAM_NOT_CONFIGURED_HELP,
   STEAM_NOT_LINKED_HELP,
   STEAM_PRIVATE_HELP,
   STEAM_UNAVAILABLE_HELP,
+  type AccountResponse,
   type SteamSyncResult,
 } from '@perch/core/browser';
 
@@ -39,4 +41,30 @@ export function steamSyncErrorText(err: unknown): string {
     default:
       return err.message;
   }
+}
+
+/**
+ * True when the server may be importing in the background right now: a linked, available Steam or
+ * Xbox account whose last sync is 6 h old or missing (Xbox only auto-syncs after a first import).
+ */
+export function autoSyncMayRun(
+  a: Pick<
+    AccountResponse,
+    | 'steamId'
+    | 'steamSyncAvailable'
+    | 'steamSyncedAt'
+    | 'xboxGamertag'
+    | 'xboxSyncAvailable'
+    | 'xboxSyncedAt'
+  >,
+  now: Date,
+): boolean {
+  const due = (iso: string | null) => shouldAutoSync(iso ? new Date(iso) : null, now);
+  const steam = Boolean(a.steamId) && a.steamSyncAvailable && due(a.steamSyncedAt);
+  const xbox =
+    Boolean(a.xboxGamertag) &&
+    a.xboxSyncAvailable &&
+    a.xboxSyncedAt !== null &&
+    due(a.xboxSyncedAt);
+  return steam || xbox;
 }

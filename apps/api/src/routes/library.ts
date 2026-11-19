@@ -11,9 +11,9 @@ import {
   importLibraryGames,
   importPreviewSchema,
   libraryBulkStatusSchema,
-  dismissPlayedBefore,
   listPlayedBefore,
-  playedBeforeDismissSchema,
+  playedBeforeResolveSchema,
+  resolvePlayedBefore,
   libraryCreateSchema,
   libraryPatchSchema,
   listLibrary,
@@ -248,10 +248,13 @@ export function libraryRoutes(deps: RouteDeps) {
     c.json({ entries: await listPlayedBefore(db, c.get('user').id) }),
   );
 
-  // "Keep in Backlog": stop asking, change nothing else.
-  r.post('/played-before/dismiss', async (c) => {
-    const { ids } = await parseBody(c, playedBeforeDismissSchema);
-    return c.json(await dismissPlayedBefore(db, c.get('user').id, ids));
+  // The answer to the prompt, atomically: some become Paused, the rest are not asked about again.
+  r.post('/played-before/resolve', async (c) => {
+    const userId = c.get('user').id;
+    const body = await parseBody(c, playedBeforeResolveSchema);
+    const result = await resolvePlayedBefore(db, userId, body);
+    if (result.paused > 0) await rebuild(userId);
+    return c.json(result);
   });
 
   // One status for many of the user's entries (the "played before" prompt after an import).

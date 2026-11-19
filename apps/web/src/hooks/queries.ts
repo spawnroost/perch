@@ -29,7 +29,6 @@ import type {
   HardwareResponse,
   ImportConfirm,
   ImportPreviewResponse,
-  LibraryBulkStatusInput,
   LibraryCreate,
   LibraryEntry,
   LibraryPatchInput,
@@ -52,6 +51,7 @@ import { BROWSE_LIMIT, nextOffset } from '@/lib/browse';
 import { ALL_TAB, FOR_YOU_LIMIT } from '@/lib/forYou';
 import { seedGameDetail } from '@/lib/gameSeed';
 import { devicesAffected, libraryAffected } from '@/lib/invalidation';
+import { resolveBodies, type ResolveBody } from '@/lib/playedBefore';
 import { shouldRetry } from '@/lib/retry';
 import { queryKeys } from '@/lib/queryKeys';
 
@@ -345,23 +345,22 @@ export function usePlayedBefore(enabled = true) {
   });
 }
 
-/** "Keep in Backlog": stop asking about these entries. */
-export function useDismissPlayedBefore() {
+/**
+ * Answers the played-before prompt: `pausedIds` become Paused, `keptIds` stay and are not asked
+ * about again. One mutation (a few requests for a huge list), so it finishes even if the sheet
+ * unmounts.
+ */
+export function useResolvePlayedBefore() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (ids: string[]) =>
-      api.post<{ updated: number }>('/api/library/played-before/dismiss', { ids }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.playedBefore }),
-  });
-}
-
-/** Sets one status on many library entries (the "played before" prompt). */
-export function useBulkSetStatus() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (body: LibraryBulkStatusInput) =>
-      api.post<{ updated: number }>('/api/library/bulk-status', body),
-    onSuccess: () => invalidateAll(qc, libraryAffected),
+    mutationFn: async ({ pausedIds, keptIds }: ResolveBody) => {
+      for (const body of resolveBodies(pausedIds, keptIds))
+        await api.post<{ paused: number; kept: number }>(
+          '/api/library/played-before/resolve',
+          body,
+        );
+    },
+    onSettled: () => invalidateAll(qc, libraryAffected),
   });
 }
 

@@ -32,3 +32,23 @@ export function selectedIds(entries: readonly PlayedBefore[], cleared: ReadonlyS
 export function unselectedIds(entries: readonly PlayedBefore[], cleared: ReadonlySet<string>) {
   return entries.filter((e) => cleared.has(e.entryId)).map((e) => e.entryId);
 }
+
+/** The API takes at most this many ids per list in one request. */
+export const RESOLVE_CHUNK = 5000;
+
+export interface ResolveBody {
+  pausedIds: string[];
+  keptIds: string[];
+}
+
+/** Splits one answer into requests the API accepts; every id lands in exactly one request. */
+export function resolveBodies(
+  pausedIds: readonly string[],
+  keptIds: readonly string[],
+  size = RESOLVE_CHUNK,
+): ResolveBody[] {
+  const out: ResolveBody[] = [];
+  for (let i = 0; i < Math.max(pausedIds.length, keptIds.length); i += size)
+    out.push({ pausedIds: pausedIds.slice(i, i + size), keptIds: keptIds.slice(i, i + size) });
+  return out;
+}

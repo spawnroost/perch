@@ -29,7 +29,7 @@ export {
   updateLibraryEntry,
 } from './entries.js';
 export type { LibraryPatch, LibraryRow } from './entries.js';
-export { dismissPlayedBefore, listPlayedBefore, setLibraryStatus } from './entries.js';
+export { listPlayedBefore, resolvePlayedBefore, setLibraryStatus } from './entries.js';
 export { ImportTooLargeError, previewImport } from './preview.js';
 export type { ImportPreviewLine } from './preview.js';
 export { dateField, hoursField, hoursTextField, statusField } from './fields.js';

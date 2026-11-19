@@ -51,7 +51,13 @@ export const libraryBulkStatusSchema = z.object({
   ids: z.array(z.uuid()).min(1).max(BULK_STATUS_MAX),
   status: statusSchema,
 });
-export const playedBeforeDismissSchema = libraryBulkStatusSchema.pick({ ids: true });
+/** One answer to the played-before prompt: those to pause and those to keep as they are. */
+export const playedBeforeResolveSchema = z
+  .object({
+    pausedIds: z.array(z.uuid()).max(BULK_STATUS_MAX).default([]),
+    keptIds: z.array(z.uuid()).max(BULK_STATUS_MAX).default([]),
+  })
+  .refine((v) => v.pausedIds.length + v.keptIds.length > 0, 'nothing to resolve');
 export const playedBeforeListResponseSchema = z.object({ entries: z.array(playedBeforeSchema) });
 export const libraryBulkStatusResponseSchema = z.object({
   updated: z.number().int().nonnegative(),
@@ -104,7 +110,7 @@ export const importConfirmResponseSchema = z.object({
 export type LibraryEntry = z.infer<typeof libraryEntrySchema>;
 export type LibraryCreate = z.input<typeof libraryCreateSchema>;
 export type LibraryBulkStatusInput = z.input<typeof libraryBulkStatusSchema>;
-export type PlayedBeforeDismissInput = z.input<typeof playedBeforeDismissSchema>;
+export type PlayedBeforeResolveInput = z.input<typeof playedBeforeResolveSchema>;
 export type LibraryPatchInput = z.input<typeof libraryPatchSchema>;
 export type ImportPreviewResponse = z.infer<typeof importPreviewResponseSchema>;
 export type ImportConfirm = z.input<typeof importConfirmSchema>;

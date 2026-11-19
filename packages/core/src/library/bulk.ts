@@ -25,6 +25,8 @@ export async function upsertImportedEntries(
         set: {
           hoursPlayed: sql`greatest(${libraryEntries.hoursPlayed}, excluded.hours_played)`,
           lastPlayed: sql`greatest(${libraryEntries.lastPlayed}, excluded.last_played)`,
+          // Played again since the flag was set: nothing left to ask.
+          playedBeforePending: sql`case when greatest(${libraryEntries.lastPlayed}, excluded.last_played) > now() - interval '30 days' then false else ${libraryEntries.playedBeforePending} end`,
           owned: true,
         },
       })

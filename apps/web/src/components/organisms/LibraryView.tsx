@@ -7,7 +7,8 @@ import { GameSearchAdd } from './GameSearchAdd';
 import { ImportList } from './ImportList';
 import { PlayedBeforeSheet } from './PlayedBeforeSheet';
 import { LibraryEntryEditor } from './LibraryEntryEditor';
-import { useLibrary } from '@/hooks/queries';
+import { useAccount, useLibrary, usePlayedBefore } from '@/hooks/queries';
+import { usePolling } from '@/hooks/usePolling';
 import { useCardReturn } from '@/hooks/useCardReturn';
 import {
   browseLibrary,
@@ -19,6 +20,10 @@ import {
 } from '@/lib/library';
 import { CARD_GRID, CARD_GRID_SIZES } from '@/lib/cardWidth';
 import { firstOfEach } from '@/lib/motion';
+import { autoSyncMayRun } from '@/lib/steamSync';
+
+const POLL_MS = 4000;
+const POLL_TICKS = 15;
 
 type Panel =
   { kind: 'add' } | { kind: 'import' } | { kind: 'exportFile' } | { kind: 'edit'; id: string };
@@ -26,6 +31,20 @@ type Panel =
 export function LibraryView() {
   const library = useLibrary();
   const cardReturn = useCardReturn();
+  const account = useAccount().data;
+  const { refetch: refetchLibrary } = library;
+  const { refetch: refetchPlayedBefore } = usePlayedBefore();
+  // An auto-sync starts when the account is fetched and has no response to tell us it is done:
+  // look again for a minute so its new games and the played-before question show up.
+  usePolling(
+    Boolean(account && autoSyncMayRun(account, new Date())),
+    () => {
+      void refetchLibrary();
+      void refetchPlayedBefore();
+    },
+    POLL_MS,
+    POLL_TICKS,
+  );
   const [filter, setFilter] = useState<LibraryFilter>({ query: '', status: 'all' });
   const [sort, setSort] = useState<LibrarySort>('recent');
   const [panel, setPanel] = useState<Panel | null>(null);
@@ -148,7 +167,7 @@ export function LibraryView() {
           {editing && <LibraryEntryEditor key={editing.id} entry={editing} onDone={close} />}
         </SheetContent>
       </Sheet>
-      <PlayedBeforeSheet />
+      <PlayedBeforeSheet suspended={panel !== null} />
     </section>
   );
 }

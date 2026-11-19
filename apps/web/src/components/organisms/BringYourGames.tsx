@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Button, Notice, Sheet, SheetContent } from '../atoms';
 import { SteamSignInButton } from '../molecules';
 import { ExportImport } from './ExportImport';
@@ -8,6 +8,7 @@ import { SteamSync } from './SteamSync';
 import { XboxSync } from './XboxSync';
 import { useAccount, useLibrary, usePlayedBefore } from '@/hooks/queries';
 import { useAuthError } from '@/hooks/useAuthError';
+import { usePolling } from '@/hooks/usePolling';
 
 const POLL_MS = 4000;
 const POLL_TICKS = 15;
@@ -28,17 +29,15 @@ export function BringYourGames() {
   const { refetch } = library;
   const { refetch: refetchPlayedBefore } = usePlayedBefore();
 
-  useEffect(() => {
-    if (!waiting) return;
-    let ticks = 0;
-    const id = setInterval(() => {
-      ticks += 1;
+  usePolling(
+    waiting,
+    () => {
       void refetch();
       void refetchPlayedBefore();
-      if (ticks >= POLL_TICKS) clearInterval(id);
-    }, POLL_MS);
-    return () => clearInterval(id);
-  }, [waiting, refetch, refetchPlayedBefore]);
+    },
+    POLL_MS,
+    POLL_TICKS,
+  );
 
   return (
     <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface-1 p-4">
@@ -87,7 +86,7 @@ export function BringYourGames() {
           <ExportImport onDone={() => setFromFile(false)} />
         </SheetContent>
       </Sheet>
-      <PlayedBeforeSheet />
+      <PlayedBeforeSheet suspended={pasting || fromFile} />
     </section>
   );
 }

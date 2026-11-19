@@ -4,6 +4,7 @@ import {
   playedBeforeDetail,
   playedBeforeHeading,
   selectedIds,
+  resolveBodies,
   toggleSelected,
   unselectedIds,
 } from '../src/lib/playedBefore.js';
@@ -49,5 +50,28 @@ describe('selection', () => {
     const before = new Set<string>();
     toggleSelected(before, 'a');
     expect(before.size).toBe(0);
+  });
+});
+
+describe('resolveBodies', () => {
+  const ids = (n: number, p: string) => Array.from({ length: n }, (_, i) => `${p}${i}`);
+  it('is one request when both lists fit', () => {
+    expect(resolveBodies(['a'], ['b', 'c'])).toEqual([{ pausedIds: ['a'], keptIds: ['b', 'c'] }]);
+    expect(resolveBodies([], ids(3, 'k'))).toEqual([{ pausedIds: [], keptIds: ids(3, 'k') }]);
+  });
+  it('splits long lists so no request is over the limit and no id is lost or repeated', () => {
+    const paused = ids(12, 'p');
+    const kept = ids(3, 'k');
+    const bodies = resolveBodies(paused, kept, 5);
+    expect(bodies.map((b) => [b.pausedIds.length, b.keptIds.length])).toEqual([
+      [5, 3],
+      [5, 0],
+      [2, 0],
+    ]);
+    expect(bodies.flatMap((b) => b.pausedIds)).toEqual(paused);
+    expect(bodies.flatMap((b) => b.keptIds)).toEqual(kept);
+  });
+  it('is nothing for nothing', () => {
+    expect(resolveBodies([], [])).toEqual([]);
   });
 });

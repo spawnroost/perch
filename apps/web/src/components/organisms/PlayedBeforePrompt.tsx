@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { PlayedBefore } from '@perch/core/browser';
 import { Button, Notice } from '../atoms';
-import { useBulkSetStatus, useDismissPlayedBefore } from '@/hooks/queries';
+import { useResolvePlayedBefore } from '@/hooks/queries';
 import {
   playedBeforeDetail,
   playedBeforeHeading,
@@ -12,14 +12,14 @@ import {
 
 /**
  * After an import: games that were played before but not lately came in as backlog. Ask whether
- * they are paused instead. All start checked; "Keep in Backlog" just stops the question.
- * Either answer empties the list, which closes the sheet.
+ * they are paused instead. All start checked; the unchecked ones stay in the backlog and are not
+ * asked about again. Either answer empties the list, which closes the sheet.
  */
 export function PlayedBeforePrompt({ entries }: { entries: readonly PlayedBefore[] }) {
   const [cleared, setCleared] = useState<ReadonlySet<string>>(new Set());
-  const save = useBulkSetStatus();
-  const keep = useDismissPlayedBefore();
+  const resolve = useResolvePlayedBefore();
   const ids = selectedIds(entries, cleared);
+  const all = entries.map((e) => e.entryId);
 
   return (
     <div className="flex min-h-0 flex-col gap-3">
@@ -27,9 +27,7 @@ export function PlayedBeforePrompt({ entries }: { entries: readonly PlayedBefore
         {playedBeforeHeading(entries.length)}, but not lately. Mark them as Paused, or leave them in
         your Backlog.
       </p>
-      {(save.error ?? keep.error) && (
-        <Notice tone="error">{(save.error ?? keep.error)!.message}</Notice>
-      )}
+      {resolve.error && <Notice tone="error">{resolve.error.message}</Notice>}
       <ul className="no-scrollbar overflow-y-auto rounded-lg border border-line bg-surface-1">
         {entries.map((e) => (
           <li key={e.entryId} className="border-b border-line last:border-b-0">
@@ -51,28 +49,18 @@ export function PlayedBeforePrompt({ entries }: { entries: readonly PlayedBefore
       <div className="flex gap-2">
         <Button
           variant="primary"
-          disabled={ids.length === 0}
-          loading={save.isPending}
+          disabled={ids.length === 0 || resolve.isPending}
+          loading={resolve.isPending}
           onClick={() =>
-            save.mutate(
-              { ids, status: 'paused' },
-              {
-                // The ones left unchecked stay in the backlog: stop asking about them too.
-                onSuccess: () => {
-                  const kept = unselectedIds(entries, cleared);
-                  if (kept.length > 0) keep.mutate(kept);
-                },
-              },
-            )
+            resolve.mutate({ pausedIds: ids, keptIds: unselectedIds(entries, cleared) })
           }
         >
           Mark as Paused{ids.length > 0 ? ` (${ids.length})` : ''}
         </Button>
         <Button
           variant="secondary"
-          loading={keep.isPending}
-          disabled={save.isPending}
-          onClick={() => keep.mutate(entries.map((e) => e.entryId))}
+          disabled={resolve.isPending}
+          onClick={() => resolve.mutate({ pausedIds: [], keptIds: all })}
         >
           Keep in Backlog
         </Button>

@@ -223,7 +223,7 @@ describe.skipIf(!testUrl)('api routes', () => {
       ['POST', '/api/library/import/export'],
       ['POST', '/api/library/bulk-status'],
       ['GET', '/api/library/played-before'],
-      ['POST', '/api/library/played-before/dismiss'],
+      ['POST', '/api/library/played-before/resolve'],
       ['GET', '/api/devices'],
       ['POST', '/api/devices'],
       ['PATCH', `/api/devices/${crypto.randomUUID()}`],
@@ -597,15 +597,17 @@ describe.skipIf(!testUrl)('api routes', () => {
         );
     });
 
-    it('lists entries pending a played-before answer; dismiss and a status change clear them', async () => {
+    it('lists entries pending a played-before answer; resolve answers them in one request', async () => {
       const u = await newUser();
       const other = await newUser();
       const gameA = catalog.find((g) => g.igdbId === A)!;
       const gameB = catalog.find((g) => g.igdbId === B)!;
+      const gameC = catalog.find((g) => g.igdbId === C)!;
       await call('POST', '/api/library/import/export', u.cookie, {
         games: [
           { source: 'epic', title: gameA.name, minutesPlayed: 600 },
           { source: 'epic', title: gameB.name, minutesPlayed: 120 },
+          { source: 'epic', title: gameC.name, minutesPlayed: 90 },
         ],
       });
       const pending = async (cookie: string) =>
@@ -614,26 +616,28 @@ describe.skipIf(!testUrl)('api routes', () => {
             entries: { entryId: string; title: string; minutes: number }[];
           }
         ).entries;
-      const [first, second] = await pending(u.cookie);
-      expect([first!.minutes, second!.minutes]).toEqual([600, 120]);
+      const [first, second, third] = await pending(u.cookie);
+      expect([first!.minutes, second!.minutes, third!.minutes]).toEqual([600, 120, 90]);
       expect(await pending(other.cookie)).toEqual([]);
 
-      const res = await call('POST', '/api/library/played-before/dismiss', u.cookie, {
-        ids: [first!.entryId],
+      const res = await call('POST', '/api/library/played-before/resolve', u.cookie, {
+        pausedIds: [first!.entryId],
+        keptIds: [second!.entryId],
       });
-      expect(await res.json()).toEqual({ updated: 1 });
-      expect((await pending(u.cookie)).map((e) => e.entryId)).toEqual([second!.entryId]);
-      // Dismiss changes nothing else.
+      expect(await res.json()).toEqual({ paused: 1, kept: 1 });
+      expect((await pending(u.cookie)).map((e) => e.entryId)).toEqual([third!.entryId]);
       const lib = (await (await get('/api/library', u.cookie)).json()) as {
         entries: { id: string; status: string }[];
       };
-      expect(lib.entries.find((e) => e.id === first!.entryId)!.status).toBe('backlog');
+      const status = (id: string) => lib.entries.find((e) => e.id === id)!.status;
+      expect([status(first!.entryId), status(second!.entryId)]).toEqual(['paused', 'backlog']);
 
-      await call('PATCH', `/api/library/${second!.entryId}`, u.cookie, { status: 'paused' });
+      await call('PATCH', `/api/library/${third!.entryId}`, u.cookie, { status: 'finished' });
       expect(await pending(u.cookie)).toEqual([]);
-      for (const body of [{}, { ids: [] }, { ids: ['nope'] }])
+      const tooMany = Array.from({ length: 5001 }, () => crypto.randomUUID());
+      for (const body of [{}, { pausedIds: [] }, { keptIds: ['nope'] }, { pausedIds: tooMany }])
         expect(
-          (await call('POST', '/api/library/played-before/dismiss', u.cookie, body)).status,
+          (await call('POST', '/api/library/played-before/resolve', u.cookie, body)).status,
         ).toBe(400);
     });
 

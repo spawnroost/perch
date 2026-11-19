@@ -9,13 +9,17 @@ import { playedBeforeHeading } from '@/lib/playedBefore';
  * Opens whenever imported games are waiting for the "played before" answer, whichever import put
  * them there (Steam auto-sync included). Closing it with X leaves them pending; it opens again when
  * the waiting list changes or on the next visit. Answering empties the list and closes it.
+ * `suspended` holds it back while another panel (an editor, an import) is open.
  */
-export function PlayedBeforeSheet() {
+export function PlayedBeforeSheet({ suspended = false }: { suspended?: boolean }) {
   const entries = usePlayedBefore().data;
   const [closed, setClosed] = useState<readonly PlayedBefore[] | null>(null);
   if (!entries) return null;
   return (
-    <Sheet open={entries.length > 0 && closed !== entries} onOpenChange={() => setClosed(entries)}>
+    <Sheet
+      open={!suspended && entries.length > 0 && closed !== entries}
+      onOpenChange={() => setClosed(entries)}
+    >
       <SheetContent
         title={playedBeforeHeading(entries.length)}
         description="Paused or Backlog: you decide what to do with them."

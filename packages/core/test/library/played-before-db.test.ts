@@ -1,14 +1,17 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { and, eq, inArray } from 'drizzle-orm';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { createDb, games, libraryEntries, runMigrations, users, type Db } from '@perch/db';
 import {
   buildGameRow,
-  dismissPlayedBefore,
   listPlayedBefore,
+  resolvePlayedBefore,
   setLibraryStatus,
   updateLibraryEntry,
   type Game,
 } from '../../src/index.js';
+import { upsertImportedEntries } from '../../src/library/bulk.js';
 
 const url = process.env.DATABASE_URL_TEST;
 if (!url) console.warn('[skip] DATABASE_URL_TEST is not set; played-before tests skipped');
@@ -103,14 +106,89 @@ describe.skipIf(!url)('played-before flag', () => {
     ]);
   });
 
-  it('dismiss clears the flag but leaves status alone, and only for own entries', async () => {
-    const a = await idOf(IDS[0]!);
+  it('resolve pauses some, keeps others, in one go, for own entries only', async () => {
+    const [a, b, c] = [await idOf(IDS[0]!), await idOf(IDS[1]!), await idOf(IDS[2]!)];
     const theirs = await idOf(IDS[0]!, OTHER);
-    expect(await dismissPlayedBefore(db, USER, [a, theirs])).toEqual({ updated: 1 });
-    expect((await listPlayedBefore(db, USER)).map((e) => e.entryId)).not.toContain(a);
-    expect((await rows()).find((r) => r.id === a)!.status).toBe('backlog');
+    const res = await resolvePlayedBefore(db, USER, { pausedIds: [a, theirs], keptIds: [b] });
+    expect(res).toEqual({ paused: 1, kept: 1 });
+    const byId = new Map((await rows()).map((r) => [r.id, r]));
+    expect(byId.get(a)).toMatchObject({ status: 'paused', playedBeforePending: false });
+    // Kept: still backlog, just no longer asked about.
+    expect(byId.get(b)).toMatchObject({ status: 'backlog', playedBeforePending: false });
+    expect((await listPlayedBefore(db, USER)).map((e) => e.entryId)).toEqual([c]);
     expect(await listPlayedBefore(db, OTHER)).toHaveLength(1);
-    expect(await dismissPlayedBefore(db, USER, [])).toEqual({ updated: 0 });
+    expect(await resolvePlayedBefore(db, USER, { pausedIds: [], keptIds: [] })).toEqual({
+      paused: 0,
+      kept: 0,
+    });
+  });
+
+  it('does not list entries that are no longer backlog or were played in the last 30 days', async () => {
+    const [a, b] = [await idOf(IDS[0]!), await idOf(IDS[1]!)];
+    await db.update(libraryEntries).set({ status: 'playing' }).where(eq(libraryEntries.id, a));
+    await db.update(libraryEntries).set({ lastPlayed: new Date() }).where(eq(libraryEntries.id, b));
+    expect((await listPlayedBefore(db, USER)).map((e) => e.entryId)).toEqual([await idOf(IDS[2]!)]);
+  });
+
+  it('a re-import that finds a recent last-played clears the flag; an old one keeps it', async () => {
+    const [a, b] = [await idOf(IDS[0]!), await idOf(IDS[1]!)];
+    const row = (igdbId: number, lastPlayed: Date) => ({
+      userId: USER,
+      igdbId,
+      platform: 'pc',
+      lastPlayed,
+    });
+    await upsertImportedEntries(db, [
+      row(IDS[0]!, new Date()),
+      row(IDS[1]!, new Date('2020-06-01T00:00:00Z')),
+    ]);
+    const byId = new Map((await rows()).map((r) => [r.id, r]));
+    expect(byId.get(a)!.playedBeforePending).toBe(false);
+    expect(byId.get(b)!.playedBeforePending).toBe(true);
+  });
+
+  it('the backfill migration flags old Steam/file backlog entries with an hour or more', async () => {
+    const insertEntry = (igdbId: number, over: Partial<typeof libraryEntries.$inferInsert>) => ({
+      userId: OTHER,
+      igdbId,
+      platform: 'pc',
+      ...over,
+    });
+    await db.delete(libraryEntries).where(eq(libraryEntries.userId, OTHER));
+    await db.insert(libraryEntries).values([
+      insertEntry(IDS[0]!, {
+        source: 'steam',
+        hoursPlayed: 5,
+        lastPlayed: new Date('2020-01-01'),
+      }),
+      insertEntry(IDS[1]!, { source: 'import', hoursPlayed: 5, lastPlayed: null }),
+      insertEntry(IDS[2]!, { source: 'steam', hoursPlayed: 0.5 }),
+      insertEntry(IDS[2]!, { platform: 'xbox', source: 'xbox', hoursPlayed: 5 }),
+      insertEntry(IDS[0]!, {
+        platform: 'epic',
+        source: 'steam',
+        hoursPlayed: 5,
+        lastPlayed: new Date(),
+      }),
+      insertEntry(IDS[1]!, {
+        platform: 'gog',
+        source: 'steam',
+        hoursPlayed: 5,
+        status: 'finished',
+      }),
+    ]);
+    const sqlText = readFileSync(
+      fileURLToPath(
+        new URL('../../../db/drizzle/0018_backfill_played_before.sql', import.meta.url),
+      ),
+      'utf8',
+    );
+    await db.execute(sql.raw(sqlText));
+    const flagged = (await rows(OTHER))
+      .filter((r) => r.playedBeforePending)
+      .map((r) => `${r.igdbId}:${r.platform}`)
+      .sort();
+    expect(flagged).toEqual([`${IDS[0]}:pc`, `${IDS[1]}:pc`]);
   });
 
   it('a bulk status change clears the flag of the entries it touches', async () => {
