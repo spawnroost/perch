@@ -85,8 +85,14 @@ const countOrNull = (n: number) => (n > 0 ? count(n) : null);
 /** The Details rows: always the same eight, in a fixed order; a row with no data has a null value. */
 export function aboutRows(about: Facts['about']): AboutRow[] {
   return [
-    { label: about.developers.length > 1 ? 'Developers' : 'Developer', value: joined(about.developers) },
-    { label: about.publishers.length > 1 ? 'Publishers' : 'Publisher', value: joined(about.publishers) },
+    {
+      label: about.developers.length > 1 ? 'Developers' : 'Developer',
+      value: joined(about.developers),
+    },
+    {
+      label: about.publishers.length > 1 ? 'Publishers' : 'Publisher',
+      value: joined(about.publishers),
+    },
     { label: 'Series', value: about.series },
     { label: 'Modes', value: joined(about.modes) },
     { label: 'Perspective', value: joined(about.perspectives) },

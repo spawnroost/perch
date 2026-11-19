@@ -194,7 +194,10 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
           ) : (
             <Reveal>
               <div className="flex flex-col gap-8">
-                <DetailSection title="About" empty={game.summary ? undefined : 'No description yet.'}>
+                <DetailSection
+                  title="About"
+                  empty={game.summary ? undefined : 'No description yet.'}
+                >
                   <p className="max-w-prose text-base text-fg">{game.summary}</p>
                 </DetailSection>
 
