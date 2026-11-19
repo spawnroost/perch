@@ -24,6 +24,10 @@ export function DeviceCard({ device, actions }: { device: DeviceView; actions: R
           DEVICE_BANNER[type],
         )}
       >
+        {/* Kind watermark fills the banner's left side opposite the art. */}
+        <span className="pointer-events-none absolute bottom-1 left-3 font-hud text-5xl leading-none text-fg/10 select-none">
+          {type}
+        </span>
         <DeviceArt
           type={deviceArtType(device.kind)}
           style={parallax.style}

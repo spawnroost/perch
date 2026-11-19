@@ -21,6 +21,9 @@ import { parseParams, parseQuery } from '../http.js';
 import { requireAuth, requireIgdb } from '../middleware.js';
 import { iso, recommendationDto } from '../serialize.js';
 
+/** How long the search palette waits on cold Steam lookups before answering with what is ready. */
+const FIT_BUDGET_MS = 1200;
+
 export function gamesRoutes(deps: RouteDeps) {
   const r = new Hono<AppVars>();
   r.use('*', requireAuth());
@@ -47,8 +50,10 @@ export function gamesRoutes(deps: RouteDeps) {
     const { ids } = parseQuery(c, gameFitQuerySchema);
     const { cache } = requireIgdb(deps);
     const found = await cache.getGames(ids);
-    const fits = await gameFitsForUser(deps, c.get('user').id, found);
-    return c.json({ fits } satisfies GameFitsResponse);
+    const { fits, pending } = await gameFitsForUser(deps, c.get('user').id, found, {
+      budgetMs: FIT_BUDGET_MS,
+    });
+    return c.json({ fits, pending } satisfies GameFitsResponse);
   });
 
   r.get('/:igdbId/similar', async (c) => {

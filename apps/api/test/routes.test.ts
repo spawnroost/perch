@@ -129,11 +129,15 @@ const fakeIgdb: IgdbClient = {
 };
 
 const deck: DeckCategory = 'verified';
+/** Set to hold deck lookups, as a cold Steam rate queue would. */
+let deckGate: Promise<void> | null = null;
+
 const fakeSteam = {
   async getPcRequirements() {
     return {};
   },
   async getDeckCompat() {
+    await deckGate;
     return deck;
   },
   async getReviewSummary() {
@@ -330,6 +334,31 @@ describe.skipIf(!testUrl)('api routes', () => {
       });
     });
 
+    it('answers fit within its budget and lists games still waiting on Steam as pending', async () => {
+      const u = await newUser();
+      await call('POST', '/api/devices', u.cookie, { preset: 'steam-deck' });
+      await ctx.db.delete(schema.deckCompat).where(eq(schema.deckCompat.steamAppId, 4_000_001));
+      let release!: () => void;
+      deckGate = new Promise((r) => (release = r));
+      try {
+        const cold = (await (await get(`/api/games/fit?ids=${A},${B}`, u.cookie)).json()) as {
+          fits: Record<string, unknown>;
+          pending: number[];
+        };
+        expect(cold.pending).toEqual([A]);
+        expect(Object.keys(cold.fits)).toEqual([String(B)]);
+      } finally {
+        release();
+        deckGate = null;
+      }
+      await vi.waitFor(async () => {
+        const warm = (await (await get(`/api/games/fit?ids=${A}`, u.cookie)).json()) as {
+          pending: number[];
+        };
+        expect(warm.pending).toEqual([]);
+      });
+    });
+
     it('batches per-device fit and deck by game id; unknown ids are absent', async () => {
       const u = await newUser();
       await call('POST', '/api/devices', u.cookie, { preset: 'steam-deck' });
@@ -342,7 +371,8 @@ describe.skipIf(!testUrl)('api routes', () => {
           { deck: string | null; fits: { deviceName: string; status: string }[] }
         >;
       };
-      expect(Object.keys(body)).toEqual(['fits']);
+      expect(Object.keys(body)).toEqual(['fits', 'pending']);
+      expect(body.pending).toEqual([]);
       expect(Object.keys(body.fits).sort()).toEqual([String(A), String(B)].sort());
       const a = body.fits[String(A)]!;
       expect(Object.keys(a).sort()).toEqual(['deck', 'fits']);

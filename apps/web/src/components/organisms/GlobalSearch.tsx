@@ -172,8 +172,10 @@ function SearchPanel({ onDone }: { onDone: () => void }) {
             <ResultOption
               key={g.igdbId}
               game={g}
-              fit={fits.data?.[g.igdbId]}
-              fitLoading={fits.isPending && !fits.isError}
+              fit={fits.data?.fits[g.igdbId]}
+              fitLoading={
+                (fits.isPending || fits.data?.pending.includes(g.igdbId) === true) && !fits.isError
+              }
               fitError={fits.isError}
               id={optionId(optionPrefix, g.igdbId)}
               active={i === activeIndex}

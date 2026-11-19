@@ -383,20 +383,51 @@ export async function gameFitForUser(
  * Will-it-run for several games at once: devices are read once. Returns each game's fit keyed by
  * its IGDB id.
  */
+export interface GameFitsResult {
+  fits: Record<number, GameFit>;
+  /** Ids still waiting on Steam when the budget ran out; their fetches keep warming the cache. */
+  pending: number[];
+}
+
+/**
+ * Batched fit for a result list. With `budgetMs`, games whose Steam lookups are still queued when
+ * it runs out are left out of `fits` and listed in `pending`, so a cold cache never holds up the
+ * whole batch behind the Steam rate limit.
+ */
 export async function gameFitsForUser(
   deps: Pick<UserEngineDeps, 'db' | 'steam'>,
   userId: string,
   games: readonly Pick<Game, 'igdbId' | 'platforms' | 'steamAppId'>[],
-): Promise<Record<number, GameFit>> {
-  if (games.length === 0) return {};
+  opts: { budgetMs?: number } = {},
+): Promise<GameFitsResult> {
+  if (games.length === 0) return { fits: {}, pending: [] };
   const devices = await loadDevices(deps.db, userId);
   const fetchers = createFitFetchers(deps.db, deps.steam);
-  const entries = await Promise.all(
-    games.map(async (game) => {
-      const { gpuRequirement, ...fit } = await fitsForGame(devices, fetchers, game);
-      void gpuRequirement;
-      return [game.igdbId, fit] as const;
-    }),
-  );
-  return Object.fromEntries(entries);
+  const PENDING = Symbol('pending');
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline =
+    opts.budgetMs === undefined
+      ? null
+      : new Promise<typeof PENDING>((resolve) => {
+          timer = setTimeout(() => resolve(PENDING), opts.budgetMs);
+        });
+  try {
+    const entries = await Promise.all(
+      games.map(async (game) => {
+        const work = fitsForGame(devices, fetchers, game).then(
+          ({ gpuRequirement, ...fit }) => (void gpuRequirement, fit),
+        );
+        const fit = deadline ? await Promise.race([work, deadline]) : await work;
+        return [game.igdbId, fit] as const;
+      }),
+    );
+    const result: GameFitsResult = { fits: {}, pending: [] };
+    for (const [id, fit] of entries) {
+      if (fit === PENDING) result.pending.push(id);
+      else result.fits[id] = fit;
+    }
+    return result;
+  } finally {
+    clearTimeout(timer);
+  }
 }

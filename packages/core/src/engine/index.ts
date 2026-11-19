@@ -49,6 +49,7 @@ export {
   explainGameForUser,
   gameFitForUser,
   gameFitsForUser,
+  type GameFitsResult,
   recommendForUser,
   sessionForUser,
   similarForUser,

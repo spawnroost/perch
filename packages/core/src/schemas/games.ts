@@ -119,6 +119,8 @@ export const gameFitSchema = z.object({
 /** Batched fit keyed by IGDB id; ids that are not known games are absent. */
 export const gameFitsResponseSchema = z.object({
   fits: z.record(z.string(), gameFitSchema),
+  /** Ids whose fit was not ready in time; ask again shortly. */
+  pending: z.array(z.number().int().positive()),
 });
 
 export type GameFitEntry = z.infer<typeof gameFitSchema>;

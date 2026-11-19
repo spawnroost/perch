@@ -100,8 +100,9 @@ export function useSearchFits(igdbIds: readonly number[], enabled: boolean) {
         query: { ids: [...igdbIds].sort((a, b) => a - b).join(',') },
         signal,
       }),
-    select: (data) => data.fits,
     enabled: enabled && igdbIds.length > 0,
+    // Cold Steam lookups finish in the background; ask again until every row has its fit.
+    refetchInterval: (query) => (query.state.data?.pending.length ? 1500 : false),
     staleTime: 5 * 60_000,
     // Client errors (400/401) will not change on a retry.
     retry: shouldRetry,
