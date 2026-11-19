@@ -3,11 +3,7 @@ import { users, type Db } from '@perch/db';
 import type { IgdbCache } from '../igdb/cache.js';
 import type { IgdbClient } from '../igdb/client.js';
 import { minutesToHours, upsertImportedEntries } from '../library/bulk.js';
-import {
-  collectPlayedBefore,
-  isPlayedBefore,
-  type PlayedBeforeCandidate,
-} from '../library/played-before.js';
+import { isPlayedBefore } from '../library/played-before.js';
 import { buildLibraryRow } from '../library/rows.js';
 import { bumpRecsVersion } from '../recommendation-cache/version.js';
 import { SteamAccountChangedError } from './errors.js';
@@ -56,27 +52,18 @@ export async function syncSteamLibrary(
     merged.set(igdbId, cur);
   }
 
-  const names = new Map(
-    (await cache.getGames([...merged.keys()])).map((g) => [g.igdbId, g.name] as const),
-  );
-  const ids = [...merged.keys()].filter((id) => names.has(id));
+  const found = new Set((await cache.getGames([...merged.keys()])).map((g) => g.igdbId));
+  const ids = [...merged.keys()].filter((id) => found.has(id));
   const unmatched = owned.filter((g) => {
     const igdbId = map.get(g.appid);
-    return igdbId === undefined || !names.has(igdbId);
+    return igdbId === undefined || !found.has(igdbId);
   }).length;
 
-  const candidates = new Map<string, PlayedBeforeCandidate>();
   const rows = ids.map((igdbId) => {
     const { minutes, lastPlayed } = merged.get(igdbId)!;
-    // Status only applies to a new row: the conflict update below never touches it.
+    // Status and the played-before flag only apply to a new row: the conflict update never touches them.
     const status = steamImportStatus({ minutes, lastPlayed, now });
-    if (isPlayedBefore({ status, minutes, lastPlayed }))
-      candidates.set(`${igdbId}:${STEAM_PLATFORM}`, {
-        title: names.get(igdbId)!,
-        minutes,
-        lastPlayed,
-      });
-    return buildLibraryRow({
+    const row = buildLibraryRow({
       userId,
       igdbId,
       platform: STEAM_PLATFORM,
@@ -86,9 +73,12 @@ export async function syncSteamLibrary(
       lastPlayed: lastPlayed ?? undefined,
       status,
     }).insert;
+    row.playedBeforePending = isPlayedBefore({ status, minutes, lastPlayed });
+    return row;
   });
 
-  let counts: Awaited<ReturnType<typeof upsertImportedEntries>> | undefined;
+  let imported = 0;
+  let updated = 0;
   await db.transaction(async (tx) => {
     const [owner] = await tx
       .select({ steamId: users.steamId })
@@ -97,16 +87,10 @@ export async function syncSteamLibrary(
       .for('update');
     if (owner?.steamId !== steamId) throw new SteamAccountChangedError();
 
-    counts = await upsertImportedEntries(tx, rows);
+    ({ imported, updated } = await upsertImportedEntries(tx, rows));
     await tx.update(users).set({ steamSyncedAt: now }).where(eq(users.id, userId));
     await bumpRecsVersion(tx, userId);
   });
 
-  return {
-    imported: counts!.imported,
-    updated: counts!.updated,
-    unmatched,
-    total: owned.length,
-    playedBefore: collectPlayedBefore(counts!.created, candidates),
-  };
+  return { imported, updated, unmatched, total: owned.length };
 }

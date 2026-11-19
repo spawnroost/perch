@@ -4,6 +4,8 @@ export const queryKeys = {
   account: ['account'] as const,
   authProviders: ['auth-providers'] as const,
   library: ['library'] as const,
+  /** Imported games waiting for the "played before" answer. */
+  playedBefore: ['library', 'played-before'] as const,
   devices: ['devices'] as const,
   presets: ['device-presets'] as const,
   gameDetailAll: ['games', 'detail'] as const,

@@ -296,6 +296,8 @@ export const libraryEntries = pgTable(
     /** 'playing' | 'finished' | 'dropped' | 'backlog' | 'paused' */
     status: text('status').notNull().default('backlog'),
     owned: boolean('owned').default(true).notNull(),
+    /** An import found real, older playtime: ask the user whether it is paused. Cleared on any status choice. */
+    playedBeforePending: boolean('played_before_pending').default(false).notNull(),
     /** 'manual' | 'import' | 'steam' | 'xbox' */
     source: text('source').notNull().default('manual'),
     addedAt: ts('added_at').defaultNow().notNull(),

@@ -1,8 +1,5 @@
 import type { PlayedBefore } from '@perch/core/browser';
 
-/** Stable empty list for "no result yet" (a fresh [] each render would look like a new result). */
-export const NO_PLAYED_BEFORE: readonly PlayedBefore[] = [];
-
 export const playedBeforeHeading = (count: number) => `You've played ${count} of these before`;
 
 const DATE = new Intl.DateTimeFormat('en-GB', {
@@ -29,4 +26,9 @@ export function toggleSelected(cleared: ReadonlySet<string>, id: string): Set<st
 
 export function selectedIds(entries: readonly PlayedBefore[], cleared: ReadonlySet<string>) {
   return entries.filter((e) => !cleared.has(e.entryId)).map((e) => e.entryId);
+}
+
+/** The ones the user unchecked: they stay in the backlog and are not asked about again. */
+export function unselectedIds(entries: readonly PlayedBefore[], cleared: ReadonlySet<string>) {
+  return entries.filter((e) => cleared.has(e.entryId)).map((e) => e.entryId);
 }

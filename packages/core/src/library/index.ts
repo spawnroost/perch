@@ -1,13 +1,8 @@
 export { addArgsSchema, userCreateSchema } from './args.js';
 export type { AddArgs } from './args.js';
 export { STATUSES } from './fields.js';
-export {
-  PLAYED_BEFORE_MIN_MINUTES,
-  collectPlayedBefore,
-  isPlayedBefore,
-  playedBeforeSchema,
-} from './played-before.js';
-export type { PlayedBefore, PlayedBeforeCandidate } from './played-before.js';
+export { PLAYED_BEFORE_MIN_MINUTES, isPlayedBefore, playedBeforeSchema } from './played-before.js';
+export type { PlayedBefore } from './played-before.js';
 export type { Status } from './fields.js';
 export { normaliseName, pickBestMatch } from './match.js';
 export type { MatchResult, Suggestion } from './match.js';
@@ -34,7 +29,7 @@ export {
   updateLibraryEntry,
 } from './entries.js';
 export type { LibraryPatch, LibraryRow } from './entries.js';
-export { setLibraryStatus } from './entries.js';
+export { dismissPlayedBefore, listPlayedBefore, setLibraryStatus } from './entries.js';
 export { ImportTooLargeError, previewImport } from './preview.js';
 export type { ImportPreviewLine } from './preview.js';
 export { dateField, hoursField, hoursTextField, statusField } from './fields.js';

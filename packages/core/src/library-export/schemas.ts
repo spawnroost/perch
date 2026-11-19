@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { playedBeforeSchema } from '../library/played-before.js';
 
 export const EXPORT_MAX_GAMES = 5000;
 export const EXPORT_UNMATCHED_SHOWN = 50;
@@ -29,7 +28,5 @@ export const exportImportResultSchema = z.object({
   unmatched: z.array(z.string()).max(EXPORT_UNMATCHED_SHOWN),
   unmatchedCount: z.number().int().nonnegative(),
   total: z.number().int().nonnegative(),
-  /** New backlog entries with real history: the UI asks whether they are paused. */
-  playedBefore: z.array(playedBeforeSchema),
 });
 export type ExportImportResult = z.infer<typeof exportImportResultSchema>;

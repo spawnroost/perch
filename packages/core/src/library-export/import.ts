@@ -2,11 +2,7 @@ import type { Db } from '@perch/db';
 import type { IgdbCache } from '../igdb/cache.js';
 import type { IgdbClient } from '../igdb/client.js';
 import { minutesToHours, upsertImportedEntries } from '../library/bulk.js';
-import {
-  collectPlayedBefore,
-  isPlayedBefore,
-  type PlayedBeforeCandidate,
-} from '../library/played-before.js';
+import { isPlayedBefore } from '../library/played-before.js';
 import { buildLibraryRow } from '../library/rows.js';
 import { bumpRecsVersion } from '../recommendation-cache/version.js';
 import { steamImportStatus } from '../steam-library/status.js';
@@ -35,9 +31,9 @@ export async function importExportGames(
   const { db, cache } = deps;
   const now = (deps.now ?? (() => new Date()))();
   const ids = await resolveExportGames(deps.client, games);
-  const names = new Map(
+  const known = new Set(
     (await cache.getGames([...new Set(ids.filter((i): i is number => i !== null))])).map(
-      (g) => [g.igdbId, g.name] as const,
+      (g) => g.igdbId,
     ),
   );
 
@@ -49,7 +45,7 @@ export async function importExportGames(
   const unmatched: string[] = [];
   games.forEach((g, i) => {
     const igdbId = ids[i];
-    if (igdbId === null || igdbId === undefined || !names.has(igdbId)) {
+    if (igdbId === null || igdbId === undefined || !known.has(igdbId)) {
       unmatched.push(g.title);
       return;
     }
@@ -62,12 +58,9 @@ export async function importExportGames(
     merged.set(key, cur);
   });
 
-  const candidates = new Map<string, PlayedBeforeCandidate>();
   const rows = [...merged.values()].map(({ igdbId, platform, minutes, lastPlayed }) => {
     const status = steamImportStatus({ minutes, lastPlayed, now });
-    if (isPlayedBefore({ status, minutes, lastPlayed }))
-      candidates.set(`${igdbId}:${platform}`, { title: names.get(igdbId)!, minutes, lastPlayed });
-    return buildLibraryRow({
+    const row = buildLibraryRow({
       userId,
       igdbId,
       platform,
@@ -77,13 +70,11 @@ export async function importExportGames(
       lastPlayed: lastPlayed ?? undefined,
       status,
     }).insert;
+    row.playedBeforePending = isPlayedBefore({ status, minutes, lastPlayed });
+    return row;
   });
 
-  let counts: Awaited<ReturnType<typeof upsertImportedEntries>> = {
-    imported: 0,
-    updated: 0,
-    created: [],
-  };
+  let counts = { imported: 0, updated: 0 };
   await db.transaction(async (tx) => {
     counts = await upsertImportedEntries(tx, rows);
     // Importing nothing must not touch the user row; the bump is only for changed libraries.
@@ -91,9 +82,7 @@ export async function importExportGames(
   });
 
   return {
-    imported: counts.imported,
-    updated: counts.updated,
-    playedBefore: collectPlayedBefore(counts.created, candidates),
+    ...counts,
     unmatched: unmatched.slice(0, EXPORT_UNMATCHED_SHOWN),
     unmatchedCount: unmatched.length,
     total: games.length,

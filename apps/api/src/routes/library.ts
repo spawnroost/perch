@@ -11,6 +11,9 @@ import {
   importLibraryGames,
   importPreviewSchema,
   libraryBulkStatusSchema,
+  dismissPlayedBefore,
+  listPlayedBefore,
+  playedBeforeDismissSchema,
   libraryCreateSchema,
   libraryPatchSchema,
   listLibrary,
@@ -238,6 +241,17 @@ export function libraryRoutes(deps: RouteDeps) {
     });
     if (imported.length > 0) await rebuild(userId);
     return c.json({ imported, failed });
+  });
+
+  // Imported entries with real older playtime that the user has not decided on yet.
+  r.get('/played-before', async (c) =>
+    c.json({ entries: await listPlayedBefore(db, c.get('user').id) }),
+  );
+
+  // "Keep in Backlog": stop asking, change nothing else.
+  r.post('/played-before/dismiss', async (c) => {
+    const { ids } = await parseBody(c, playedBeforeDismissSchema);
+    return c.json(await dismissPlayedBefore(db, c.get('user').id, ids));
   });
 
   // One status for many of the user's entries (the "played before" prompt after an import).

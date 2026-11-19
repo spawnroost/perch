@@ -1,0 +1,1 @@
+ALTER TABLE "library_entries" ADD COLUMN "played_before_pending" boolean DEFAULT false NOT NULL;

@@ -21,7 +21,6 @@ describe('importResultSummary', () => {
     unmatched: [],
     unmatchedCount: 0,
     total: 12,
-    playedBefore: [],
   };
   it('lists the counts and mentions unmatched games only when there are some', () => {
     expect(importResultSummary(base)).toBe('Imported 10 new and updated 2 of 12 games.');

@@ -57,7 +57,11 @@ export function buildLibraryRow(input: LibraryInput): {
   const update: Partial<typeof libraryEntries.$inferInsert> = {};
   if (hours !== undefined) update.hoursPlayed = hours;
   if (lastPlayed !== undefined) update.lastPlayed = lastPlayed;
-  if (status !== undefined) update.status = status;
+  // Choosing a status settles the "played before" question for this entry.
+  if (status !== undefined) {
+    update.status = status;
+    update.playedBeforePending = false;
+  }
   if (owned !== undefined) update.owned = owned;
   return { insert, update };
 }

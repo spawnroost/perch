@@ -229,14 +229,6 @@ describe.skipIf(!testUrl)('xbox library import', () => {
       unmatched: ['Not On Igdb'],
       unmatchedCount: 1,
       total: 3,
-      playedBefore: [
-        {
-          entryId: expect.any(String),
-          title: expect.any(String),
-          minutes: null,
-          lastPlayed: '2020-01-01T00:00:00.000Z',
-        },
-      ],
     });
     expect(calls).toHaveLength(2);
     const rows = await entries(u.id);
@@ -247,7 +239,12 @@ describe.skipIf(!testUrl)('xbox library import', () => {
       status: 'playing',
       hoursPlayed: null,
     });
-    expect(rows.find((r) => r.igdbId === G2)).toMatchObject({ platform: 'pc', status: 'backlog' });
+    expect(rows.find((r) => r.igdbId === G2)).toMatchObject({
+      platform: 'pc',
+      status: 'backlog',
+      playedBeforePending: true,
+    });
+    expect(rows.find((r) => r.igdbId === G1)!.playedBeforePending).toBe(false);
     const row = await userRow(u.id);
     expect(row).toMatchObject({ xboxXuid: XUID, xboxGamertag: GAMERTAG });
     expect(await account(u.cookie)).toMatchObject({

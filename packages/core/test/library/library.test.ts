@@ -227,6 +227,17 @@ describe('row builders', () => {
     expect(insert.owned).toBeUndefined();
     expect(update).toEqual({});
   });
+  it('buildLibraryRow: an explicit status also settles the played-before question', () => {
+    const { insert, update } = buildLibraryRow({
+      userId: 'u',
+      igdbId: 7,
+      platform: 'pc',
+      source: 'manual',
+      status: 'finished',
+    });
+    expect(insert.playedBeforePending).toBeUndefined();
+    expect(update).toEqual({ status: 'finished', playedBeforePending: false });
+  });
   it('buildLibraryRow: hours without a status default to playing', () => {
     const { insert } = buildLibraryRow({
       userId: 'u',
@@ -278,6 +289,7 @@ describe('row builders', () => {
       hoursPlayed: 40,
       lastPlayed: last,
       status: 'playing',
+      playedBeforePending: false,
       owned: true,
     });
   });

@@ -5,6 +5,7 @@ import {
   playedBeforeHeading,
   selectedIds,
   toggleSelected,
+  unselectedIds,
 } from '../src/lib/playedBefore.js';
 
 const e = (id: string, minutes: number | null, lastPlayed: string | null = null): PlayedBefore => ({
@@ -39,6 +40,10 @@ describe('selection', () => {
     const cleared = toggleSelected(new Set(), 'b');
     expect(selectedIds(list, cleared)).toEqual(['a', 'c']);
     expect(selectedIds(list, toggleSelected(cleared, 'b'))).toEqual(['a', 'b', 'c']);
+  });
+  it('the unchecked ones are the complement', () => {
+    expect(unselectedIds(list, toggleSelected(new Set(), 'b'))).toEqual(['b']);
+    expect(unselectedIds(list, new Set())).toEqual([]);
   });
   it('does not mutate the previous set', () => {
     const before = new Set<string>();

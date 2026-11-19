@@ -4,7 +4,7 @@ import type { Status } from './fields.js';
 /** Under an hour is a try-out, not "played before". */
 export const PLAYED_BEFORE_MIN_MINUTES = 60;
 
-/** A newly imported game the user has played before but not lately: ask what it should be. */
+/** An imported game the user has played before but not lately: ask what it should be. */
 export const playedBeforeSchema = z.object({
   entryId: z.string(),
   title: z.string(),
@@ -34,34 +34,4 @@ export function isPlayedBefore({
   if (status !== 'backlog') return false;
   if (minutes !== undefined) return minutes >= PLAYED_BEFORE_MIN_MINUTES;
   return lastPlayed !== null && (achievementProgress ?? 0) > 0;
-}
-
-export interface PlayedBeforeCandidate {
-  title: string;
-  minutes: number | null;
-  lastPlayed: Date | null;
-}
-
-/**
- * The newly created entries (not the ones that already existed) that are candidates, keyed
- * `${igdbId}:${platform}`, most played first.
- */
-export function collectPlayedBefore(
-  created: readonly { id: string; igdbId: number; platform: string }[],
-  candidates: ReadonlyMap<string, PlayedBeforeCandidate>,
-): PlayedBefore[] {
-  const out: PlayedBefore[] = [];
-  for (const c of created) {
-    const cand = candidates.get(`${c.igdbId}:${c.platform}`);
-    if (!cand) continue;
-    out.push({
-      entryId: c.id,
-      title: cand.title,
-      minutes: cand.minutes,
-      lastPlayed: cand.lastPlayed?.toISOString() ?? null,
-    });
-  }
-  return out.sort(
-    (a, b) => (b.minutes ?? -1) - (a.minutes ?? -1) || a.title.localeCompare(b.title),
-  );
 }

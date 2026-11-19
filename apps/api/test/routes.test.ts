@@ -222,6 +222,8 @@ describe.skipIf(!testUrl)('api routes', () => {
       ['POST', '/api/library/import/confirm'],
       ['POST', '/api/library/import/export'],
       ['POST', '/api/library/bulk-status'],
+      ['GET', '/api/library/played-before'],
+      ['POST', '/api/library/played-before/dismiss'],
       ['GET', '/api/devices'],
       ['POST', '/api/devices'],
       ['PATCH', `/api/devices/${crypto.randomUUID()}`],
@@ -595,6 +597,46 @@ describe.skipIf(!testUrl)('api routes', () => {
         );
     });
 
+    it('lists entries pending a played-before answer; dismiss and a status change clear them', async () => {
+      const u = await newUser();
+      const other = await newUser();
+      const gameA = catalog.find((g) => g.igdbId === A)!;
+      const gameB = catalog.find((g) => g.igdbId === B)!;
+      await call('POST', '/api/library/import/export', u.cookie, {
+        games: [
+          { source: 'epic', title: gameA.name, minutesPlayed: 600 },
+          { source: 'epic', title: gameB.name, minutesPlayed: 120 },
+        ],
+      });
+      const pending = async (cookie: string) =>
+        (
+          (await (await get('/api/library/played-before', cookie)).json()) as {
+            entries: { entryId: string; title: string; minutes: number }[];
+          }
+        ).entries;
+      const [first, second] = await pending(u.cookie);
+      expect([first!.minutes, second!.minutes]).toEqual([600, 120]);
+      expect(await pending(other.cookie)).toEqual([]);
+
+      const res = await call('POST', '/api/library/played-before/dismiss', u.cookie, {
+        ids: [first!.entryId],
+      });
+      expect(await res.json()).toEqual({ updated: 1 });
+      expect((await pending(u.cookie)).map((e) => e.entryId)).toEqual([second!.entryId]);
+      // Dismiss changes nothing else.
+      const lib = (await (await get('/api/library', u.cookie)).json()) as {
+        entries: { id: string; status: string }[];
+      };
+      expect(lib.entries.find((e) => e.id === first!.entryId)!.status).toBe('backlog');
+
+      await call('PATCH', `/api/library/${second!.entryId}`, u.cookie, { status: 'paused' });
+      expect(await pending(u.cookie)).toEqual([]);
+      for (const body of [{}, { ids: [] }, { ids: ['nope'] }])
+        expect(
+          (await call('POST', '/api/library/played-before/dismiss', u.cookie, body)).status,
+        ).toBe(400);
+    });
+
     it("never touches another user's entries", async () => {
       const mine = await newUser();
       const theirs = await newUser();
@@ -675,8 +717,10 @@ describe.skipIf(!testUrl)('api routes', () => {
         unmatched: ['Not a real game'],
         unmatchedCount: 1,
         total: 3,
-        // 2 h on Epic, never played lately: asked about. Nothing known about the GOG one.
-        playedBefore: [
+      });
+      // 2 h on Epic, never played lately: asked about. Nothing known about the GOG one.
+      expect(await (await get('/api/library/played-before', u.cookie)).json()).toEqual({
+        entries: [
           { entryId: expect.any(String), title: gameA.name, minutes: 120, lastPlayed: null },
         ],
       });

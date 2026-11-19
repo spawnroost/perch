@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { STATUSES, hoursField } from '../library/fields.js';
+import { playedBeforeSchema } from '../library/played-before.js';
 import { dateInputSchema, igdbIdSchema, isoDate } from './common.js';
 
 export const statusSchema = z.enum(STATUSES);
@@ -50,6 +51,8 @@ export const libraryBulkStatusSchema = z.object({
   ids: z.array(z.uuid()).min(1).max(BULK_STATUS_MAX),
   status: statusSchema,
 });
+export const playedBeforeDismissSchema = libraryBulkStatusSchema.pick({ ids: true });
+export const playedBeforeListResponseSchema = z.object({ entries: z.array(playedBeforeSchema) });
 export const libraryBulkStatusResponseSchema = z.object({
   updated: z.number().int().nonnegative(),
 });
@@ -101,6 +104,7 @@ export const importConfirmResponseSchema = z.object({
 export type LibraryEntry = z.infer<typeof libraryEntrySchema>;
 export type LibraryCreate = z.input<typeof libraryCreateSchema>;
 export type LibraryBulkStatusInput = z.input<typeof libraryBulkStatusSchema>;
+export type PlayedBeforeDismissInput = z.input<typeof playedBeforeDismissSchema>;
 export type LibraryPatchInput = z.input<typeof libraryPatchSchema>;
 export type ImportPreviewResponse = z.infer<typeof importPreviewResponseSchema>;
 export type ImportConfirm = z.input<typeof importConfirmSchema>;

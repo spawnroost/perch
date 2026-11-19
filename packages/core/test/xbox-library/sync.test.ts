@@ -139,23 +139,14 @@ describe.skipIf(!url)('syncXboxLibrary', () => {
 
   it('imports by cleaned name with platform and status, merges editions, lists unmatched', async () => {
     const res = await syncXboxLibrary(deps(), USER, XUID);
-    const byId = new Map((await rows()).map((r) => [r.igdbId, r]));
     expect(res).toEqual({
       imported: 2,
       updated: 0,
       unmatched: ['Unknown Game'],
       unmatchedCount: 1,
       total: 4,
-      // Beta: old, with achievement progress. Alpha was played recently.
-      playedBefore: [
-        {
-          entryId: byId.get(B)!.id,
-          title: `X${B}`,
-          minutes: null,
-          lastPlayed: '2020-01-01T00:00:00.000Z',
-        },
-      ],
     });
+    const byId = new Map((await rows()).map((r) => [r.igdbId, r]));
     expect(byId.get(A)).toMatchObject({
       source: 'xbox',
       platform: 'xbox',
@@ -165,15 +156,22 @@ describe.skipIf(!url)('syncXboxLibrary', () => {
     });
     expect(byId.get(A)!.lastPlayed?.toISOString()).toBe('2026-05-31T00:00:00.000Z');
     expect(byId.get(B)).toMatchObject({ platform: 'pc', status: 'backlog' });
+    // Beta: old, with achievement progress, so the user is asked about it. Alpha was recent.
+    expect(byId.get(B)!.playedBeforePending).toBe(true);
+    expect(byId.get(A)!.playedBeforePending).toBe(false);
     const u = await user();
     expect(u.xboxSyncedAt).toEqual(now);
     expect(u.recsVersion).toBeGreaterThan(0);
   });
 
-  it('does not ask again about entries that already exist', async () => {
+  it('a resync never raises the played-before flag on an entry the user already decided on', async () => {
     await syncXboxLibrary(deps(), USER, XUID);
-    const again = await syncXboxLibrary(deps(), USER, XUID);
-    expect(again).toMatchObject({ imported: 0, updated: 2, playedBefore: [] });
+    await db
+      .update(libraryEntries)
+      .set({ playedBeforePending: false })
+      .where(eq(libraryEntries.userId, USER));
+    await syncXboxLibrary(deps(), USER, XUID);
+    expect((await rows()).some((r) => r.playedBeforePending)).toBe(false);
   });
 
   it('only gains data on a resync: status and hours of existing entries stay', async () => {

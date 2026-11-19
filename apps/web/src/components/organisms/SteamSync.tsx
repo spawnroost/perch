@@ -1,7 +1,5 @@
 import { Button, Notice } from '../atoms';
-import { PlayedBeforeSheet } from './PlayedBeforeSheet';
 import { useSyncSteamLibrary } from '@/hooks/queries';
-import { NO_PLAYED_BEFORE } from '@/lib/playedBefore';
 import { steamSyncErrorText, steamSyncSummary, syncedAgo } from '@/lib/steamSync';
 
 /** Sync button for a linked Steam account, with the last sync time and the result. */
@@ -22,7 +20,6 @@ export function SteamSync({ syncedAt }: { syncedAt: string | null }) {
       </div>
       {sync.data && <Notice tone="success">{steamSyncSummary(sync.data)}</Notice>}
       {sync.error && <Notice tone="error">{steamSyncErrorText(sync.error)}</Notice>}
-      <PlayedBeforeSheet entries={sync.data?.playedBefore ?? NO_PLAYED_BEFORE} />
     </div>
   );
 }

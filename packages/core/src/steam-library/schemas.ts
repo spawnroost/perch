@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { playedBeforeSchema } from '../library/played-before.js';
 
 /** `IPlayerService/GetOwnedGames/v1` reply. `games` is absent when game details are private. */
 export const steamOwnedGamesResponseSchema = z.object({
@@ -29,8 +28,6 @@ export const steamSyncResultSchema = z.object({
   updated: z.number().int().nonnegative(),
   unmatched: z.number().int().nonnegative(),
   total: z.number().int().nonnegative(),
-  /** New backlog entries with real history: the UI asks whether they are paused. */
-  playedBefore: z.array(playedBeforeSchema),
 });
 export type SteamSyncResult = z.infer<typeof steamSyncResultSchema>;
 

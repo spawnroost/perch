@@ -5,6 +5,7 @@ import { GameCard, LibraryControls, LoadError } from '../molecules';
 import { ExportImport } from './ExportImport';
 import { GameSearchAdd } from './GameSearchAdd';
 import { ImportList } from './ImportList';
+import { PlayedBeforeSheet } from './PlayedBeforeSheet';
 import { LibraryEntryEditor } from './LibraryEntryEditor';
 import { useLibrary } from '@/hooks/queries';
 import { useCardReturn } from '@/hooks/useCardReturn';
@@ -147,6 +148,7 @@ export function LibraryView() {
           {editing && <LibraryEntryEditor key={editing.id} entry={editing} onDone={close} />}
         </SheetContent>
       </Sheet>
+      <PlayedBeforeSheet />
     </section>
   );
 }

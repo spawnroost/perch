@@ -33,6 +33,7 @@ import type {
   LibraryCreate,
   LibraryEntry,
   LibraryPatchInput,
+  PlayedBefore,
   RecommendationsResponse,
   SimilarResponse,
   SessionQuery,
@@ -334,7 +335,27 @@ export function useImportExportGames() {
   });
 }
 
-/** Sets one status on many library entries (the "played before" prompt after an import). */
+export function usePlayedBefore(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.playedBefore,
+    queryFn: ({ signal }) =>
+      api.get<{ entries: PlayedBefore[] }>('/api/library/played-before', { signal }),
+    select: (data) => data.entries,
+    enabled,
+  });
+}
+
+/** "Keep in Backlog": stop asking about these entries. */
+export function useDismissPlayedBefore() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) =>
+      api.post<{ updated: number }>('/api/library/played-before/dismiss', { ids }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.playedBefore }),
+  });
+}
+
+/** Sets one status on many library entries (the "played before" prompt). */
 export function useBulkSetStatus() {
   const qc = useQueryClient();
   return useMutation({

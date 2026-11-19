@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { Button, Notice, Sheet, SheetContent } from '../atoms';
 import { SteamSignInButton } from '../molecules';
 import { ExportImport } from './ExportImport';
+import { PlayedBeforeSheet } from './PlayedBeforeSheet';
 import { ImportList } from './ImportList';
 import { SteamSync } from './SteamSync';
 import { XboxSync } from './XboxSync';
-import { useAccount, useLibrary } from '@/hooks/queries';
+import { useAccount, useLibrary, usePlayedBefore } from '@/hooks/queries';
 import { useAuthError } from '@/hooks/useAuthError';
 
 const POLL_MS = 4000;
@@ -25,6 +26,7 @@ export function BringYourGames() {
   const steamOn = Boolean(account?.steamSyncAvailable);
   const waiting = linked && steamOn && !authError && (library.data?.length ?? 1) === 0;
   const { refetch } = library;
+  const { refetch: refetchPlayedBefore } = usePlayedBefore();
 
   useEffect(() => {
     if (!waiting) return;
@@ -32,10 +34,11 @@ export function BringYourGames() {
     const id = setInterval(() => {
       ticks += 1;
       void refetch();
+      void refetchPlayedBefore();
       if (ticks >= POLL_TICKS) clearInterval(id);
     }, POLL_MS);
     return () => clearInterval(id);
-  }, [waiting, refetch]);
+  }, [waiting, refetch, refetchPlayedBefore]);
 
   return (
     <section className="flex flex-col gap-3 rounded-lg border border-line bg-surface-1 p-4">
@@ -84,6 +87,7 @@ export function BringYourGames() {
           <ExportImport onDone={() => setFromFile(false)} />
         </SheetContent>
       </Sheet>
+      <PlayedBeforeSheet />
     </section>
   );
 }

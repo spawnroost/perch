@@ -2,6 +2,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { games, libraryEntries, type Db } from '@perch/db';
 import { bumpRecsVersion } from '../recommendation-cache/version.js';
 import type { Status } from './fields.js';
+import type { PlayedBefore } from './played-before.js';
 
 export type LibraryRow = typeof libraryEntries.$inferSelect & {
   name: string;
@@ -91,7 +92,10 @@ export async function updateLibraryEntry(
   const set: Partial<typeof libraryEntries.$inferInsert> = {};
   if (patch.hoursPlayed !== undefined) set.hoursPlayed = patch.hoursPlayed;
   if (patch.lastPlayed !== undefined) set.lastPlayed = patch.lastPlayed;
-  if (patch.status !== undefined) set.status = patch.status;
+  if (patch.status !== undefined) {
+    set.status = patch.status;
+    set.playedBeforePending = false;
+  }
   if (patch.owned !== undefined) set.owned = patch.owned;
   if (Object.keys(set).length > 0) {
     const updated = await db.transaction(async (tx) => {
@@ -120,6 +124,43 @@ export async function deleteLibraryEntry(db: Db, userId: string, id: string): Pr
   });
 }
 
+/** Entries an import flagged as played before and the user has not decided on yet, most played first. */
+export async function listPlayedBefore(db: Db, userId: string): Promise<PlayedBefore[]> {
+  const rows = await db
+    .select({
+      id: libraryEntries.id,
+      title: games.name,
+      hours: libraryEntries.hoursPlayed,
+      lastPlayed: libraryEntries.lastPlayed,
+    })
+    .from(libraryEntries)
+    .innerJoin(games, eq(games.igdbId, libraryEntries.igdbId))
+    .where(and(eq(libraryEntries.userId, userId), eq(libraryEntries.playedBeforePending, true)));
+  return rows
+    .map((r) => ({
+      entryId: r.id,
+      title: r.title,
+      minutes: r.hours === null ? null : Math.round(r.hours * 60),
+      lastPlayed: r.lastPlayed?.toISOString() ?? null,
+    }))
+    .sort((a, b) => (b.minutes ?? -1) - (a.minutes ?? -1) || a.title.localeCompare(b.title));
+}
+
+/** "Keep in Backlog": stops asking about these entries without changing them. Returns how many. */
+export async function dismissPlayedBefore(
+  db: Db,
+  userId: string,
+  ids: readonly string[],
+): Promise<{ updated: number }> {
+  if (ids.length === 0) return { updated: 0 };
+  const rows = await db
+    .update(libraryEntries)
+    .set({ playedBeforePending: false })
+    .where(and(eq(libraryEntries.userId, userId), inArray(libraryEntries.id, [...new Set(ids)])))
+    .returning({ id: libraryEntries.id });
+  return { updated: rows.length };
+}
+
 /** Sets one status on several of the user's entries (ids that are not theirs are skipped). */
 export async function setLibraryStatus(
   db: Db,
@@ -131,7 +172,7 @@ export async function setLibraryStatus(
   return db.transaction(async (tx) => {
     const rows = await tx
       .update(libraryEntries)
-      .set({ status })
+      .set({ status, playedBeforePending: false })
       .where(and(eq(libraryEntries.userId, userId), inArray(libraryEntries.id, [...new Set(ids)])))
       .returning({ id: libraryEntries.id });
     if (rows.length > 0) await bumpRecsVersion(tx, userId);

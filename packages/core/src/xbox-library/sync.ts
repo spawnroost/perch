@@ -6,11 +6,7 @@ import { EXPORT_UNMATCHED_SHOWN } from '../library-export/schemas.js';
 import { resolveExactNames } from '../library-export/resolve.js';
 import { upsertImportedEntries } from '../library/bulk.js';
 import { normaliseName } from '../library/match.js';
-import {
-  collectPlayedBefore,
-  isPlayedBefore,
-  type PlayedBeforeCandidate,
-} from '../library/played-before.js';
+import { isPlayedBefore } from '../library/played-before.js';
 import { buildLibraryRow } from '../library/rows.js';
 import { bumpRecsVersion } from '../recommendation-cache/version.js';
 import { steamImportStatus } from '../steam-library/status.js';
@@ -46,9 +42,9 @@ export async function syncXboxLibrary(
     titles.map((t) => t.name),
   );
   const ids = titles.map((t) => byName.get(normaliseName(t.name)) ?? null);
-  const names = new Map(
+  const known = new Set(
     (await cache.getGames([...new Set(ids.filter((i): i is number => i !== null))])).map(
-      (g) => [g.igdbId, g.name] as const,
+      (g) => g.igdbId,
     ),
   );
 
@@ -60,7 +56,7 @@ export async function syncXboxLibrary(
   const unmatched: string[] = [];
   titles.forEach((t, i) => {
     const igdbId = ids[i];
-    if (igdbId === null || igdbId === undefined || !names.has(igdbId)) {
+    if (igdbId === null || igdbId === undefined || !known.has(igdbId)) {
       unmatched.push(t.name);
       return;
     }
@@ -72,16 +68,9 @@ export async function syncXboxLibrary(
     merged.set(key, cur);
   });
 
-  const candidates = new Map<string, PlayedBeforeCandidate>();
   const rows = [...merged.values()].map(({ igdbId, platform, lastPlayed, progress }) => {
     const status = steamImportStatus({ lastPlayed, now });
-    if (isPlayedBefore({ status, lastPlayed, achievementProgress: progress }))
-      candidates.set(`${igdbId}:${platform}`, {
-        title: names.get(igdbId)!,
-        minutes: null,
-        lastPlayed,
-      });
-    return buildLibraryRow({
+    const row = buildLibraryRow({
       userId,
       igdbId,
       platform,
@@ -90,13 +79,15 @@ export async function syncXboxLibrary(
       lastPlayed: lastPlayed ?? undefined,
       status,
     }).insert;
+    row.playedBeforePending = isPlayedBefore({
+      status,
+      lastPlayed,
+      achievementProgress: progress,
+    });
+    return row;
   });
 
-  let counts: Awaited<ReturnType<typeof upsertImportedEntries>> = {
-    imported: 0,
-    updated: 0,
-    created: [],
-  };
+  let counts = { imported: 0, updated: 0 };
   await db.transaction(async (tx) => {
     const [owner] = await tx
       .select({ xuid: users.xboxXuid })
@@ -111,9 +102,7 @@ export async function syncXboxLibrary(
   });
 
   return {
-    imported: counts.imported,
-    updated: counts.updated,
-    playedBefore: collectPlayedBefore(counts.created, candidates),
+    ...counts,
     unmatched: unmatched.slice(0, EXPORT_UNMATCHED_SHOWN),
     unmatchedCount: unmatched.length,
     total: titles.length,
