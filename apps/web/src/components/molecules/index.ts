@@ -39,3 +39,4 @@ export { ExternalLinks } from './ExternalLinks';
 export { AboutList } from './AboutList';
 export { DetailSection } from './DetailSection';
 export { SteamSignInButton } from './SteamSignInButton';
+export { UnmatchedTitles } from './UnmatchedTitles';

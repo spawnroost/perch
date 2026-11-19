@@ -27,7 +27,7 @@ export interface LibraryInput {
   userId: string;
   igdbId: number;
   platform: string;
-  source: 'manual' | 'import' | 'steam';
+  source: 'manual' | 'import' | 'steam' | 'xbox';
   hours?: number;
   lastPlayed?: Date;
   status?: Status;

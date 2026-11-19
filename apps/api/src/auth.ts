@@ -81,6 +81,10 @@ export function createAuth(db: Db, env: ApiEnv, rawMailer: Mailer) {
         steamId: { type: 'string', required: false, input: false },
         /** Last Steam library import; written only by the sync code. */
         steamSyncedAt: { type: 'date', required: false, input: false },
+        /** Linked Xbox account; set only by the Xbox link route, never from client input. */
+        xboxXuid: { type: 'string', required: false, input: false },
+        xboxGamertag: { type: 'string', required: false, input: false },
+        xboxSyncedAt: { type: 'date', required: false, input: false },
       },
     },
     // Only providers with credentials are registered; the Account page and login buttons key off this.

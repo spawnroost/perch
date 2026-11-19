@@ -30,3 +30,4 @@ export { ProviderAuthOptions } from './ProviderAuthOptions';
 export { GameFactsBody, GameFactsRail } from './GameFactsRail';
 export { BringYourGames } from './BringYourGames';
 export { SteamSync } from './SteamSync';
+export { XboxSync } from './XboxSync';

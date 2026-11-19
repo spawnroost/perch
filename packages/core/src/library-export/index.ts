@@ -9,6 +9,6 @@ export {
   exportImportSchema,
 } from './schemas.js';
 export type { ExportGame, ExportImportResult } from './schemas.js';
-export { resolveExportGames } from './resolve.js';
+export { resolveExactNames, resolveExportGames } from './resolve.js';
 export { importExportGames } from './import.js';
 export type { ExportImportDeps } from './import.js';

@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { GOG_SOURCE_ID, type IgdbClient, type NamedGame } from '../../src/index.js';
-import { resolveExportGames, type ExportGame } from '../../src/library-export/index.js';
+import {
+  resolveExactNames,
+  resolveExportGames,
+  type ExportGame,
+} from '../../src/library-export/index.js';
 import { resolveExportGames as resolveFromRoot } from '../../src/index.js';
 
 const named = (igdbId: number, name: string, gameType: number | null, year: number | null) =>
@@ -104,6 +108,25 @@ describe('resolveExportGames', () => {
     const client = stub({});
     expect(await resolveExportGames(client, [])).toEqual([]);
     expect(client.externalGameIds).not.toHaveBeenCalled();
+    expect(client.gamesByExactName).not.toHaveBeenCalled();
+  });
+});
+
+describe('resolveExactNames', () => {
+  it('keys by normalised title, picks the best namesake, leaves misses out', async () => {
+    const client = stub({
+      names: [
+        { ...named(1, 'Hades', 0, 1995), ratingCount: 2 },
+        { ...named(2, 'Hades', 0, 2020), ratingCount: 900 },
+      ],
+    });
+    const out = await resolveExactNames(client, ['Hades', 'Hades', 'Nope']);
+    expect(out).toEqual(new Map([['hades', 2]]));
+    expect(client.gamesByExactName).toHaveBeenCalledWith(['Hades', 'Nope']);
+  });
+  it('makes no request for no titles', async () => {
+    const client = stub({});
+    expect((await resolveExactNames(client, [])).size).toBe(0);
     expect(client.gamesByExactName).not.toHaveBeenCalled();
   });
 });

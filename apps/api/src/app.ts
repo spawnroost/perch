@@ -21,6 +21,7 @@ import type { Db } from '@perch/db';
 import { mapGame, VOCAB } from '@perch/taste-vocab';
 import { createAuth, type Auth } from './auth.js';
 import { createSteamSync, type SteamSync } from './steam-sync.js';
+import { createXboxSync, type XboxSync } from './xbox-sync.js';
 import type { ApiEnv } from './env.js';
 import type { Mailer } from './mailer.js';
 import { requireAuth, resolveSession } from './middleware.js';
@@ -49,6 +50,8 @@ export interface AppDeps {
   steam?: SteamClient;
   /** Fetch used for Steam Web API calls (tests stub it); defaults to the global fetch. */
   steamFetch?: typeof fetch;
+  /** Fetch used for OpenXBL calls (tests stub it); defaults to the global fetch. */
+  xboxFetch?: typeof fetch;
   /** Verifies Steam OpenID assertions; the default asks Steam (tests stub it). */
   steamOpenId?: SteamOpenIdVerifier;
   /** Overrides the default limits (tests). */
@@ -74,6 +77,8 @@ export interface RouteDeps extends AppDeps {
   mapVocab: typeof mapGame;
   /** Steam library import, shared by the sync route and the auto-sync triggers. */
   steamSync: SteamSync;
+  /** Xbox title-history import, shared by the link/sync routes and the auto-sync trigger. */
+  xboxSync: XboxSync;
   /** Taste-vocab id -> label, for reasons. */
   labels: Record<string, string>;
   /** Ranked browse lists, remembered between requests (keyed by user, recs version and tags). */
@@ -83,7 +88,7 @@ export interface RouteDeps extends AppDeps {
 export function createApp(appDeps: AppDeps) {
   const { db, env, mailer, igdb, rateLimit: limits } = appDeps;
   const auth = createAuth(db, env, mailer);
-  const base: Omit<RouteDeps, 'steamSync'> = {
+  const base: Omit<RouteDeps, 'steamSync' | 'xboxSync'> = {
     ...appDeps,
     auth,
     cache: igdb
@@ -98,7 +103,11 @@ export function createApp(appDeps: AppDeps) {
     labels: Object.fromEntries(VOCAB.map((v) => [v.id, v.label])),
     browseLists: createTtlMemo<BrowseList>({ max: 50 }),
   };
-  const deps: RouteDeps = { ...base, steamSync: createSteamSync(base) };
+  const deps: RouteDeps = {
+    ...base,
+    steamSync: createSteamSync(base),
+    xboxSync: createXboxSync(base),
+  };
   const app = new Hono<AppVars>();
 
   app.use('/api/*', cors({ origin: env.WEB_ORIGIN, credentials: true }));

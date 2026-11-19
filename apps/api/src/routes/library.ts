@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 import { Hono, type Context } from 'hono';
 import {
   IMPORT_MAX_LINES,
@@ -23,9 +24,24 @@ import {
   SteamAccountChangedError,
   SteamNetworkError,
   SteamProfilePrivateError,
+  XBOX_BUSY_HELP,
+  XBOX_NOT_CONFIGURED_HELP,
+  XBOX_NOT_FOUND_HELP,
+  XBOX_NOT_LINKED_HELP,
+  XBOX_PRIVATE_HELP,
+  XBOX_UNAVAILABLE_HELP,
+  XboxAccountChangedError,
+  XboxGamertagNotFoundError,
+  XboxNetworkError,
+  XboxProfilePrivateError,
+  XboxRateLimitedError,
+  lookupXuid,
+  xboxLinkSchema,
   type ImportPreviewResponse,
   type SteamSyncError,
+  type XboxSyncError,
 } from '@perch/core';
+import { schema } from '@perch/db';
 import type { AppVars, RouteDeps } from '../app.js';
 import { parseBody, parseParams } from '../http.js';
 import { requireAuth, requireIgdb } from '../middleware.js';
@@ -94,6 +110,72 @@ export function libraryRoutes(deps: RouteDeps) {
       }
       throw err;
     }
+  });
+
+  const xboxError = (c: Context, status: 400 | 404 | 409 | 429 | 502 | 503, body: XboxSyncError) =>
+    c.json(body, status);
+
+  /** Typed Xbox failures as JSON error bodies; anything else is a 500. */
+  function xboxFailure(c: Context, err: unknown) {
+    if (err instanceof XboxProfilePrivateError)
+      return xboxError(c, 409, { error: 'xbox_private', message: XBOX_PRIVATE_HELP });
+    if (err instanceof XboxGamertagNotFoundError)
+      return xboxError(c, 404, { error: 'xbox_not_found', message: XBOX_NOT_FOUND_HELP });
+    if (err instanceof XboxRateLimitedError)
+      return xboxError(c, 429, { error: 'xbox_busy', message: XBOX_BUSY_HELP });
+    if (err instanceof XboxAccountChangedError)
+      return xboxError(c, 400, { error: 'xbox_not_linked', message: XBOX_NOT_LINKED_HELP });
+    if (err instanceof XboxNetworkError) {
+      console.error(err);
+      return xboxError(c, 502, { error: 'xbox_unavailable', message: XBOX_UNAVAILABLE_HELP });
+    }
+    throw err;
+  }
+
+  // Looks the gamertag up (exact match only), caches its xuid on the user, then imports.
+  r.post('/xbox/link', async (c) => {
+    const { id } = c.get('user');
+    const { gamertag } = await parseBody(c, xboxLinkSchema);
+    requireIgdb(deps);
+    if (!deps.env.OPENXBL_API_KEY)
+      return xboxError(c, 503, { error: 'xbox_not_configured', message: XBOX_NOT_CONFIGURED_HELP });
+    try {
+      const profile = await lookupXuid(gamertag, {
+        apiKey: deps.env.OPENXBL_API_KEY,
+        fetch: deps.xboxFetch,
+      });
+      await db
+        .update(schema.users)
+        .set({ xboxXuid: profile.xuid, xboxGamertag: profile.gamertag, xboxSyncedAt: null })
+        .where(eq(schema.users.id, id));
+      // The link stays even if the import fails (e.g. a private history): fix it, then resync.
+      return c.json(await deps.xboxSync.run(id, profile.xuid));
+    } catch (err) {
+      return xboxFailure(c, err);
+    }
+  });
+
+  r.post('/xbox/sync', async (c) => {
+    const { id, xboxXuid } = c.get('user');
+    if (!xboxXuid)
+      return xboxError(c, 400, { error: 'xbox_not_linked', message: XBOX_NOT_LINKED_HELP });
+    requireIgdb(deps);
+    if (!deps.env.OPENXBL_API_KEY)
+      return xboxError(c, 503, { error: 'xbox_not_configured', message: XBOX_NOT_CONFIGURED_HELP });
+    try {
+      return c.json(await deps.xboxSync.run(id, xboxXuid));
+    } catch (err) {
+      return xboxFailure(c, err);
+    }
+  });
+
+  // Imported entries stay; only the link and the sync time go.
+  r.delete('/xbox', async (c) => {
+    await db
+      .update(schema.users)
+      .set({ xboxXuid: null, xboxGamertag: null, xboxSyncedAt: null })
+      .where(eq(schema.users.id, c.get('user').id));
+    return c.json({ ok: true });
   });
 
   // Registered before '/:id' so "import" is never read as an id.

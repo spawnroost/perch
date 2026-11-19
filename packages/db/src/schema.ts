@@ -38,6 +38,11 @@ export const users = pgTable('users', {
   recsVersion: integer('recs_version').default(0).notNull(),
   /** When the Steam library was last imported; null until the first sync. */
   steamSyncedAt: ts('steam_synced_at'),
+  /** Xbox account (xuid) linked by gamertag; cached so a resync costs one OpenXBL request. */
+  xboxXuid: text('xbox_xuid'),
+  xboxGamertag: text('xbox_gamertag'),
+  /** When the Xbox title history was last imported; null until the first sync. */
+  xboxSyncedAt: ts('xbox_synced_at'),
   createdAt: ts('created_at').defaultNow().notNull(),
   updatedAt: ts('updated_at')
     .defaultNow()
@@ -291,7 +296,7 @@ export const libraryEntries = pgTable(
     /** 'playing' | 'finished' | 'dropped' | 'backlog' */
     status: text('status').notNull().default('backlog'),
     owned: boolean('owned').default(true).notNull(),
-    /** 'manual' | 'import' | 'steam' */
+    /** 'manual' | 'import' | 'steam' | 'xbox' */
     source: text('source').notNull().default('manual'),
     addedAt: ts('added_at').defaultNow().notNull(),
   },

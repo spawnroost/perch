@@ -32,3 +32,16 @@ export {
   exportImportSchema,
 } from './library-export/schemas.js';
 export type { ExportGame, ExportImportResult } from './library-export/schemas.js';
+export {
+  XBOX_BUSY_HELP,
+  XBOX_NOT_CONFIGURED_HELP,
+  XBOX_NOT_FOUND_HELP,
+  XBOX_NOT_LINKED_HELP,
+  XBOX_PRIVATE_HELP,
+  XBOX_SYNC_ERROR_CODES,
+  XBOX_UNAVAILABLE_HELP,
+  xboxLinkSchema,
+  xboxSyncErrorSchema,
+  xboxSyncResultSchema,
+} from './xbox-library/schemas.js';
+export type { XboxSyncError, XboxSyncErrorCode, XboxSyncResult } from './xbox-library/schemas.js';

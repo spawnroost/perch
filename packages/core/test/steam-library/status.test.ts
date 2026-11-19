@@ -18,6 +18,14 @@ describe('steamImportStatus', () => {
   });
 });
 
+describe('steamImportStatus without playtime (Xbox)', () => {
+  it('goes by last played alone', () => {
+    expect(steamImportStatus({ lastPlayed: daysAgo(3), now })).toBe('playing');
+    expect(steamImportStatus({ lastPlayed: daysAgo(31), now })).toBe('backlog');
+    expect(steamImportStatus({ lastPlayed: null, now })).toBe('backlog');
+  });
+});
+
 describe('shouldAutoSync', () => {
   it('syncs when never synced or 6 hours have passed', () => {
     expect(shouldAutoSync(null, now)).toBe(true);

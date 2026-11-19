@@ -15,6 +15,7 @@ import type {
   SteamSyncResult,
   ExportGame,
   ExportImportResult,
+  XboxSyncResult,
   AuthProviders,
   DeviceCreate,
   DevicePatchInput,
@@ -390,6 +391,36 @@ export function useUnlinkSteam() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => api.post<{ ok: true }>('/api/account/steam/unlink'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.account }),
+  });
+}
+
+/** The link persists even when the first import fails (private history), so refresh the account either way. */
+function refreshXbox(qc: QueryClient) {
+  return invalidateAll(qc, [...libraryAffected, queryKeys.account]);
+}
+
+export function useLinkXbox() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (gamertag: string) =>
+      api.post<XboxSyncResult>('/api/library/xbox/link', { gamertag }),
+    onSettled: () => refreshXbox(qc),
+  });
+}
+
+export function useSyncXbox() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<XboxSyncResult>('/api/library/xbox/sync'),
+    onSettled: () => refreshXbox(qc),
+  });
+}
+
+export function useUnlinkXbox() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.delete('/api/library/xbox'),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.account }),
   });
 }

@@ -5,18 +5,23 @@ export const AUTO_SYNC_INTERVAL_MS = 6 * 3_600_000;
 
 /**
  * Status for a newly imported Steam game: played in the last 30 days is playing, anything else
- * backlog. Steam cannot tell finished from abandoned, so that is left to the user.
+ * backlog. Steam cannot tell finished from abandoned, so that is left to the user. Pass no
+ * `minutes` when playtime is unknown (Xbox): last-played alone decides.
  */
 export function steamImportStatus({
   minutes,
   lastPlayed,
   now,
 }: {
-  minutes: number;
+  minutes?: number;
   lastPlayed: Date | null;
   now: Date;
 }): Status {
-  if (minutes > 0 && lastPlayed && now.getTime() - lastPlayed.getTime() <= RECENT_MS)
+  if (
+    (minutes === undefined || minutes > 0) &&
+    lastPlayed &&
+    now.getTime() - lastPlayed.getTime() <= RECENT_MS
+  )
     return 'playing';
   return 'backlog';
 }

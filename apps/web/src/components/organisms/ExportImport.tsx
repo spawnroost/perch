@@ -2,6 +2,7 @@ import { useRef, useState, type ChangeEvent } from 'react';
 import { FileUp } from 'lucide-react';
 import { parseLibraryExport, type ParsedExport } from '@perch/core/browser';
 import { Button, Notice } from '../atoms';
+import { UnmatchedTitles } from '../molecules';
 import { useImportExportGames } from '@/hooks/queries';
 import { foundSummary, importResultSummary, readExportFiles } from '@/lib/exportImport';
 
@@ -87,21 +88,7 @@ export function ExportImport({ onDone }: { onDone: () => void }) {
       {result && (
         <>
           <Notice tone="success">{importResultSummary(result)}</Notice>
-          {result.unmatchedCount > 0 && (
-            <details className="text-sm text-fg-muted">
-              <summary className="cursor-pointer">Not matched ({result.unmatchedCount})</summary>
-              <ul className="mt-1 flex flex-col gap-0.5">
-                {result.unmatched.map((t) => (
-                  <li key={t}>{t}</li>
-                ))}
-              </ul>
-              {result.unmatchedCount > result.unmatched.length && (
-                <p className="mt-1 text-xs text-fg-subtle">
-                  And {result.unmatchedCount - result.unmatched.length} more.
-                </p>
-              )}
-            </details>
-          )}
+          <UnmatchedTitles titles={result.unmatched} count={result.unmatchedCount} />
           <Button variant="secondary" className="w-fit" onClick={onDone}>
             Done
           </Button>

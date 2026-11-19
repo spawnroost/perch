@@ -2,53 +2,59 @@ import { and, eq, sql } from 'drizzle-orm';
 import { users, type Db } from '@perch/db';
 import { shouldAutoSync } from './status.js';
 
+/** The per-store "last synced" columns on users that auto-sync claims. */
+export type SyncedAtColumn = 'steamSyncedAt' | 'xboxSyncedAt';
+
 export interface AutoSyncClaim {
   claimed: boolean;
-  /** The `steam_synced_at` the claim replaced. */
+  /** The synced-at value the claim replaced. */
   previous: Date | null;
   /** The value the claim wrote. */
   claimedAt: Date;
 }
 
 /**
- * Takes the right to auto-sync by stamping `steam_synced_at` only if the last sync is missing or
+ * Takes the right to auto-sync by stamping the store's synced-at column only if the last sync is missing or
  * 6 hours old and still unchanged since we read it, so concurrent callers (or server instances)
  * have exactly one winner.
  */
-export async function claimSteamAutoSync(
+export async function claimAutoSync(
   db: Pick<Db, 'select' | 'update'>,
   userId: string,
   now: Date,
+  column: SyncedAtColumn = 'steamSyncedAt',
 ): Promise<AutoSyncClaim> {
-  const [row] = await db
-    .select({ at: users.steamSyncedAt })
-    .from(users)
-    .where(eq(users.id, userId));
+  const col = users[column];
+  const [row] = await db.select({ at: col }).from(users).where(eq(users.id, userId));
   const previous = row?.at ?? null;
   const lost = { claimed: false, previous, claimedAt: now };
   if (!row || !shouldAutoSync(previous, now)) return lost;
   const won = await db
     .update(users)
-    .set({ steamSyncedAt: now })
-    .where(
-      and(
-        eq(users.id, userId),
-        previous ? eq(users.steamSyncedAt, previous) : sql`${users.steamSyncedAt} is null`,
-      ),
-    )
+    .set({ [column]: now })
+    .where(and(eq(users.id, userId), previous ? eq(col, previous) : sql`${col} is null`))
     .returning({ id: users.id });
   return { ...lost, claimed: won.length > 0 };
 }
 
 /** Undoes a claim after a failed import so the next trigger retries. A newer stamp is left alone. */
-export async function releaseSteamAutoSync(
+export async function releaseAutoSync(
   db: Pick<Db, 'update'>,
   userId: string,
   claim: AutoSyncClaim,
+  column: SyncedAtColumn = 'steamSyncedAt',
 ): Promise<void> {
   if (!claim.claimed) return;
   await db
     .update(users)
-    .set({ steamSyncedAt: claim.previous })
-    .where(and(eq(users.id, userId), eq(users.steamSyncedAt, claim.claimedAt)));
+    .set({ [column]: claim.previous })
+    .where(and(eq(users.id, userId), eq(users[column], claim.claimedAt)));
 }
+
+export const claimSteamAutoSync = (db: Pick<Db, 'select' | 'update'>, userId: string, now: Date) =>
+  claimAutoSync(db, userId, now, 'steamSyncedAt');
+export const releaseSteamAutoSync = (
+  db: Pick<Db, 'update'>,
+  userId: string,
+  claim: AutoSyncClaim,
+) => releaseAutoSync(db, userId, claim, 'steamSyncedAt');

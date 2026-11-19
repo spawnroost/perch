@@ -155,8 +155,8 @@ export function steamAuthRoutes(deps: RouteDeps) {
   return r;
 }
 
-/** `/api/account`: the signed-in user's account state and Steam link management. */
-export function accountRoutes({ db, env, steamSync }: RouteDeps) {
+/** `/api/account`: the signed-in user's account state, Steam link management and Xbox link state. */
+export function accountRoutes({ db, env, steamSync, xboxSync }: RouteDeps) {
   const enabled = new Set<string>(Object.keys(socialProviderConfig(env)));
   const r = new Hono<AppVars>();
   r.use('*', requireAuth());
@@ -180,11 +180,16 @@ export function accountRoutes({ db, env, steamSync }: RouteDeps) {
     const { steamSyncedAt } = c.get('user');
     // Off the request path: not awaited, never throws.
     if (steamId) steamSync.maybeAuto(id, steamId);
+    const { xboxXuid, xboxGamertag, xboxSyncedAt } = c.get('user');
+    xboxSync.maybeAuto(id, xboxXuid);
     return c.json({
       email,
       steamId: steamId ?? null,
       steamSyncedAt: steamSyncedAt ? new Date(steamSyncedAt).toISOString() : null,
       steamSyncAvailable: steamSync.configured,
+      xboxGamertag: xboxGamertag ?? null,
+      xboxSyncedAt: xboxSyncedAt ? new Date(xboxSyncedAt).toISOString() : null,
+      xboxSyncAvailable: xboxSync.configured,
       ...(await signInMethods(id)),
     });
   });

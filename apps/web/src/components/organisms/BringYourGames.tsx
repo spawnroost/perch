@@ -4,6 +4,7 @@ import { SteamSignInButton } from '../molecules';
 import { ExportImport } from './ExportImport';
 import { ImportList } from './ImportList';
 import { SteamSync } from './SteamSync';
+import { XboxSync } from './XboxSync';
 import { useAccount, useLibrary } from '@/hooks/queries';
 import { useAuthError } from '@/hooks/useAuthError';
 
@@ -59,8 +60,14 @@ export function BringYourGames() {
           Import Epic/GOG file
         </Button>
       </div>
+      {account?.xboxSyncAvailable && (
+        <div className="flex flex-col gap-2 border-t border-line pt-3">
+          <h3 className="text-sm font-medium text-fg">Xbox</h3>
+          <XboxSync gamertag={account.xboxGamertag} syncedAt={account.xboxSyncedAt} />
+        </div>
+      )}
       {waiting && <p className="text-sm text-fg-muted">Importing your Steam library…</p>}
-      <p className="text-xs text-fg-subtle">Xbox and PlayStation are coming.</p>
+      <p className="text-xs text-fg-subtle">PlayStation is coming.</p>
       <Sheet open={pasting} onOpenChange={setPasting}>
         <SheetContent
           title="Paste a list"

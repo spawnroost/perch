@@ -18,8 +18,13 @@ export {
 } from './schemas.js';
 export type { OwnedGame, SteamSyncError, SteamSyncErrorCode, SteamSyncResult } from './schemas.js';
 export { AUTO_SYNC_INTERVAL_MS, shouldAutoSync, steamImportStatus } from './status.js';
-export { claimSteamAutoSync, releaseSteamAutoSync } from './claim.js';
-export type { AutoSyncClaim } from './claim.js';
+export {
+  claimAutoSync,
+  claimSteamAutoSync,
+  releaseAutoSync,
+  releaseSteamAutoSync,
+} from './claim.js';
+export type { AutoSyncClaim, SyncedAtColumn } from './claim.js';
 export { MISS_RETRY_MS, resolveSteamAppIds } from './map.js';
 export { STEAM_PLATFORM, syncSteamLibrary } from './sync.js';
 export type { SteamSyncDeps } from './sync.js';

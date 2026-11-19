@@ -20,6 +20,8 @@ const ApiEnvShape = z.object({
   DISCORD_CLIENT_SECRET: z.string().optional(),
   /** Steam Web API key for the library import; unset answers the sync with 503. */
   STEAM_API_KEY: z.string().optional(),
+  /** OpenXBL key for the Xbox import; unset answers the Xbox routes with 503. */
+  OPENXBL_API_KEY: z.string().optional(),
   NODE_ENV: z.string().optional(),
 });
 

@@ -92,6 +92,12 @@ export const AccountResponseSchema = z.object({
   steamSyncedAt: z.string().nullable(),
   /** False when the server has no Steam key (or no game database), so the sync button is hidden. */
   steamSyncAvailable: z.boolean(),
+  /** Linked Xbox gamertag; null when none. */
+  xboxGamertag: z.string().nullable(),
+  /** ISO time of the last Xbox import; null if never. */
+  xboxSyncedAt: z.string().nullable(),
+  /** False when the server has no OpenXBL key (or no game database), so the Xbox card is hidden. */
+  xboxSyncAvailable: z.boolean(),
   hasPassword: z.boolean(),
   /** Linked Google/Discord accounts that are currently enabled (provider ids). */
   linkedProviders: z.array(z.string()),

@@ -15,6 +15,7 @@ import { useAction } from '@/hooks/useAction';
 import { useSignOut } from '@/hooks/useSignOut';
 import { authClient, unwrapAuth } from '@/lib/auth-client';
 import { SteamSync } from './SteamSync';
+import { XboxSync } from './XboxSync';
 
 function Section({
   title,
@@ -127,6 +128,19 @@ function SteamLink() {
   );
 }
 
+function XboxLink() {
+  const data = useAccount().data;
+  if (!data?.xboxSyncAvailable) return null;
+  return (
+    <Section
+      title="Xbox"
+      description="Pull in your Xbox and Windows game history by gamertag. Playtime is not available."
+    >
+      <XboxSync gamertag={data.xboxGamertag} syncedAt={data.xboxSyncedAt} />
+    </Section>
+  );
+}
+
 /** Google / Discord: what is linked, and a link button for enabled providers that are not. */
 function SocialLinks() {
   const account = useAccount();
@@ -219,6 +233,7 @@ export function AccountSettings() {
       </div>
       {account?.hasPassword !== false && <ChangePassword />}
       <SteamLink />
+      <XboxLink />
       <SocialLinks />
       <Section title="Sign out">
         {signOut.error && <Notice tone="error">{signOut.error}</Notice>}
