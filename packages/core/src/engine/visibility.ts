@@ -2,9 +2,12 @@ import type { FeedbackItem, LibraryItem } from './types.js';
 
 export const BACKLOG_MAX_HOURS = 2;
 
-/** Owned and barely played (null hours count as 0): still worth recommending, whatever the status. */
+/**
+ * Owned and barely played (null hours count as 0): still worth recommending, whatever the status.
+ * Except paused: the user has played it before (hours may be unknown), so it is not waiting.
+ */
 export function isBacklog(item: LibraryItem): boolean {
-  return item.owned && (item.hours ?? 0) < BACKLOG_MAX_HOURS;
+  return item.owned && item.status !== 'paused' && (item.hours ?? 0) < BACKLOG_MAX_HOURS;
 }
 
 /**

@@ -293,7 +293,7 @@ export const libraryEntries = pgTable(
     platform: text('platform').notNull(),
     hoursPlayed: real('hours_played'),
     lastPlayed: ts('last_played'),
-    /** 'playing' | 'finished' | 'dropped' | 'backlog' */
+    /** 'playing' | 'finished' | 'dropped' | 'backlog' | 'paused' */
     status: text('status').notNull().default('backlog'),
     owned: boolean('owned').default(true).notNull(),
     /** 'manual' | 'import' | 'steam' | 'xbox' */
@@ -305,7 +305,7 @@ export const libraryEntries = pgTable(
     index('library_entries_user_status_idx').on(t.userId, t.status),
     check(
       'library_entries_status_chk',
-      sql`${t.status} in ('playing', 'finished', 'dropped', 'backlog')`,
+      sql`${t.status} in ('playing', 'finished', 'dropped', 'backlog', 'paused')`,
     ),
   ],
 );

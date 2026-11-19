@@ -37,6 +37,7 @@ describe('toXboxTitles', () => {
         type: 'Game',
         devices: ['XboxSeries'],
         titleHistory: { lastTimePlayed: '2026-11-19T05:05:23.2326524Z', visible: true },
+        achievement: { progressPercentage: 42 },
       },
       { titleId: '2', name: 'Netflix', type: 'App', devices: ['XboxSeries'] },
       { titleId: '3', name: 'Hidden', type: 'Game', titleHistory: { visible: false } },
@@ -44,8 +45,8 @@ describe('toXboxTitles', () => {
       { titleId: '5', name: 'Bad Date', type: 'Game', titleHistory: { lastTimePlayed: 'nope' } },
     ]);
     expect(out.map((t) => t.name)).toEqual(['Hades', 'Bad Date']);
-    expect(out[0]).toMatchObject({ platform: 'xbox' });
+    expect(out[0]).toMatchObject({ platform: 'xbox', achievementProgress: 42 });
     expect(out[0]!.lastPlayed?.toISOString()).toBe('2026-11-19T05:05:23.232Z');
-    expect(out[1]).toMatchObject({ platform: 'pc', lastPlayed: null });
+    expect(out[1]).toMatchObject({ platform: 'pc', lastPlayed: null, achievementProgress: 0 });
   });
 });

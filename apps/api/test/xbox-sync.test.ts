@@ -100,6 +100,7 @@ const titleHistory = {
         type: 'Game',
         devices: ['PC'],
         titleHistory: { lastTimePlayed: '2020-01-01T00:00:00.0000000Z', visible: true },
+        achievement: { progressPercentage: 30 },
       },
       { titleId: '3', name: 'Not On Igdb', type: 'Game', devices: ['XboxOne'] },
       { titleId: '4', name: 'Some App', type: 'App', devices: ['XboxOne'] },
@@ -228,6 +229,14 @@ describe.skipIf(!testUrl)('xbox library import', () => {
       unmatched: ['Not On Igdb'],
       unmatchedCount: 1,
       total: 3,
+      playedBefore: [
+        {
+          entryId: expect.any(String),
+          title: expect.any(String),
+          minutes: null,
+          lastPlayed: '2020-01-01T00:00:00.000Z',
+        },
+      ],
     });
     expect(calls).toHaveLength(2);
     const rows = await entries(u.id);

@@ -61,7 +61,8 @@ const title = (
   platform: 'xbox' | 'pc',
   lastPlayed: Date | null,
   titleId = name,
-): XboxTitle => ({ titleId, name, platform, lastPlayed });
+  achievementProgress = 0,
+): XboxTitle => ({ titleId, name, platform, lastPlayed, achievementProgress });
 
 describe.skipIf(!url)('syncXboxLibrary', () => {
   let db: Db;
@@ -118,7 +119,7 @@ describe.skipIf(!url)('syncXboxLibrary', () => {
     list = [
       title('Xbox Alpha', 'xbox', new Date('2026-05-30T00:00:00Z')),
       title('Xbox Alpha', 'xbox', new Date('2026-05-31T00:00:00Z'), 'alpha-2'),
-      title('Xbox Beta', 'pc', new Date('2020-01-01T00:00:00Z')),
+      title('Xbox Beta', 'pc', new Date('2020-01-01T00:00:00Z'), 'Xbox Beta', 40),
       title('Unknown Game', 'xbox', null),
     ];
     await db.delete(libraryEntries).where(eq(libraryEntries.userId, USER));
@@ -138,14 +139,23 @@ describe.skipIf(!url)('syncXboxLibrary', () => {
 
   it('imports by cleaned name with platform and status, merges editions, lists unmatched', async () => {
     const res = await syncXboxLibrary(deps(), USER, XUID);
+    const byId = new Map((await rows()).map((r) => [r.igdbId, r]));
     expect(res).toEqual({
       imported: 2,
       updated: 0,
       unmatched: ['Unknown Game'],
       unmatchedCount: 1,
       total: 4,
+      // Beta: old, with achievement progress. Alpha was played recently.
+      playedBefore: [
+        {
+          entryId: byId.get(B)!.id,
+          title: `X${B}`,
+          minutes: null,
+          lastPlayed: '2020-01-01T00:00:00.000Z',
+        },
+      ],
     });
-    const byId = new Map((await rows()).map((r) => [r.igdbId, r]));
     expect(byId.get(A)).toMatchObject({
       source: 'xbox',
       platform: 'xbox',
@@ -158,6 +168,12 @@ describe.skipIf(!url)('syncXboxLibrary', () => {
     const u = await user();
     expect(u.xboxSyncedAt).toEqual(now);
     expect(u.recsVersion).toBeGreaterThan(0);
+  });
+
+  it('does not ask again about entries that already exist', async () => {
+    await syncXboxLibrary(deps(), USER, XUID);
+    const again = await syncXboxLibrary(deps(), USER, XUID);
+    expect(again).toMatchObject({ imported: 0, updated: 2, playedBefore: [] });
   });
 
   it('only gains data on a resync: status and hours of existing entries stay', async () => {

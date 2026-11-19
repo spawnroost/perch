@@ -221,6 +221,7 @@ describe.skipIf(!testUrl)('api routes', () => {
       ['POST', '/api/library/import'],
       ['POST', '/api/library/import/confirm'],
       ['POST', '/api/library/import/export'],
+      ['POST', '/api/library/bulk-status'],
       ['GET', '/api/devices'],
       ['POST', '/api/devices'],
       ['PATCH', `/api/devices/${crypto.randomUUID()}`],
@@ -556,6 +557,44 @@ describe.skipIf(!testUrl)('api routes', () => {
       expect((await call('DELETE', '/api/library/not-a-uuid', u.cookie)).status).toBe(400);
     });
 
+    it('bulk-sets a status on own entries only and reports how many changed', async () => {
+      const mine = await newUser();
+      const theirs = await newUser();
+      const mk = async (u: { cookie: string }, igdbId: number) =>
+        (
+          (await (
+            await call('POST', '/api/library', u.cookie, { igdbId, status: 'backlog' })
+          ).json()) as { entry: { id: string } }
+        ).entry.id;
+      const a = await mk(mine, A);
+      const b = await mk(mine, B);
+      const other = await mk(theirs, A);
+
+      const res = await call('POST', '/api/library/bulk-status', mine.cookie, {
+        ids: [a, b, other, crypto.randomUUID()],
+        status: 'paused',
+      });
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ updated: 2 });
+      const statuses = async (u: { cookie: string }) =>
+        (
+          (await (await get('/api/library', u.cookie)).json()) as { entries: { status: string }[] }
+        ).entries.map((e) => e.status);
+      expect(await statuses(mine)).toEqual(['paused', 'paused']);
+      expect(await statuses(theirs)).toEqual(['backlog']);
+
+      for (const body of [
+        {},
+        { ids: [], status: 'paused' },
+        { ids: [a], status: 'bogus' },
+        { ids: ['nope'], status: 'paused' },
+        { ids: Array.from({ length: 5001 }, () => crypto.randomUUID()), status: 'paused' },
+      ])
+        expect((await call('POST', '/api/library/bulk-status', mine.cookie, body)).status).toBe(
+          400,
+        );
+    });
+
     it("never touches another user's entries", async () => {
       const mine = await newUser();
       const theirs = await newUser();
@@ -636,6 +675,10 @@ describe.skipIf(!testUrl)('api routes', () => {
         unmatched: ['Not a real game'],
         unmatchedCount: 1,
         total: 3,
+        // 2 h on Epic, never played lately: asked about. Nothing known about the GOG one.
+        playedBefore: [
+          { entryId: expect.any(String), title: gameA.name, minutes: 120, lastPlayed: null },
+        ],
       });
       const rows = await ctx.db
         .select()

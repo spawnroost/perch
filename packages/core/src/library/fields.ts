@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const STATUSES = ['playing', 'finished', 'dropped', 'backlog'] as const;
+export const STATUSES = ['playing', 'finished', 'dropped', 'backlog', 'paused'] as const;
 export type Status = (typeof STATUSES)[number];
 
 /** Hours as a number (JSON bodies). "" and booleans are rejected, not coerced to 0/1. */

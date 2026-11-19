@@ -132,14 +132,23 @@ describe.skipIf(!url)('importExportGames', () => {
 
   it('imports with store platforms, hours and the 30-day status rule; lists unmatched', async () => {
     const res = await importExportGames(deps(), USER, list);
+    const byId = new Map((await rows()).map((r) => [r.igdbId, r]));
     expect(res).toEqual({
       imported: 3,
       updated: 0,
       unmatched: ['Not In IGDB'],
       unmatchedCount: 1,
       total: 4,
+      // Only the Epic title: 100 h, last played in 2025. The sheet title has no playtime.
+      playedBefore: [
+        {
+          entryId: byId.get(G_EPIC)!.id,
+          title: `Export ${G_EPIC}`,
+          minutes: 6000,
+          lastPlayed: '2025-01-01T00:00:00.000Z',
+        },
+      ],
     });
-    const byId = new Map((await rows()).map((r) => [r.igdbId, r]));
     expect(byId.get(G_GOG)).toMatchObject({
       platform: 'gog',
       source: 'import',
@@ -164,7 +173,7 @@ describe.skipIf(!url)('importExportGames', () => {
       .set({ status: 'finished', hoursPlayed: 500 })
       .where(eq(libraryEntries.igdbId, G_EPIC));
     const res = await importExportGames(deps(), USER, list);
-    expect(res).toMatchObject({ imported: 0, updated: 3 });
+    expect(res).toMatchObject({ imported: 0, updated: 3, playedBefore: [] });
     const e = (await rows()).find((r) => r.igdbId === G_EPIC)!;
     expect(e).toMatchObject({ status: 'finished', hoursPlayed: 500 });
   });
@@ -181,7 +190,14 @@ describe.skipIf(!url)('importExportGames', () => {
 
   it('does nothing for an empty list', async () => {
     const res = await importExportGames(deps(), USER, []);
-    expect(res).toEqual({ imported: 0, updated: 0, unmatched: [], unmatchedCount: 0, total: 0 });
+    expect(res).toEqual({
+      imported: 0,
+      updated: 0,
+      unmatched: [],
+      unmatchedCount: 0,
+      total: 0,
+      playedBefore: [],
+    });
     expect(await rows()).toEqual([]);
   });
 });

@@ -32,6 +32,7 @@ export function toXboxTitles(
     type?: string | null;
     devices?: readonly string[] | null;
     titleHistory?: { lastTimePlayed?: string | null; visible?: boolean | null } | null;
+    achievement?: { progressPercentage?: number | null } | null;
   }[],
 ): XboxTitle[] {
   const out: XboxTitle[] = [];
@@ -45,6 +46,7 @@ export function toXboxTitles(
       name,
       platform: xboxPlatform(t.devices),
       lastPlayed: played && !Number.isNaN(played.getTime()) ? played : null,
+      achievementProgress: t.achievement?.progressPercentage ?? 0,
     });
   }
   return out;

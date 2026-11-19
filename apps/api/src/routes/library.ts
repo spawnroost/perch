@@ -10,11 +10,13 @@ import {
   importExportGames,
   importLibraryGames,
   importPreviewSchema,
+  libraryBulkStatusSchema,
   libraryCreateSchema,
   libraryPatchSchema,
   listLibrary,
   previewImport,
   rebuildProfile,
+  setLibraryStatus,
   updateLibraryEntry,
   upsertLibraryGame,
   STEAM_NOT_CONFIGURED_HELP,
@@ -236,6 +238,15 @@ export function libraryRoutes(deps: RouteDeps) {
     });
     if (imported.length > 0) await rebuild(userId);
     return c.json({ imported, failed });
+  });
+
+  // One status for many of the user's entries (the "played before" prompt after an import).
+  r.post('/bulk-status', async (c) => {
+    const userId = c.get('user').id;
+    const { ids, status } = await parseBody(c, libraryBulkStatusSchema);
+    const { updated } = await setLibraryStatus(db, userId, ids, status);
+    if (updated > 0) await rebuild(userId);
+    return c.json({ updated });
   });
 
   r.patch('/:id', async (c) => {

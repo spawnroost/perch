@@ -29,5 +29,7 @@ export { GlobalSearch } from './GlobalSearch';
 export { ProviderAuthOptions } from './ProviderAuthOptions';
 export { GameFactsBody, GameFactsRail } from './GameFactsRail';
 export { BringYourGames } from './BringYourGames';
+export { PlayedBeforePrompt } from './PlayedBeforePrompt';
+export { PlayedBeforeSheet } from './PlayedBeforeSheet';
 export { SteamSync } from './SteamSync';
 export { XboxSync } from './XboxSync';

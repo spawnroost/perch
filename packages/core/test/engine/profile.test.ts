@@ -43,6 +43,19 @@ describe('buildProfile weights', () => {
     expect(weightOf(p, 2)! / weightOf(p, 1)!).toBeCloseTo(0.3, 10);
   });
 
+  it('paused games weigh like played ones, with no dropped penalty', () => {
+    const p = buildProfile({
+      library: [
+        ...fillers,
+        item(game(1, 'A', { x: 1 }), 10, 100, 'finished'),
+        item(game(2, 'B', { x: 1 }), 10, 100, 'paused'),
+      ],
+      feedback: [],
+      now: NOW,
+    });
+    expect(weightOf(p, 2)).toBeCloseTo(weightOf(p, 1)!, 10);
+  });
+
   it('the 3 most recently played get x1.5', () => {
     const games = [1, 2, 3, 4].map((id) => game(id, `G${id}`, { x: 1 }));
     // Same hours, last played 1, 2, 3 and 4 days ago; the fourth is not boosted.

@@ -29,6 +29,7 @@ import type {
   HardwareResponse,
   ImportConfirm,
   ImportPreviewResponse,
+  LibraryBulkStatusInput,
   LibraryCreate,
   LibraryEntry,
   LibraryPatchInput,
@@ -329,6 +330,16 @@ export function useImportExportGames() {
   return useMutation({
     mutationFn: (games: ExportGame[]) =>
       api.post<ExportImportResult>('/api/library/import/export', { games }),
+    onSuccess: () => invalidateAll(qc, libraryAffected),
+  });
+}
+
+/** Sets one status on many library entries (the "played before" prompt after an import). */
+export function useBulkSetStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: LibraryBulkStatusInput) =>
+      api.post<{ updated: number }>('/api/library/bulk-status', body),
     onSuccess: () => invalidateAll(qc, libraryAffected),
   });
 }

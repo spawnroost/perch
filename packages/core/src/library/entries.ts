@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { games, libraryEntries, type Db } from '@perch/db';
 import { bumpRecsVersion } from '../recommendation-cache/version.js';
 import type { Status } from './fields.js';
@@ -117,5 +117,24 @@ export async function deleteLibraryEntry(db: Db, userId: string, id: string): Pr
       .returning({ id: libraryEntries.id });
     if (rows.length > 0) await bumpRecsVersion(tx, userId);
     return rows.length > 0;
+  });
+}
+
+/** Sets one status on several of the user's entries (ids that are not theirs are skipped). */
+export async function setLibraryStatus(
+  db: Db,
+  userId: string,
+  ids: readonly string[],
+  status: Status,
+): Promise<{ updated: number }> {
+  if (ids.length === 0) return { updated: 0 };
+  return db.transaction(async (tx) => {
+    const rows = await tx
+      .update(libraryEntries)
+      .set({ status })
+      .where(and(eq(libraryEntries.userId, userId), inArray(libraryEntries.id, [...new Set(ids)])))
+      .returning({ id: libraryEntries.id });
+    if (rows.length > 0) await bumpRecsVersion(tx, userId);
+    return { updated: rows.length };
   });
 }

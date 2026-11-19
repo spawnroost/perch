@@ -84,6 +84,16 @@ describe('recommend', () => {
     expect(seen[1]).toBe(seen[0]); // built once, shared by every request
   });
 
+  it('a paused game is neither recommended nor treated as backlog, but still shapes taste', async () => {
+    const paused = { ...CANDIDATES[3]!, igdbId: 901, name: 'Paused Game' };
+    const recs = await recommend(deps, {
+      library: [...LIBRARY, item(paused, null, 400, 'paused')],
+      feedback: [],
+      limit: 50,
+    });
+    expect(recs.map((r) => r.game.igdbId)).not.toContain(901);
+  });
+
   it('surfaces an owned backlog game with the bonus and merges duplicate platform rows', async () => {
     const waiting = { ...CANDIDATES[3]!, igdbId: 900, name: 'Waiting Game' };
     const library = [

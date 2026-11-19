@@ -5,12 +5,19 @@ import type { Tone } from './fit';
 import { parseHours } from './onboarding';
 
 export type Status = LibraryEntry['status'];
-export const STATUSES = ['playing', 'backlog', 'finished', 'dropped'] as const satisfies Status[];
+export const STATUSES = [
+  'playing',
+  'paused',
+  'backlog',
+  'finished',
+  'dropped',
+] as const satisfies Status[];
 export const STATUS_LABEL: Record<Status, string> = {
   playing: 'Playing',
   finished: 'Finished',
   dropped: 'Dropped',
   backlog: 'Backlog',
+  paused: 'Paused',
 };
 
 /** Filter chips: everything, then each status. */
@@ -69,6 +76,7 @@ const STATUS_TONE: Record<Status, Tone> = {
   backlog: 'unknown',
   finished: 'unknown',
   dropped: 'no',
+  paused: 'unknown',
 };
 
 /** The one status chip on a library card; hours and dates go in the plain meta line. */

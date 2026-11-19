@@ -149,8 +149,22 @@ describe.skipIf(!url)('syncSteamLibrary', () => {
 
   it('imports matched games, counts unmatched, stamps the sync and bumps recs_version', async () => {
     const res = await syncSteamLibrary(deps(), USER, STEAM_ID);
-    expect(res).toEqual({ imported: 3, updated: 0, unmatched: 1, total: 4 });
     const byId = new Map((await rows()).map((r) => [r.igdbId, r]));
+    // Only 9004 (100 h, last played in 2020) was played before; 9001 never, 9002 lately.
+    expect(res).toEqual({
+      imported: 3,
+      updated: 0,
+      unmatched: 1,
+      total: 4,
+      playedBefore: [
+        {
+          entryId: byId.get(IGDB[9004]!)!.id,
+          title: `S${IGDB[9004]}`,
+          minutes: 6000,
+          lastPlayed: '2020-01-01T00:00:00.000Z',
+        },
+      ],
+    });
     expect(byId.size).toBe(3);
     const a = byId.get(IGDB[9001]!)!;
     expect(a).toMatchObject({ source: 'steam', owned: true, platform: 'pc', status: 'backlog' });
@@ -159,6 +173,12 @@ describe.skipIf(!url)('syncSteamLibrary', () => {
     const u = await user();
     expect(u.steamSyncedAt).toBeInstanceOf(Date);
     expect(u.recsVersion).toBeGreaterThan(0);
+  });
+
+  it('does not ask about entries that already exist', async () => {
+    await syncSteamLibrary(deps(), USER, STEAM_ID);
+    const again = await syncSteamLibrary(deps(), USER, STEAM_ID);
+    expect(again).toMatchObject({ imported: 0, updated: 3, playedBefore: [] });
   });
 
   it('caches mappings: hits for good, misses for 7 days', async () => {
@@ -206,8 +226,10 @@ describe.skipIf(!url)('syncSteamLibrary', () => {
       ],
     };
     const res = await syncSteamLibrary(d, USER, STEAM_ID);
-    expect(res).toEqual({ imported: 1, updated: 0, unmatched: 1, total: 3 });
+    expect(res).toMatchObject({ imported: 1, updated: 0, unmatched: 1, total: 3 });
     expect((await rows())[0]?.hoursPlayed).toBe(2);
+    // 2 h in total, never recently: one prompt for the merged game, with the summed minutes.
+    expect(res.playedBefore).toMatchObject([{ minutes: 120, lastPlayed: null }]);
   });
 
   it('only raises hours and last played on existing entries, never lowers them', async () => {

@@ -45,6 +45,15 @@ export const libraryPatchSchema = z
   })
   .refine((v) => Object.values(v).some((x) => x !== undefined), 'nothing to update');
 
+export const BULK_STATUS_MAX = 5000;
+export const libraryBulkStatusSchema = z.object({
+  ids: z.array(z.uuid()).min(1).max(BULK_STATUS_MAX),
+  status: statusSchema,
+});
+export const libraryBulkStatusResponseSchema = z.object({
+  updated: z.number().int().nonnegative(),
+});
+
 export const IMPORT_MAX_LINES = 100;
 
 export const importPreviewSchema = z.object({ text: z.string().min(1).max(100_000) });
@@ -91,6 +100,7 @@ export const importConfirmResponseSchema = z.object({
 
 export type LibraryEntry = z.infer<typeof libraryEntrySchema>;
 export type LibraryCreate = z.input<typeof libraryCreateSchema>;
+export type LibraryBulkStatusInput = z.input<typeof libraryBulkStatusSchema>;
 export type LibraryPatchInput = z.input<typeof libraryPatchSchema>;
 export type ImportPreviewResponse = z.infer<typeof importPreviewResponseSchema>;
 export type ImportConfirm = z.input<typeof importConfirmSchema>;

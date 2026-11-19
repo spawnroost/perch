@@ -178,12 +178,13 @@ describe('browseLibrary', () => {
       backlog: 2,
       finished: 1,
       dropped: 0,
+      paused: 0,
     });
   });
 
   it('counts follow the title query but not the status, so chips match the grid', () => {
     const { counts, shown } = browseLibrary(list, { query: 'alp', status: 'backlog' }, 'title');
-    expect(counts).toEqual({ all: 2, playing: 1, backlog: 1, finished: 0, dropped: 0 });
+    expect(counts).toEqual({ all: 2, playing: 1, backlog: 1, finished: 0, dropped: 0, paused: 0 });
     expect(ids(shown)).toEqual(['2']);
   });
 
@@ -197,8 +198,8 @@ describe('browseLibrary', () => {
 });
 
 describe('STATUSES', () => {
-  it('is the single status order: playing, backlog, finished, dropped', () => {
-    expect([...STATUSES]).toEqual(['playing', 'backlog', 'finished', 'dropped']);
+  it('is the single status order: playing, paused, backlog, finished, dropped', () => {
+    expect([...STATUSES]).toEqual(['playing', 'paused', 'backlog', 'finished', 'dropped']);
     expect(STATUS_FILTERS).toEqual(['all', ...STATUSES]);
   });
 });

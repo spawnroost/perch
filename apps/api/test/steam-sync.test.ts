@@ -170,7 +170,20 @@ describe.skipIf(!testUrl)('steam library sync', () => {
     const u = await signedIn(ctx, true);
     const res = await sync(ctx, u.cookie);
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ imported: 2, updated: 0, unmatched: 1, total: 3 });
+    expect(await res.json()).toEqual({
+      imported: 2,
+      updated: 0,
+      unmatched: 1,
+      total: 3,
+      playedBefore: [
+        {
+          entryId: expect.any(String),
+          title: expect.any(String),
+          minutes: 90,
+          lastPlayed: new Date(1_700_000_000 * 1000).toISOString(),
+        },
+      ],
+    });
     const rows = await entries(u.id);
     expect(rows.map((r) => r.igdbId).sort()).toEqual([G1, G2]);
     expect(rows.find((r) => r.igdbId === G1)).toMatchObject({ source: 'steam', hoursPlayed: 1.5 });

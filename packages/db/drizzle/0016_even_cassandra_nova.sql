@@ -1,0 +1,2 @@
+ALTER TABLE "library_entries" DROP CONSTRAINT "library_entries_status_chk";--> statement-breakpoint
+ALTER TABLE "library_entries" ADD CONSTRAINT "library_entries_status_chk" CHECK ("library_entries"."status" in ('playing', 'finished', 'dropped', 'backlog', 'paused'));

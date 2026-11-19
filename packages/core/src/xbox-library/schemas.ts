@@ -33,6 +33,7 @@ export const xboxTitleHistoryResponseSchema = z.object({
               visible: z.boolean().nullish(),
             })
             .nullish(),
+          achievement: z.object({ progressPercentage: z.number().nullish() }).nullish(),
         }),
       )
       .nullish(),
@@ -45,6 +46,8 @@ export interface XboxTitle {
   name: string;
   platform: 'xbox' | 'pc';
   lastPlayed: Date | null;
+  /** Achievement progress 0-100; 0 when unknown. */
+  achievementProgress: number;
 }
 
 export interface XboxProfile {

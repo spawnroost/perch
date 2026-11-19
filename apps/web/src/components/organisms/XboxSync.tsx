@@ -1,7 +1,9 @@
 import { Button, Notice } from '../atoms';
 import { ActionForm, FormField, UnmatchedTitles } from '../molecules';
+import { PlayedBeforeSheet } from './PlayedBeforeSheet';
 import { useLinkXbox, useSyncXbox, useUnlinkXbox } from '@/hooks/queries';
 import { importResultSummary } from '@/lib/exportImport';
+import { NO_PLAYED_BEFORE } from '@/lib/playedBefore';
 import { syncedAgo } from '@/lib/steamSync';
 import { xboxErrorText } from '@/lib/xboxSync';
 
@@ -67,6 +69,7 @@ export function XboxSync({
           <UnmatchedTitles titles={last.unmatched} count={last.unmatchedCount} />
         </>
       )}
+      <PlayedBeforeSheet entries={last?.playedBefore ?? NO_PLAYED_BEFORE} />
       {error && <Notice tone="error">{xboxErrorText(error)}</Notice>}
       {gamertag && (
         <Button

@@ -19,7 +19,12 @@ export function syncedAgo(iso: string | null, now: Date): string {
   return `Synced ${d} ${d === 1 ? 'day' : 'days'} ago`;
 }
 
-export function steamSyncSummary({ imported, updated, unmatched, total }: SteamSyncResult): string {
+export function steamSyncSummary({
+  imported,
+  updated,
+  unmatched,
+  total,
+}: Pick<SteamSyncResult, 'imported' | 'updated' | 'unmatched' | 'total'>): string {
   const base = `Imported ${imported} new and updated ${updated} of ${total} games.`;
   return unmatched > 0 ? `${base} ${unmatched} could not be matched.` : base;
 }

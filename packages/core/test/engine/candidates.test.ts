@@ -41,6 +41,9 @@ describe('isBacklog', () => {
     expect(isBacklog(item(g, 2, 3, 'playing'))).toBe(false);
     expect(isBacklog(item(g, 40, 3, 'finished'))).toBe(false);
     expect(isBacklog(item(g, 0, null, 'backlog', false))).toBe(false);
+    // Paused means played before: never "still waiting", even with no hours (Xbox).
+    expect(isBacklog(item(g, null, null, 'paused'))).toBe(false);
+    expect(isBacklog(item(g, 0, 400, 'paused'))).toBe(false);
   });
 });
 

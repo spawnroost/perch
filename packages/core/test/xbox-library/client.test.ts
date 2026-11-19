@@ -70,7 +70,9 @@ describe('fetchTitleHistory', () => {
   it('returns cleaned games for the xuid', async () => {
     const f = stub(json(titles(game, { titleId: '8', name: 'Netflix', type: 'App' })));
     const out = await fetchTitleHistory('1000', { apiKey: 'k', fetch: f });
-    expect(out).toEqual([{ titleId: '7', name: 'Hades', platform: 'xbox', lastPlayed: null }]);
+    expect(out).toEqual([
+      { titleId: '7', name: 'Hades', platform: 'xbox', lastPlayed: null, achievementProgress: 0 },
+    ]);
     expect(String(f.mock.calls[0]![0])).toBe('https://xbl.io/api/v2/player/titleHistory/1000');
   });
 

@@ -1,8 +1,13 @@
 import { useRef, useState, type ChangeEvent } from 'react';
 import { FileUp } from 'lucide-react';
-import { parseLibraryExport, type ParsedExport } from '@perch/core/browser';
+import {
+  parseLibraryExport,
+  type ExportImportResult,
+  type ParsedExport,
+} from '@perch/core/browser';
 import { Button, Notice } from '../atoms';
 import { UnmatchedTitles } from '../molecules';
+import { PlayedBeforePrompt } from './PlayedBeforePrompt';
 import { useImportExportGames } from '@/hooks/queries';
 import { foundSummary, importResultSummary, readExportFiles } from '@/lib/exportImport';
 
@@ -12,6 +17,8 @@ export function ExportImport({ onDone }: { onDone: () => void }) {
   const [parsed, setParsed] = useState<ParsedExport | null>(null);
   const importer = useImportExportGames();
   const result = importer.data;
+  // The played-before question comes first and, once answered, shows the usual summary.
+  const [asked, setAsked] = useState<ExportImportResult | null>(null);
 
   async function onPick(e: ChangeEvent<HTMLInputElement>) {
     const files = [...(e.target.files ?? [])];
@@ -85,7 +92,10 @@ export function ExportImport({ onDone }: { onDone: () => void }) {
           )}
         </>
       )}
-      {result && (
+      {result && result.playedBefore.length > 0 && asked !== result && (
+        <PlayedBeforePrompt entries={result.playedBefore} onDone={() => setAsked(result)} />
+      )}
+      {result && (result.playedBefore.length === 0 || asked === result) && (
         <>
           <Notice tone="success">{importResultSummary(result)}</Notice>
           <UnmatchedTitles titles={result.unmatched} count={result.unmatchedCount} />
