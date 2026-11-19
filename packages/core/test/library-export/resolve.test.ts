@@ -71,6 +71,17 @@ describe('resolveExportGames', () => {
     expect(await resolveExportGames(client, [g('epic', 'Doom')])).toEqual([3]);
   });
 
+  it('prefers the most rated main game over an older namesake', async () => {
+    const client = stub({
+      names: [
+        { ...named(80529, 'Hades', 0, 1995), ratingCount: 3 },
+        { ...named(113112, 'Hades', 0, 2020), ratingCount: 900 },
+        { ...named(5, 'Hades', 8, 2024), ratingCount: 5000 }, // not a main game
+      ],
+    });
+    expect(await resolveExportGames(client, [g('epic', 'Hades')])).toEqual([113112]);
+  });
+
   it('compares names normalised and queries each distinct title once', async () => {
     const client = stub({ names: [named(5, 'Hades', 0, 2020)] });
     const titles = Array.from({ length: 120 }, (_, i) => g('epic', `T${i}`));

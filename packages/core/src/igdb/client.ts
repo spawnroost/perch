@@ -344,7 +344,7 @@ export function createIgdbClient(opts: IgdbClientOptions): IgdbClient {
           .join(',');
         const rows = await query(
           'games',
-          `fields name,game_type,first_release_date; where name = (${list}); limit ${IGDB_MAX_LIMIT};`,
+          `fields name,game_type,first_release_date,total_rating_count; where name = (${list}); limit ${IGDB_MAX_LIMIT};`,
           igdbNamedGamesResponseSchema,
         );
         for (const r of rows)
@@ -353,6 +353,7 @@ export function createIgdbClient(opts: IgdbClientOptions): IgdbClient {
             name: r.name,
             gameType: r.game_type ?? null,
             firstRelease: r.first_release_date ? new Date(r.first_release_date * 1000) : null,
+            ratingCount: r.total_rating_count ?? null,
           });
       }
       return out;

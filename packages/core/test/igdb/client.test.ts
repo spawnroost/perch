@@ -612,6 +612,7 @@ describe('gamesByExactName', () => {
       name: 'Celeste',
       gameType: 0,
       firstRelease: new Date(1516838400 * 1000),
+      ratingCount: null,
     });
   });
 

@@ -93,6 +93,7 @@ export const igdbNamedGamesResponseSchema = z.array(
     name: z.string(),
     game_type: z.number().int().optional(),
     first_release_date: z.number().optional(),
+    total_rating_count: z.number().optional(),
   }),
 );
 
@@ -102,6 +103,8 @@ export interface NamedGame {
   name: string;
   gameType: number | null;
   firstRelease: Date | null;
+  /** IGDB rating count, a popularity proxy for same-name ties. */
+  ratingCount?: number | null;
 }
 
 export const igdbGamesResponseSchema = z.array(igdbGameSchema);

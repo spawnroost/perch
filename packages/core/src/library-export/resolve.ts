@@ -5,10 +5,16 @@ import type { ExportGame } from './schemas.js';
 
 const MAIN_GAME = 0;
 
-/** Main games first, then the earliest release (unknown last), then the lowest id. */
+/**
+ * Main games first, then the most rated (same-name games are usually one famous title and
+ * obscure namesakes, e.g. Hades 2020 vs 1995), then the earliest release, then the lowest id.
+ */
 function better(a: NamedGame, b: NamedGame): NamedGame {
   const main = (g: NamedGame) => (g.gameType === MAIN_GAME ? 0 : 1);
   if (main(a) !== main(b)) return main(a) < main(b) ? a : b;
+  const ra = a.ratingCount ?? 0;
+  const rb = b.ratingCount ?? 0;
+  if (ra !== rb) return ra > rb ? a : b;
   const ta = a.firstRelease?.getTime() ?? Infinity;
   const tb = b.firstRelease?.getTime() ?? Infinity;
   if (ta !== tb) return ta < tb ? a : b;
