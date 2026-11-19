@@ -12,18 +12,17 @@ export function AppLayout() {
   return (
     <div className="min-h-dvh bg-ground">
       <header className="sticky top-0 z-10 border-b border-line bg-ground">
-        <div className="flex h-12 w-full items-center justify-between gap-4 px-gutter">
-          <div className="flex items-center gap-4">
-            <Link
-              to="/"
-              className="inline-flex items-center gap-2 rounded-sm text-lg font-semibold tracking-display text-fg"
-            >
-              <Logo aria-hidden className="size-6" />
-              Perch
-            </Link>
-            <NavBar />
-          </div>
-          <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-x-4 px-gutter py-1.5 sm:h-12 sm:flex-nowrap sm:py-0">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 rounded-sm text-lg font-semibold tracking-display text-fg"
+          >
+            <Logo aria-hidden className="size-6" />
+            Perch
+          </Link>
+          {/* Phones: the nav takes its own full-width row under the logo and actions. */}
+          <NavBar className="order-last w-full justify-between sm:order-none sm:w-auto sm:justify-start" />
+          <div className="ml-auto flex items-center gap-2">
             <GlobalSearch />
             <AccountMenu />
           </div>
@@ -32,7 +31,7 @@ export function AppLayout() {
       <main
         className={cn(
           'mx-auto flex w-full flex-col gap-4',
-          kind === 'narrow' ? 'max-w-3xl p-6' : 'max-w-none',
+          kind === 'narrow' ? 'max-w-3xl p-4 sm:p-6' : 'max-w-none',
         )}
       >
         <Outlet />

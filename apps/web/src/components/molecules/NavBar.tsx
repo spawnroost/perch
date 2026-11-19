@@ -8,9 +8,9 @@ const NAV_ITEMS = [
   { to: '/devices', label: 'Devices', end: false },
 ] as const;
 
-export function NavBar() {
+export function NavBar({ className }: { className?: string }) {
   return (
-    <nav aria-label="Main" className="flex items-center gap-1">
+    <nav aria-label="Main" className={cn('flex items-center gap-1', className)}>
       {NAV_ITEMS.map(({ to, label, end }) => (
         <NavLink
           key={to}

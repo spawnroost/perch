@@ -24,7 +24,7 @@ import { platformNames } from '@/lib/platforms';
 import { timeToBeatLabel } from '@/lib/timeToBeat';
 
 /** Sized once so the loading skeleton and the loaded cover are the same shared-element target. */
-const COVER_BOX = 'w-32 shrink-0 sm:w-40 md:w-55';
+const COVER_BOX = 'w-28 shrink-0 sm:w-40 md:w-55';
 
 /** Fades its content in when it first appears (keyed swaps from placeholder to real data included). */
 function Reveal({ skip, children }: { skip?: boolean; children: React.ReactNode }) {

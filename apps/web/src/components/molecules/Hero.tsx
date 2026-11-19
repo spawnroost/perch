@@ -75,10 +75,12 @@ export function Hero({
         <div className="absolute inset-0 bg-linear-to-r from-ground/60 to-transparent to-45%" />
       </div>
       {overlay ? <div className="absolute top-4 left-gutter z-10">{overlay}</div> : null}
-      <div className="flex items-end gap-6 px-gutter pt-24 pb-8">
+      <div className="flex flex-col items-start gap-4 px-gutter pt-20 pb-6 sm:flex-row sm:items-end sm:gap-6 sm:pt-24 sm:pb-8">
         {cover}
-        <div className="flex min-w-0 flex-col gap-4">
-          <Title className="font-title text-display-lg text-fg">{title}</Title>
+        <div className="flex w-full min-w-0 flex-col gap-3 sm:w-auto sm:gap-4">
+          <Title className="font-title text-display-sm wrap-break-word text-fg sm:text-display-md md:text-display-lg">
+            {title}
+          </Title>
           {meta ? (
             <div className="flex flex-wrap items-center gap-2 text-fg-muted">{meta}</div>
           ) : null}

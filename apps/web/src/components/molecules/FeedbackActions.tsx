@@ -26,7 +26,7 @@ export function FeedbackActions({
   labels = false,
 }: FeedbackActionsProps) {
   return (
-    <div role="group" aria-label="Feedback" className="flex items-center gap-1">
+    <div role="group" aria-label="Feedback" className="flex flex-wrap items-center gap-1">
       {ACTIONS.map(({ kind, label, Icon }) => (
         <Button
           key={kind}

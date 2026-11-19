@@ -224,6 +224,13 @@
   }
 }
 
+/* Tighter page gutter on phones (the theme value above is the desktop one). */
+@media (width < 40rem) {
+  :root {
+    --spacing-gutter: 1rem;
+  }
+}
+
 /*
  * Accent family. "inline" so utilities read the --accent-* helpers where they are used. The helpers
  * are declared on every element (see the base layer), so a component that sets --accent on a
