@@ -10,6 +10,8 @@ export const PROFILE_TOP_N = 15;
 export const NULL_HOURS = 1;
 /** Rating multipliers on the base weight; 3 and unrated are neutral. A 1 flips the sign instead. */
 const RATING_FACTOR: Record<number, number> = { 2: 0.5, 3: 1, 4: 1.2, 5: 1.5 };
+/** A 4 or 5 weighs at least this much, so an unplayed game the user loves still counts. */
+const RATING_FLOOR: Record<number, number> = { 4: 0.6, 5: 1 };
 /** A 1 rating weighs at least this much (negative), so even an unplayed game reads as disliked. */
 export const MIN_DISLIKE_WEIGHT = 0.5;
 const DAY_MS = 86_400_000;
@@ -28,7 +30,8 @@ function recency(lastPlayed: Date | null, now: Date): number {
 
 function rated(base: number, rating: number | null | undefined): number {
   if (rating === 1) return -Math.max(base, MIN_DISLIKE_WEIGHT);
-  return base * (RATING_FACTOR[rating ?? 3] ?? 1);
+  const r = rating ?? 3;
+  return Math.max(base * (RATING_FACTOR[r] ?? 1), RATING_FLOOR[r] ?? -Infinity);
 }
 
 /** Library games by weight, highest first. */

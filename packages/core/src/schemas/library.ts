@@ -51,6 +51,8 @@ export const libraryPatchSchema = z
   })
   .refine((v) => Object.values(v).some((x) => x !== undefined), 'nothing to update');
 
+export const libraryRatingSchema = z.object({ rating: ratingSchema });
+
 export const BULK_STATUS_MAX = 5000;
 export const libraryBulkStatusSchema = z.object({
   ids: z.array(z.uuid()).min(1).max(BULK_STATUS_MAX),
@@ -116,6 +118,7 @@ export type LibraryEntry = z.infer<typeof libraryEntrySchema>;
 export type LibraryCreate = z.input<typeof libraryCreateSchema>;
 export type LibraryBulkStatusInput = z.input<typeof libraryBulkStatusSchema>;
 export type PlayedBeforeResolveInput = z.input<typeof playedBeforeResolveSchema>;
+export type LibraryRatingInput = z.input<typeof libraryRatingSchema>;
 export type LibraryPatchInput = z.input<typeof libraryPatchSchema>;
 export type ImportPreviewResponse = z.infer<typeof importPreviewResponseSchema>;
 export type ImportConfirm = z.input<typeof importConfirmSchema>;

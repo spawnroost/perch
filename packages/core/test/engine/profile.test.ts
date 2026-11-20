@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildProfile } from '../../src/engine/profile.js';
+import { mergeLibrary } from '../../src/engine/recommend.js';
 import { LIBRARY, NOW, game, item } from './fixtures.js';
 
 const weightOf = (p: ReturnType<typeof buildProfile>, id: number) =>
@@ -184,7 +185,7 @@ describe('buildProfile vectors', () => {
 
   it('personal ratings scale the base weight: 5 x1.5, 4 x1.2, 3/null x1, 2 x0.5', () => {
     const rated = (id: number, rating: number | null) => ({
-      ...item(game(id, `G${id}`, { x: 1 }), 10, 100),
+      ...item(game(id, `G${id}`, { x: 1 }), 10, 10),
       rating,
     });
     const p = buildProfile({
@@ -197,6 +198,20 @@ describe('buildProfile vectors', () => {
     expect(weightOf(p, 3)! / base).toBeCloseTo(1.2, 10);
     expect(weightOf(p, 4)! / base).toBeCloseTo(1, 10);
     expect(weightOf(p, 5)! / base).toBeCloseTo(0.5, 10);
+  });
+
+  it('4 and 5 keep a positive floor so an unplayed rated game still counts', () => {
+    const rated = (id: number, rating: number) => ({
+      ...item(game(id, `G${id}`, { x: 1 }), 0, null),
+      rating,
+    });
+    const p = buildProfile({
+      library: [...fillers, rated(1, 5), rated(2, 4)],
+      feedback: [],
+      now: NOW,
+    });
+    expect(weightOf(p, 1)).toBeCloseTo(1, 10);
+    expect(weightOf(p, 2)).toBeCloseTo(0.6, 10);
   });
 
   it('a 1 rating makes the weight negative (-max(base, 0.5)) and feedback still adds on top', () => {
@@ -230,5 +245,15 @@ describe('buildProfile vectors', () => {
   it('an empty library gives an empty profile', () => {
     const p = buildProfile({ library: [], feedback: [], now: NOW });
     expect(p).toEqual({ vocab: {}, genres: {}, themes: {}, weights: [] });
+  });
+});
+
+describe('mergeLibrary rating', () => {
+  it('takes the highest non-null rating across platform entries', () => {
+    const g = game(1, 'A', { x: 1 });
+    const mk = (rating: number | null, days: number) => ({ ...item(g, 1, days), rating });
+    expect(mergeLibrary([mk(2, 1), mk(5, 9), mk(null, 3)])[0]!.rating).toBe(5);
+    expect(mergeLibrary([mk(5, 1), mk(2, 9)])[0]!.rating).toBe(5);
+    expect(mergeLibrary([mk(null, 1), mk(null, 2)])[0]!.rating).toBeNull();
   });
 });

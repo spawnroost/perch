@@ -665,6 +665,31 @@ describe.skipIf(!testUrl)('api routes', () => {
       expect(((await cleared.json()) as { entry: unknown }).entry).toMatchObject({ rating: null });
     });
 
+    it('PUT /games/:igdbId/rating rates the game on every platform; 404 when not owned', async () => {
+      const u = await newUser();
+      expect(
+        (await call('PUT', `/api/library/games/${A}/rating`, u.cookie, { rating: 3 })).status,
+      ).toBe(404);
+      await call('POST', '/api/library', u.cookie, { igdbId: A, platform: 'pc' });
+      await call('POST', '/api/library', u.cookie, { igdbId: A, platform: 'ps5' });
+      const ok = await call('PUT', `/api/library/games/${A}/rating`, u.cookie, { rating: 5 });
+      expect(ok.status).toBe(200);
+      const list = (await (await get('/api/library', u.cookie)).json()) as {
+        entries: { rating: number | null }[];
+      };
+      expect(list.entries.map((e) => e.rating)).toEqual([5, 5]);
+      for (const rating of [0, 6, 'x', undefined]) {
+        expect(
+          (await call('PUT', `/api/library/games/${A}/rating`, u.cookie, { rating })).status,
+        ).toBe(400);
+      }
+      await call('PUT', `/api/library/games/${A}/rating`, u.cookie, { rating: null });
+      const after = (await (await get('/api/library', u.cookie)).json()) as {
+        entries: { rating: number | null }[];
+      };
+      expect(after.entries.map((e) => e.rating)).toEqual([null, null]);
+    });
+
     it('returns 201 for a new entry and 200 when re-adding updates it', async () => {
       const u = await newUser();
       const first = await call('POST', '/api/library', u.cookie, { igdbId: A, hoursPlayed: 1 });

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { LibraryEntry } from '@perch/core';
 import { Button, Notice, RatingStars } from '../atoms';
 import { ActionForm, FormField, SelectField } from '../molecules';
+import { useGameRating } from '@/hooks/useGameRating';
 import { useRemoveLibraryEntry, useUpdateLibraryEntry } from '@/hooks/queries';
 import { buildPatch, STATUS_LABEL, STATUSES, toForm, type Status } from '@/lib/library';
 
@@ -12,7 +13,7 @@ export function LibraryEntryEditor({ entry, onDone }: { entry: LibraryEntry; onD
   const [formError, setFormError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const form = toForm(entry);
-  const [rating, setRating] = useState(form.rating);
+  const game = useGameRating(entry.igdbId);
   const busy = update.isPending || remove.isPending;
 
   function onSubmit(data: FormData) {
@@ -20,7 +21,6 @@ export function LibraryEntryEditor({ entry, onDone }: { entry: LibraryEntry; onD
       hours: String(data.get('hours') ?? ''),
       lastPlayed: String(data.get('lastPlayed') ?? ''),
       status: String(data.get('status')) as Status,
-      rating,
     });
     if (!result.ok) return setFormError(result.error);
     setFormError(null);
@@ -77,7 +77,13 @@ export function LibraryEntryEditor({ entry, onDone }: { entry: LibraryEntry; onD
       </SelectField>
       <div className="flex flex-col gap-1.5">
         <span className="text-sm font-medium text-fg-muted">Your rating</span>
-        <RatingStars label="Your rating" value={rating} onChange={setRating} disabled={busy} />
+        <RatingStars
+          label="Your rating"
+          value={game.rating}
+          onChange={game.rate}
+          disabled={busy || game.pending}
+        />
+        {game.error ? <Notice tone="error">{game.error.message}</Notice> : null}
       </div>
     </ActionForm>
   );

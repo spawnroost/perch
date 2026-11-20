@@ -93,7 +93,7 @@ export async function filterByDevices<T extends { game: EngineGame }>(
   return kept;
 }
 
-/** One library row per game: hours add up, the latest play and status win, owned if any is. */
+/** One library row per game: hours add up, the latest play and status win, owned if any is, the highest rating wins. */
 export function mergeLibrary(library: readonly LibraryItem[]): LibraryItem[] {
   const merged = new Map<number, LibraryItem>();
   for (const l of library) {
@@ -109,7 +109,7 @@ export function mergeLibrary(library: readonly LibraryItem[]): LibraryItem[] {
       lastPlayed: newer ? l.lastPlayed : prev.lastPlayed,
       status: newer ? l.status : prev.status,
       owned: prev.owned || l.owned,
-      rating: l.rating ?? prev.rating ?? null,
+      rating: Math.max(l.rating ?? 0, prev.rating ?? 0) || null,
     });
   }
   return [...merged.values()];

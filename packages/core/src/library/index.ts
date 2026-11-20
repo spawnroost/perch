@@ -26,6 +26,7 @@ export {
   findLibraryEntry,
   getLibraryEntry,
   listLibrary,
+  setGameRating,
   updateLibraryEntry,
 } from './entries.js';
 export type { LibraryPatch, LibraryRow } from './entries.js';

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { LibraryEntry } from '@perch/core';
 import {
   buildPatch,
-  entriesToRate,
   gameRating,
+  withGameRating,
   games,
   filterLibrary,
   formatHours,
@@ -110,13 +110,11 @@ describe('buildPatch', () => {
       hours: '10',
       lastPlayed: '2026-03-01',
       status: 'playing',
-      rating: null,
     });
     expect(toForm(entry({}))).toEqual({
       hours: '',
       lastPlayed: '',
       status: 'backlog',
-      rating: null,
     });
   });
   it('sends only what changed', () => {
@@ -125,28 +123,27 @@ describe('buildPatch', () => {
       patch: { hoursPlayed: 12.5 },
     });
   });
-  it('sends a rating change and null to clear it', () => {
-    expect(buildPatch(base, { ...toForm(base), rating: 4 })).toEqual({
-      ok: true,
-      patch: { rating: 4 },
-    });
-    const rated = entry({ rating: 4 });
-    expect(buildPatch(rated, { ...toForm(rated), rating: null })).toEqual({
-      ok: true,
-      patch: { rating: null },
-    });
-    expect(buildPatch(rated, toForm(rated))).toEqual({ ok: true, patch: null });
-  });
-  it('picks a game rating and the entries to patch across platforms', () => {
+  it('the game rating is the highest across platform entries', () => {
     const list = [
       entry({ id: 'p', igdbId: 7, rating: null }),
       entry({ id: 'q', igdbId: 7, rating: 3 }),
-      entry({ id: 'r', igdbId: 8, rating: 5 }),
+      entry({ id: 'x', igdbId: 7, rating: 5 }),
+      entry({ id: 'r', igdbId: 8, rating: 2 }),
     ];
-    expect(gameRating(list, 7)).toBe(3);
+    expect(gameRating(list, 7)).toBe(5);
+    expect(gameRating(list, 8)).toBe(2);
     expect(gameRating(list, 9)).toBeNull();
-    expect(entriesToRate(list, 7, 3)).toEqual(['p']);
-    expect(entriesToRate(list, 7, null)).toEqual(['q']);
+  });
+  it('withGameRating sets every entry of that game and leaves others alone', () => {
+    const list = [
+      entry({ id: 'p', igdbId: 7 }),
+      entry({ id: 'q', igdbId: 7, rating: 3 }),
+      entry({ id: 'r', igdbId: 8, rating: 2 }),
+    ];
+    const out = withGameRating(list, 7, 4);
+    expect(out.map((e) => e.rating)).toEqual([4, 4, 2]);
+    expect(withGameRating(list, 7, null).map((e) => e.rating)).toEqual([null, null, 2]);
+    expect(list[0]!.rating).toBeNull();
   });
   it('returns no patch when nothing changed', () => {
     expect(buildPatch(base, toForm(base))).toEqual({ ok: true, patch: null });

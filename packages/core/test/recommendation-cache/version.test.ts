@@ -10,6 +10,7 @@ import {
   listLibrary,
   removeFeedback,
   updateDevice,
+  setGameRating,
   updateLibraryEntry,
   upsertLibraryGame,
   type Game,
@@ -104,6 +105,23 @@ describe.skipIf(!url)('recs_version', () => {
       ),
     ).toBeGreaterThan(0);
     expect(await bump(() => deleteLibraryEntry(db, USER, entry!.id))).toBe(1);
+  });
+
+  it('setGameRating rates every platform entry and bumps once', async () => {
+    await upsertLibraryGame(deps(), USER, { igdbId: G, platform: 'pc' }, 'manual');
+    await upsertLibraryGame(deps(), USER, { igdbId: G, platform: 'ps5' }, 'manual');
+    expect(await bump(() => setGameRating(db, USER, G, 5))).toBe(1);
+    const rows = (await listLibrary(db, USER)).filter((r) => r.igdbId === G);
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.rating)).toEqual([5, 5]);
+    expect(await bump(() => setGameRating(db, USER, G, null))).toBe(1);
+    expect(
+      (await listLibrary(db, USER)).filter((r) => r.igdbId === G).map((r) => r.rating),
+    ).toEqual([null, null]);
+    expect(await bump(() => setGameRating(db, USER, 987654999, 3))).toBe(0);
+    expect(await setGameRating(db, USER, 987654999, 3)).toBe(0);
+    await deleteLibraryEntry(db, USER, rows[0]!.id);
+    await deleteLibraryEntry(db, USER, rows[1]!.id);
   });
 
   it('feedback writes bump it', async () => {

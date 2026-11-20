@@ -5,6 +5,8 @@ import {
   deleteLibraryEntry,
   findLibraryEntry,
   idParamSchema,
+  igdbIdParamSchema,
+  libraryRatingSchema,
   exportImportSchema,
   importConfirmSchema,
   importExportGames,
@@ -19,6 +21,7 @@ import {
   listLibrary,
   previewImport,
   rebuildProfile,
+  setGameRating,
   setLibraryStatus,
   updateLibraryEntry,
   upsertLibraryGame,
@@ -366,6 +369,18 @@ export function libraryRoutes(deps: RouteDeps) {
     const { updated } = await setLibraryStatus(db, userId, ids, status);
     if (updated > 0) await rebuild(userId);
     return c.json({ updated });
+  });
+
+  // Rating is per game: every platform entry of it gets the same value.
+  r.put('/games/:igdbId/rating', async (c) => {
+    const userId = c.get('user').id;
+    const { igdbId } = parseParams(c, igdbIdParamSchema);
+    const { rating } = await parseBody(c, libraryRatingSchema);
+    if ((await setGameRating(db, userId, igdbId, rating)) === 0) {
+      return c.json({ error: 'not found' }, 404);
+    }
+    await rebuild(userId);
+    return c.json({ rating });
   });
 
   r.patch('/:id', async (c) => {

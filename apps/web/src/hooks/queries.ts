@@ -57,6 +57,7 @@ import { BROWSE_LIMIT, nextOffset } from '@/lib/browse';
 import { ALL_TAB, FOR_YOU_LIMIT } from '@/lib/forYou';
 import { seedGameDetail } from '@/lib/gameSeed';
 import { devicesAffected, libraryAffected } from '@/lib/invalidation';
+import { withGameRating } from '@/lib/library';
 import { resolveBodies, type ResolveBody } from '@/lib/playedBefore';
 import { shouldRetry } from '@/lib/retry';
 import { queryKeys } from '@/lib/queryKeys';
@@ -364,6 +365,29 @@ export function useUpdateLibraryEntry() {
     mutationFn: ({ id, patch }: { id: string; patch: LibraryPatchInput }) =>
       api.patch<{ entry: LibraryEntry }>(`/api/library/${id}`, patch),
     onSuccess: () => invalidateAll(qc, libraryAffected),
+  });
+}
+
+/** Rates a game on all its library entries; the library cache updates at once and rolls back on error. */
+export function useRateGame() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ igdbId, rating }: { igdbId: number; rating: number | null }) =>
+      api.put<{ rating: number | null }>(`/api/library/games/${igdbId}/rating`, { rating }),
+    onMutate: async ({ igdbId, rating }) => {
+      await qc.cancelQueries({ queryKey: queryKeys.library });
+      const previous = qc.getQueryData<{ entries: LibraryEntry[] }>(queryKeys.library);
+      if (previous) {
+        qc.setQueryData(queryKeys.library, {
+          entries: withGameRating(previous.entries, igdbId, rating),
+        });
+      }
+      return { previous };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.previous) qc.setQueryData(queryKeys.library, ctx.previous);
+    },
+    onSettled: () => invalidateAll(qc, libraryAffected),
   });
 }
 

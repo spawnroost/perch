@@ -115,6 +115,27 @@ export async function updateLibraryEntry(
   return getLibraryEntry(db, userId, id);
 }
 
+/**
+ * Rates a game on all the user's entries of it (one per platform) in one transaction; bumps
+ * recs_version once. Returns how many entries changed: 0 when the game is not in their library.
+ */
+export async function setGameRating(
+  db: Db,
+  userId: string,
+  igdbId: number,
+  rating: number | null,
+): Promise<number> {
+  return db.transaction(async (tx) => {
+    const rows = await tx
+      .update(libraryEntries)
+      .set({ rating })
+      .where(and(eq(libraryEntries.userId, userId), eq(libraryEntries.igdbId, igdbId)))
+      .returning({ id: libraryEntries.id });
+    if (rows.length > 0) await bumpRecsVersion(tx, userId);
+    return rows.length;
+  });
+}
+
 /** Deletes the user's entry; false when it is not theirs. */
 export async function deleteLibraryEntry(db: Db, userId: string, id: string): Promise<boolean> {
   return db.transaction(async (tx) => {

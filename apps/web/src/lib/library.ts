@@ -155,7 +155,6 @@ export interface EntryForm {
   /** `YYYY-MM-DD` or empty. */
   lastPlayed: string;
   status: Status;
-  rating: number | null;
 }
 
 export function toForm(entry: LibraryEntry): EntryForm {
@@ -163,7 +162,6 @@ export function toForm(entry: LibraryEntry): EntryForm {
     hours: entry.hoursPlayed === null ? '' : String(entry.hoursPlayed),
     lastPlayed: entry.lastPlayed?.slice(0, 10) ?? '',
     status: entry.status,
-    rating: entry.rating,
   };
 }
 
@@ -193,21 +191,26 @@ export function buildPatch(entry: LibraryEntry, form: EntryForm): PatchResult {
   if (date !== (entry.lastPlayed?.slice(0, 10) ?? '')) patch.lastPlayed = date || null;
 
   if (form.status !== entry.status) patch.status = form.status;
-  if (form.rating !== entry.rating) patch.rating = form.rating;
 
   return { ok: true, patch: Object.keys(patch).length > 0 ? patch : null };
 }
 
-/** A game can sit in the library once per platform; its rating shows the first one set. */
+/** A game can sit in the library once per platform; its rating is the highest one set. */
 export function gameRating(entries: readonly LibraryEntry[], igdbId: number): number | null {
-  return entries.find((e) => e.igdbId === igdbId && e.rating !== null)?.rating ?? null;
+  let best: number | null = null;
+  for (const e of entries) {
+    if (e.igdbId === igdbId && e.rating !== null && (best === null || e.rating > best)) {
+      best = e.rating;
+    }
+  }
+  return best;
 }
 
-/** Ids of every entry of a game whose rating differs from `rating`: the ones to patch. */
-export function entriesToRate(
+/** The entries with every entry of the game carrying `rating`: the optimistic cache update. */
+export function withGameRating(
   entries: readonly LibraryEntry[],
   igdbId: number,
   rating: number | null,
-): string[] {
-  return entries.filter((e) => e.igdbId === igdbId && e.rating !== rating).map((e) => e.id);
+): LibraryEntry[] {
+  return entries.map((e) => (e.igdbId === igdbId ? { ...e, rating } : e));
 }
