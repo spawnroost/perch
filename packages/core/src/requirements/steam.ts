@@ -7,7 +7,8 @@ import type { VoiceReview } from '../player-voice/schemas.js';
 import { parseReviewSummary, type SteamReviews } from '../steam-reviews/summary.js';
 import { htmlToLines, parseSteamRequirements, scoreRequirements } from './parse.js';
 
-const REVIEWS_URL = 'https://store.steampowered.com/appreviews';
+/** Valve retired store.steampowered.com/appreviews on 2026-10-22; this keyless Web API replaced it. */
+const REVIEWS_URL = 'https://api.steampowered.com/IUserReviewsService/GetAppReviews/v1/';
 const API_URL = 'https://store.steampowered.com/api/appdetails';
 export const REQUIREMENTS_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 /** Per block, so a long minimum section cannot crowd out the recommended one. */
@@ -154,7 +155,7 @@ export function createSteamClient(opts: SteamClientOptions = {}): SteamClient {
 
     async getReviewSummary(appId) {
       const id = Math.trunc(appId);
-      const url = `${REVIEWS_URL}/${id}?json=1&num_per_page=0&language=all&purchase_type=steam`;
+      const url = `${REVIEWS_URL}?appid=${id}&num_per_page=1&languages%5B0%5D=all&purchase_type=0&review_type=0`;
       const res = await request(url, 'reviews', id);
       try {
         return parseReviewSummary(JSON.parse(await res.text()));
@@ -165,7 +166,8 @@ export function createSteamClient(opts: SteamClientOptions = {}): SteamClient {
 
     async getReviewTexts(appId) {
       const id = Math.trunc(appId);
-      const url = `${REVIEWS_URL}/${id}?json=1&filter=all&language=english&purchase_type=steam&num_per_page=100&review_type=all`;
+      // filter 0 = most helpful; day_range 0 = all time (default is 30 days).
+      const url = `${REVIEWS_URL}?appid=${id}&filter=0&day_range=0&purchase_type=0&num_per_page=100&review_type=0`;
       const res = await request(url, 'review texts', id);
       let body: unknown;
       try {

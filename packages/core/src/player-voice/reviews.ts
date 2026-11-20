@@ -11,8 +11,7 @@ export const VOICE_MIN_REVIEW_CHARS = 40;
 export const MIN_VOICE_REVIEWS = 10;
 
 const bodySchema = z.object({
-  success: z.number().optional(),
-  reviews: z.array(z.unknown()).optional(),
+  response: z.object({ reviews: z.array(z.unknown()).optional() }),
 });
 
 const reviewSchema = z.object({
@@ -50,14 +49,11 @@ export function pickReviews(raw: readonly unknown[]): VoiceReview[] {
 }
 
 /**
- * The picked reviews of a Steam `appreviews` response body. Empty only when Steam answers
- * `success: 1` with no (or few) reviews; throws on anything else, so a Steam hiccup is not cached
- * as "none".
+ * The picked reviews of a Steam `GetAppReviews` body. Empty when Steam answers `{response: {}}`
+ * (unknown app or no reviews) or has too few usable reviews; throws when `response` is missing,
+ * so a Steam hiccup is not cached as "none".
  */
 export function parseReviewTexts(body: unknown): VoiceReview[] {
   const parsed = bodySchema.parse(body);
-  if (parsed.success !== 1)
-    throw new Error(`Steam reviews response not successful (${parsed.success})`);
-  if (!parsed.reviews) throw new Error('Steam reviews response has no reviews list');
-  return pickReviews(parsed.reviews);
+  return pickReviews(parsed.response.reviews ?? []);
 }

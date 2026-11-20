@@ -63,20 +63,18 @@ describe('pickReviews', () => {
 });
 
 describe('parseReviewTexts', () => {
-  it('reads the reviews of a successful body', () => {
-    expect(parseReviewTexts({ success: 1, reviews: [raw()] })).toHaveLength(1);
+  it('reads the reviews of a response body', () => {
+    expect(parseReviewTexts({ response: { reviews: [raw()] } })).toHaveLength(1);
   });
-  it('is empty only when Steam succeeds with no reviews', () => {
-    expect(parseReviewTexts({ success: 1, reviews: [] })).toEqual([]);
+  it('is empty when Steam answers with no reviews or an empty response (unknown app)', () => {
+    expect(parseReviewTexts({ response: { reviews: [] } })).toEqual([]);
+    expect(parseReviewTexts({ response: {} })).toEqual([]);
   });
-  it('throws when success is not 1 or missing', () => {
-    expect(() => parseReviewTexts({ success: 0 })).toThrow();
-    expect(() => parseReviewTexts({ success: 2, reviews: [] })).toThrow();
+  it('throws when the response wrapper is missing or unreadable', () => {
     expect(() => parseReviewTexts({ reviews: [] })).toThrow();
-  });
-  it('throws on an unreadable body', () => {
-    expect(() => parseReviewTexts('nope')).toThrow();
     expect(() => parseReviewTexts({ success: 1 })).toThrow();
+    expect(() => parseReviewTexts({ response: { reviews: 'x' } })).toThrow();
+    expect(() => parseReviewTexts('nope')).toThrow();
   });
 });
 
@@ -91,12 +89,13 @@ describe('steam client getReviewTexts', () => {
       maxRetries: 0,
     });
 
-  it('asks for 100 English reviews and returns the picked ones', async () => {
+  it('asks for 100 all-time helpful English reviews and returns the picked ones', async () => {
     const urls: string[] = [];
-    const c = client(() => new Response(JSON.stringify({ success: 1, reviews: [raw()] })), urls);
+    const c = client(() => new Response(JSON.stringify({ response: { reviews: [raw()] } })), urls);
     expect(await c.getReviewTexts(1145360)).toHaveLength(1);
-    expect(urls[0]).toContain('/appreviews/1145360?');
-    expect(urls[0]).toContain('language=english');
+    expect(urls[0]).toContain('/IUserReviewsService/GetAppReviews/v1/?appid=1145360&');
+    expect(urls[0]).toContain('day_range=0');
+    expect(urls[0]).not.toContain('languages');
     expect(urls[0]).toContain('num_per_page=100');
   });
 

@@ -15,15 +15,16 @@ import {
 } from '../../src/steam-reviews/index.js';
 
 const summaryBody = (over: Record<string, unknown> = {}) => ({
-  success: 1,
-  query_summary: {
-    num_reviews: 0,
-    review_score: 9,
-    review_score_desc: 'Overwhelmingly Positive',
-    total_positive: 196,
-    total_negative: 4,
-    total_reviews: 200,
-    ...over,
+  response: {
+    query_summary: {
+      num_reviews: 1,
+      review_score: 9,
+      review_score_desc: 'Overwhelmingly Positive',
+      total_positive: 196,
+      total_negative: 4,
+      total_reviews: 200,
+      ...over,
+    },
   },
 });
 
@@ -35,9 +36,9 @@ describe('parseReviewSummary', () => {
       total: 200,
     });
   });
-  it('is null when there are no reviews, success is not 1, or the shape is wrong', () => {
+  it('is null when there are no reviews, the app is unknown, or the shape is wrong', () => {
     expect(parseReviewSummary(summaryBody({ total_reviews: 0, total_positive: 0 }))).toBeNull();
-    expect(parseReviewSummary({ success: 2 })).toBeNull();
+    expect(parseReviewSummary({ response: {} })).toBeNull();
     expect(parseReviewSummary({ success: 1 })).toBeNull();
     expect(parseReviewSummary('nope')).toBeNull();
   });
@@ -50,7 +51,7 @@ describe('getSharedSteamClient', () => {
 });
 
 describe('steam client getReviewSummary', () => {
-  it('requests the appreviews summary for one app and parses it', async () => {
+  it('requests the GetAppReviews summary for one app and parses it', async () => {
     const urls: string[] = [];
     const client = createSteamClient({
       fetch: (async (u: string) => {
@@ -65,11 +66,14 @@ describe('steam client getReviewSummary', () => {
       total: 200,
     });
     const u = new URL(urls[0]!);
-    expect(u.origin + u.pathname).toBe('https://store.steampowered.com/appreviews/1145360');
-    expect(u.searchParams.get('json')).toBe('1');
-    expect(u.searchParams.get('num_per_page')).toBe('0');
-    expect(u.searchParams.get('language')).toBe('all');
-    expect(u.searchParams.get('purchase_type')).toBe('steam');
+    expect(u.origin + u.pathname).toBe(
+      'https://api.steampowered.com/IUserReviewsService/GetAppReviews/v1/',
+    );
+    expect(u.searchParams.get('appid')).toBe('1145360');
+    expect(u.searchParams.get('num_per_page')).toBe('1');
+    expect(u.searchParams.get('languages[0]')).toBe('all');
+    expect(u.searchParams.get('purchase_type')).toBe('0');
+    expect(u.searchParams.get('review_type')).toBe('0');
   });
   it('is null for an unreadable body', async () => {
     const client = createSteamClient({

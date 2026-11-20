@@ -9,19 +9,20 @@ export interface SteamReviews {
 }
 
 const bodySchema = z.object({
-  success: z.literal(1),
-  query_summary: z.object({
-    review_score_desc: z.string().min(1),
-    total_positive: z.number().int().nonnegative(),
-    total_reviews: z.number().int().nonnegative(),
+  response: z.object({
+    query_summary: z.object({
+      review_score_desc: z.string().min(1),
+      total_positive: z.number().int().nonnegative(),
+      total_reviews: z.number().int().nonnegative(),
+    }),
   }),
 });
 
-/** Reads an `appreviews?num_per_page=0` body; null when it has no reviews or is unreadable. */
+/** Reads a `GetAppReviews` body (first page, review_type all); null when it has no reviews or is unreadable. */
 export function parseReviewSummary(body: unknown): SteamReviews | null {
   const parsed = bodySchema.safeParse(body);
   if (!parsed.success) return null;
-  const { review_score_desc, total_positive, total_reviews } = parsed.data.query_summary;
+  const { review_score_desc, total_positive, total_reviews } = parsed.data.response.query_summary;
   if (total_reviews === 0) return null;
   return {
     desc: review_score_desc,
