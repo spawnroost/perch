@@ -25,6 +25,17 @@ describe('normalizeTitle', () => {
   });
 });
 
+describe('normalizeTitle accents', () => {
+  it('folds accents so a game and its album match', () => {
+    expect(normalizeTitle('Pokémon Legends: Arceus')).toBe('pokemon legends arceus');
+    expect(
+      pickAlbum('Pokémon Legends: Arceus', [
+        album({ collectionName: 'Pokemon Legends: Arceus Original Soundtrack' }),
+      ]),
+    ).not.toBeNull();
+  });
+});
+
 describe('pickAlbum', () => {
   it('picks the game soundtrack over a movie score with the same name', () => {
     const picked = pickAlbum('Doom', [
@@ -153,11 +164,24 @@ describe('toSoundtrack', () => {
     expect(s!.tracks).toHaveLength(12);
     expect(s!.tracks[0]).toEqual({
       name: 'T1',
+      disc: 1,
       number: 1,
       durationMs: 1000,
       previewUrl: 'https://p/0.m4a',
     });
     expect(s!.tracks[1]!.previewUrl).toBeNull();
+  });
+
+  it('orders by disc then number before capping, so disc 2 does not push out disc 1', () => {
+    const rows = [
+      { wrapperType: 'track', trackName: 'D2-1', trackNumber: 1, discNumber: 2 },
+      { wrapperType: 'track', trackName: 'D1-2', trackNumber: 2, discNumber: 1 },
+      { wrapperType: 'track', trackName: 'D1-1', trackNumber: 1, discNumber: 1 },
+      { wrapperType: 'track', trackName: 'NoDisc', trackNumber: 9 },
+    ];
+    const s = toSoundtrack(a, rows)!;
+    expect(s.tracks.map((t) => t.name)).toEqual(['D1-1', 'D1-2', 'NoDisc', 'D2-1']);
+    expect(s.tracks.map((t) => t.disc)).toEqual([1, 1, 1, 2]);
   });
 
   it('is null without tracks or an album url', () => {

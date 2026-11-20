@@ -16,6 +16,7 @@ export interface ItunesRow {
   wrapperType?: string;
   trackName?: string;
   trackNumber?: number;
+  discNumber?: number;
   trackTimeMillis?: number;
   previewUrl?: string;
 }
@@ -23,8 +24,10 @@ export interface ItunesRow {
 /** Lower-case words: marks, apostrophes and punctuation removed. */
 export function normalizeTitle(s: string): string {
   return s
+    .replace(/[®™©'’]/g, '') // before NFKD, which would turn ™ into "TM"
+    .normalize('NFKD')
+    .replace(/\p{M}/gu, '')
     .toLowerCase()
-    .replace(/[®™©'’]/g, '')
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .trim();
 }
@@ -111,11 +114,12 @@ export function toSoundtrack(album: ItunesAlbum, rows: ItunesRow[]): Soundtrack 
     .filter((r) => r.wrapperType === 'track' && r.trackName && Number.isInteger(r.trackNumber))
     .map((r) => ({
       name: r.trackName!,
+      disc: Number.isInteger(r.discNumber) && r.discNumber! > 0 ? r.discNumber! : 1,
       number: r.trackNumber!,
       durationMs: typeof r.trackTimeMillis === 'number' ? Math.round(r.trackTimeMillis) : null,
       previewUrl: r.previewUrl ?? null,
     }))
-    .sort((a, b) => a.number - b.number)
+    .sort((a, b) => a.disc - b.disc || a.number - b.number)
     .slice(0, SOUNDTRACK_MAX_TRACKS);
   if (tracks.length === 0) return null;
   return {

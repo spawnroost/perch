@@ -9,7 +9,7 @@ import {
   igdbIdParamSchema,
   similarForUser,
   similarQuerySchema,
-  soundtrackFor,
+  soundtrackLookup,
   soundtrackLinks,
   steamReviewsFor,
   toTimeToBeatHours,
@@ -80,9 +80,12 @@ export function gamesRoutes(deps: RouteDeps) {
     const game = await cache.getGame(igdbId);
     if (!game) return c.json({ error: 'game not found' }, 404);
     // Cached for a week; the first visit waits briefly on the rate-limited iTunes lookup.
-    const soundtrack = await soundtrackFor(deps.db, game, { client: deps.soundtrack });
+    const { soundtrack, pending } = await soundtrackLookup(deps.db, game, {
+      client: deps.soundtrack,
+    });
     return c.json({
       soundtrack,
+      ...(pending ? { pending: true } : {}),
       links: soundtrackLinks(game.name, soundtrack?.appleMusicUrl ?? null),
     } satisfies SoundtrackResponse);
   });

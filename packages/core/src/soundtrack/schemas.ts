@@ -5,6 +5,8 @@ export const SOUNDTRACK_MAX_TRACKS = 12;
 
 export const soundtrackTrackSchema = z.object({
   name: z.string(),
+  /** Disc the track is on; payloads stored before discs were tracked count as disc 1. */
+  disc: z.number().int().positive().default(1),
   number: z.number().int().positive(),
   durationMs: z.number().int().nonnegative().nullable(),
   previewUrl: z.string().url().nullable(),
@@ -27,6 +29,8 @@ export const soundtrackLinksSchema = z.object({
 /** `soundtrack` is null when no album could be matched with confidence. */
 export const soundtrackResponseSchema = z.object({
   soundtrack: soundtrackSchema.nullable(),
+  /** True when the lookup is still running past the wait; ask again shortly. */
+  pending: z.boolean().optional(),
   links: soundtrackLinksSchema,
 });
 

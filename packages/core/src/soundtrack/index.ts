@@ -1,9 +1,15 @@
 import { eq } from 'drizzle-orm';
+import { z } from 'zod';
 import { gameSoundtracks, type Db } from '@perch/db';
-import { getSharedItunesClient, type ItunesClient } from './itunes.js';
+import { getSharedItunesClient, ItunesQueueFullError, type ItunesClient } from './itunes.js';
 import { soundtrackSchema, type Soundtrack } from './schemas.js';
 
-export { createItunesClient, getSharedItunesClient } from './itunes.js';
+export {
+  createItunesClient,
+  getSharedItunesClient,
+  ITUNES_MAX_QUEUED,
+  ItunesQueueFullError,
+} from './itunes.js';
 export type { ItunesClient, ItunesClientOptions } from './itunes.js';
 export { normalizeTitle, pickAlbum, soundtrackLinks, toSoundtrack } from './match.js';
 export {
@@ -38,6 +44,21 @@ interface Stored {
   fetchedAt: Date;
 }
 
+const urlSchema = z.string().url();
+
+/** The album with unusable tracks dropped; null when what remains still fails the schema. */
+export function sanitizeSoundtrack(found: Soundtrack | null): Soundtrack | null {
+  if (!found) return null;
+  const tracks = (found.tracks ?? []).filter(
+    (t) =>
+      Number.isInteger(t?.number) &&
+      t.number > 0 &&
+      (t.previewUrl == null || urlSchema.safeParse(t.previewUrl).success),
+  );
+  const parsed = soundtrackSchema.safeParse({ ...found, tracks });
+  return parsed.success ? parsed.data : null;
+}
+
 async function load(db: Db, igdbId: number): Promise<Stored | null> {
   const [row] = await db.select().from(gameSoundtracks).where(eq(gameSoundtracks.igdbId, igdbId));
   if (!row) return null;
@@ -58,6 +79,8 @@ async function refresh(
   try {
     found = await client.findSoundtrack(game.name);
   } catch (err) {
+    // Nothing was looked up: write nothing, so the next visit tries again.
+    if (err instanceof ItunesQueueFullError) return stored?.soundtrack ?? null;
     console.warn(`soundtrack for game ${game.igdbId} failed:`, err);
     // Negative cache: back-date the stamp so the row counts as fresh for FAILURE_RETRY_MS only.
     const fetchedAt = new Date(now().getTime() - ttlMs + FAILURE_RETRY_MS);
@@ -68,11 +91,12 @@ async function refresh(
     return stored?.soundtrack ?? null;
   }
   const fetchedAt = now();
+  const payload = sanitizeSoundtrack(found);
   await db
     .insert(gameSoundtracks)
-    .values({ igdbId: game.igdbId, payload: found, fetchedAt })
-    .onConflictDoUpdate({ target: gameSoundtracks.igdbId, set: { payload: found, fetchedAt } });
-  return found;
+    .values({ igdbId: game.igdbId, payload, fetchedAt })
+    .onConflictDoUpdate({ target: gameSoundtracks.igdbId, set: { payload, fetchedAt } });
+  return payload;
 }
 
 /** Fetches still running, one per game, so overlapping requests share them. */
@@ -86,17 +110,20 @@ export async function soundtrackIdle(): Promise<void> {
 /**
  * The game's soundtrack album, from the cache. Entries (including "no match") past the TTL are
  * served at once and refreshed in the background; with nothing stored the call waits up to
- * `waitMs` for the first lookup (through iTunes' rate queue). Never throws: null on any failure.
+ * `waitMs` for the first lookup (through iTunes' rate queue). `pending` is true when that wait
+ * ran out with the lookup still going. Never throws: null on any failure.
  */
-export async function soundtrackFor(
+export async function soundtrackLookup(
   db: Db,
   game: { igdbId: number; name: string },
   opts: SoundtrackOptions = {},
-): Promise<Soundtrack | null> {
+): Promise<{ soundtrack: Soundtrack | null; pending: boolean }> {
   const { ttlMs = SOUNDTRACK_TTL_MS, now = () => new Date() } = opts;
   try {
     const stored = await load(db, game.igdbId);
-    if (stored && now().getTime() - stored.fetchedAt.getTime() < ttlMs) return stored.soundtrack;
+    if (stored && now().getTime() - stored.fetchedAt.getTime() < ttlMs) {
+      return { soundtrack: stored.soundtrack, pending: false };
+    }
     let p = inflight.get(game.igdbId);
     if (!p) {
       const started: Promise<Soundtrack | null> = refresh(db, game, stored, opts)
@@ -108,18 +135,30 @@ export async function soundtrackFor(
       inflight.set(game.igdbId, started);
       p = started;
     }
-    if (stored) return stored.soundtrack;
+    if (stored) return { soundtrack: stored.soundtrack, pending: false };
     let timer: ReturnType<typeof setTimeout> | undefined;
+    const timedOut = Symbol('timeout');
     const waited = await Promise.race([
       p,
-      new Promise<null>((resolve) => {
-        timer = setTimeout(() => resolve(null), opts.waitMs ?? DEFAULT_WAIT_MS);
+      new Promise<typeof timedOut>((resolve) => {
+        timer = setTimeout(() => resolve(timedOut), opts.waitMs ?? DEFAULT_WAIT_MS);
       }),
     ]);
     clearTimeout(timer);
-    return waited;
+    return waited === timedOut
+      ? { soundtrack: null, pending: true }
+      : { soundtrack: waited, pending: false };
   } catch (err) {
     console.warn(`soundtrack for game ${game.igdbId} unavailable:`, err);
-    return null;
+    return { soundtrack: null, pending: false };
   }
+}
+
+/** Like `soundtrackLookup`, without the pending flag. */
+export async function soundtrackFor(
+  db: Db,
+  game: { igdbId: number; name: string },
+  opts: SoundtrackOptions = {},
+): Promise<Soundtrack | null> {
+  return (await soundtrackLookup(db, game, opts)).soundtrack;
 }

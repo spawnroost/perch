@@ -164,7 +164,9 @@ const fakeSoundtrack = {
       artist: 'Composer',
       artworkUrl: 'https://img.test/album.jpg',
       appleMusicUrl: 'https://music.apple.com/us/album/alpha/1',
-      tracks: [{ name: 'Theme', number: 1, durationMs: 1000, previewUrl: 'https://p.test/1.m4a' }],
+      tracks: [
+        { name: 'Theme', disc: 1, number: 1, durationMs: 1000, previewUrl: 'https://p.test/1.m4a' },
+      ],
     };
   },
 };

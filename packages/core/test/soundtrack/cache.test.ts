@@ -4,6 +4,9 @@ import { createDb, gameSoundtracks, games, runMigrations, type Db } from '@perch
 import {
   createItunesClient,
   getSharedItunesClient,
+  ItunesQueueFullError,
+  sanitizeSoundtrack,
+  soundtrackLookup,
   soundtrackFor,
   soundtrackIdle,
   SOUNDTRACK_TTL_MS,
@@ -64,7 +67,7 @@ describe('createItunesClient', () => {
       artworkUrl: 'https://x/600x600bb.jpg',
     });
     expect(found!.tracks).toEqual([
-      { name: 'Prologue', number: 1, durationMs: 5, previewUrl: 'https://p/1.m4a' },
+      { name: 'Prologue', disc: 1, number: 1, durationMs: 5, previewUrl: 'https://p/1.m4a' },
     ]);
     const search = new URL(s.urls[0]!);
     expect(search.origin + search.pathname).toBe('https://itunes.apple.com/search');
@@ -87,8 +90,56 @@ describe('createItunesClient', () => {
     await expect(s.client.findSoundtrack('Celeste')).rejects.toThrow(/503/);
   });
 
+  it('skips lookups once the queue is full, then recovers', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const fetchFn = (async () => {
+      await gate;
+      return new Response(JSON.stringify({ results: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+    const client = createItunesClient({ fetch: fetchFn, sleep: async () => {}, maxQueued: 2 });
+    const a = client.findSoundtrack('A');
+    const b = client.findSoundtrack('B');
+    await expect(client.findSoundtrack('C')).rejects.toBeInstanceOf(ItunesQueueFullError);
+    release();
+    await Promise.all([a, b]);
+    await expect(client.findSoundtrack('D')).resolves.toBeNull();
+  });
+
   it('shares one client per process', () => {
     expect(getSharedItunesClient()).toBe(getSharedItunesClient());
+  });
+});
+
+describe('sanitizeSoundtrack', () => {
+  const base = {
+    albumName: 'X',
+    artist: 'Y',
+    artworkUrl: null,
+    appleMusicUrl: 'https://music.apple.com/x',
+  };
+  const t = (over: Record<string, unknown>) => ({
+    name: 'T',
+    disc: 1,
+    number: 1,
+    durationMs: 1,
+    previewUrl: null,
+    ...over,
+  });
+
+  it('drops tracks with non-positive numbers or bad preview urls', () => {
+    const out = sanitizeSoundtrack({
+      ...base,
+      tracks: [t({ number: 0 }), t({ number: 2, previewUrl: 'not a url' }), t({ number: 3 })],
+    } as Soundtrack);
+    expect(out!.tracks.map((x) => x.number)).toEqual([3]);
+  });
+
+  it('is null when the album itself is invalid', () => {
+    expect(
+      sanitizeSoundtrack({ ...base, appleMusicUrl: 'nope', tracks: [t({})] } as Soundtrack),
+    ).toBeNull();
+    expect(sanitizeSoundtrack(null)).toBeNull();
   });
 });
 
@@ -103,7 +154,7 @@ const album: Soundtrack = {
   artist: 'Lena Raine',
   artworkUrl: null,
   appleMusicUrl: 'https://music.apple.com/x',
-  tracks: [{ name: 'A', number: 1, durationMs: 1, previewUrl: null }],
+  tracks: [{ name: 'A', disc: 1, number: 1, durationMs: 1, previewUrl: null }],
 };
 
 describe.skipIf(!url)('soundtrackFor', () => {
@@ -212,6 +263,37 @@ describe.skipIf(!url)('soundtrackFor', () => {
     await soundtrackFor(db, game, at(60 * 60 * 1000));
     expect(bad.calls).toHaveLength(1);
     warn.mockRestore();
+  });
+
+  it('flags pending when the first lookup outlasts the wait, then serves the stored album', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const slow = fake(async () => {
+      await gate;
+      return album;
+    });
+    const opts = { client: slow.client, now: () => T0, waitMs: 5 };
+    expect(await soundtrackLookup(db, game, opts)).toEqual({ soundtrack: null, pending: true });
+    release();
+    await soundtrackIdle();
+    expect(await soundtrackLookup(db, game, opts)).toEqual({ soundtrack: album, pending: false });
+  });
+
+  it('does not negative-cache a skipped (queue full) lookup', async () => {
+    const full = fake(async () => {
+      throw new ItunesQueueFullError();
+    });
+    expect(await soundtrackFor(db, game, { client: full.client, now: () => T0 })).toBeNull();
+    await soundtrackIdle();
+    const rows = await db.select().from(gameSoundtracks).where(eq(gameSoundtracks.igdbId, ID));
+    expect(rows).toHaveLength(0);
+  });
+
+  it('stores null when the found album fails validation', async () => {
+    const bad = fake(async () => ({ ...album, appleMusicUrl: 'nope' }));
+    expect(await soundtrackFor(db, game, { client: bad.client, now: () => T0 })).toBeNull();
+    const [row] = await db.select().from(gameSoundtracks).where(eq(gameSoundtracks.igdbId, ID));
+    expect(row?.payload).toBeNull();
   });
 
   it('never throws: a database error gives null', async () => {

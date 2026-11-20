@@ -16,6 +16,7 @@ describe('formatTrackTime', () => {
 describe('playableTracks', () => {
   const t = (n: number, previewUrl: string | null) => ({
     name: `T${n}`,
+    disc: 1,
     number: n,
     durationMs: 1000,
     previewUrl,

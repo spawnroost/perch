@@ -205,6 +205,9 @@ export function useSimilar(igdbId: number | null, device: string, enabled = true
   });
 }
 
+const SOUNDTRACK_POLL_MS = 5000;
+const SOUNDTRACK_MAX_POLLS = 12;
+
 /** Soundtrack album and music links for a game; the album is slow on a first visit, then cached server-side. */
 export function useSoundtrack(igdbId: number) {
   return useQuery({
@@ -212,6 +215,11 @@ export function useSoundtrack(igdbId: number) {
     queryFn: ({ signal }) =>
       api.get<SoundtrackResponse>(`/api/games/${igdbId}/soundtrack`, { signal }),
     staleTime: 10 * 60_000,
+    // While the server is still looking the album up, ask again every 5 s for about a minute.
+    refetchInterval: (query) =>
+      query.state.data?.pending && query.state.dataUpdateCount < SOUNDTRACK_MAX_POLLS
+        ? SOUNDTRACK_POLL_MS
+        : false,
   });
 }
 

@@ -27,7 +27,7 @@ function Album({ soundtrack }: { soundtrack: NonNullable<SoundtrackResponse['sou
       <ul className="flex flex-col">
         {playableTracks(soundtrack.tracks).map((t) => (
           <TrackRow
-            key={t.number}
+            key={`${t.disc}-${t.number}`}
             number={t.number}
             name={t.name}
             time={formatTrackTime(t.durationMs)}
@@ -54,7 +54,7 @@ export function Soundtrack({ igdbId }: { igdbId: number }) {
   ];
   return (
     <DetailSection title="Soundtrack">
-      {soundtrack ? <Album soundtrack={soundtrack} /> : null}
+      {soundtrack ? <Album key={igdbId} soundtrack={soundtrack} /> : null}
       <ExternalLinks links={open} />
     </DetailSection>
   );
