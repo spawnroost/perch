@@ -24,6 +24,10 @@ const ApiEnvShape = z.object({
   OPENXBL_API_KEY: z.string().optional(),
   /** PlayStation NPSSO cookie for the PSN import (lasts about two months); unset answers the PSN routes with 503. */
   PSN_NPSSO: z.string().optional(),
+  /** DeepSeek key for the AI reasons on For you; unset keeps the template reasons. */
+  DEEPSEEK_API_KEY: z.string().optional(),
+  /** Most LLM batches the whole server starts per day (each user is also capped). */
+  LLM_DAILY_BATCH_CAP: z.coerce.number().int().min(0).default(500),
   NODE_ENV: z.string().optional(),
 });
 

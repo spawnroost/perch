@@ -11,11 +11,15 @@ import {
   authProvidersFor,
   createAccentFetcher,
   createIgdbCache,
+  createDeepseekExplainer,
+  createReasonService,
   createTtlMemo,
   type BrowseList,
   type IgdbCache,
   type IgdbClient,
   type ItunesClient,
+  type ReasonExplainer,
+  type ReasonService,
   type SteamClient,
   type TtlMemo,
 } from '@perch/core';
@@ -63,6 +67,12 @@ export interface AppDeps {
   psnApi?: PsnApi;
   /** Per-user gap between manual PSN link/sync calls in ms (tests); default one minute. */
   psnCooldownMs?: number;
+  /** Overrides the LLM behind the For-you reasons (tests); the default is DeepSeek when its key is set. */
+  explainer?: ReasonExplainer;
+  /** Fetch used for DeepSeek calls (tests stub it); defaults to the global fetch. */
+  deepseekFetch?: typeof fetch;
+  /** Longest a For-you request waits for the reasons batch, in ms (tests); default 2.5 s. */
+  reasonsWaitMs?: number;
   /** Verifies Steam OpenID assertions; the default asks Steam (tests stub it). */
   steamOpenId?: SteamOpenIdVerifier;
   /** Overrides the default limits (tests). */
@@ -94,6 +104,8 @@ export interface RouteDeps extends AppDeps {
   psnSync: PsnSync;
   /** Taste-vocab id -> label, for reasons. */
   labels: Record<string, string>;
+  /** LLM reasons for the top For-you picks; a no-op without an LLM configured. */
+  reasons: ReasonService;
   /** Ranked browse lists, remembered between requests (keyed by user, recs version and tags). */
   browseLists: TtlMemo<BrowseList>;
 }
@@ -115,6 +127,16 @@ export function createApp(appDeps: AppDeps) {
     mapVocab: mapGame,
     labels: Object.fromEntries(VOCAB.map((v) => [v.id, v.label])),
     browseLists: createTtlMemo<BrowseList>({ max: 50 }),
+    reasons: createReasonService({
+      db,
+      explainer:
+        appDeps.explainer ??
+        (env.DEEPSEEK_API_KEY
+          ? createDeepseekExplainer({ apiKey: env.DEEPSEEK_API_KEY, fetch: appDeps.deepseekFetch })
+          : null),
+      globalDailyCap: env.LLM_DAILY_BATCH_CAP,
+      waitMs: appDeps.reasonsWaitMs,
+    }),
   };
   const deps: RouteDeps = {
     ...base,

@@ -28,6 +28,19 @@ describe('recommend', () => {
     expect(recs.map((r) => r.game.igdbId)).toContain(102);
   });
 
+  it('carries the shared tag labels of the closest game when labels are given', async () => {
+    const plain = await recommend(deps, { library: LIBRARY, feedback: [], limit: 3 });
+    expect(plain[0]).not.toHaveProperty('sharedTags');
+    const recs = await recommend(
+      { ...deps, labels: {}, explain: createNoneProvider({ labels: {} }) },
+      { library: LIBRARY, feedback: [], limit: 3 },
+    );
+    const top = recs[0]!;
+    expect(top.sharedTags!.length).toBeGreaterThan(0);
+    expect(top.sharedTags!.length).toBeLessThanOrEqual(3);
+    expect(top.reason).toBe(`Similar to ${top.sourceGame!.name}: ${top.sharedTags!.join(', ')}`);
+  });
+
   it('hides down and not_interested feedback', async () => {
     const all = await recommend(deps, { library: LIBRARY, feedback: [], limit: 50 });
     const top = all[0]!.game.igdbId;

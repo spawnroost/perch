@@ -1,5 +1,5 @@
 import { buildCandidates, type CandidateDeps } from './candidates.js';
-import { closestGame, type ExplainProvider } from './explain.js';
+import { closestGame, sharedLabels, type ExplainProvider } from './explain.js';
 import {
   bestFit,
   deviceKind,
@@ -23,6 +23,8 @@ import { hiddenIds, isBacklog } from './visibility.js';
 
 export interface RecommendDeps extends CandidateDeps {
   explain: ExplainProvider;
+  /** Vocab id -> label; when given, each pick carries the labels it shares with its closest game. */
+  labels?: Readonly<Record<string, string>>;
   now?: () => Date;
   /** Steam requirement scores for a game (null = none). Called lazily, only for PC devices. */
   fetchRequirements?(game: EngineGame): Promise<FitRequirements | null>;
@@ -192,6 +194,9 @@ export async function recommend(
     backlog: t.backlog,
     reason: reasons[i] ?? '',
     sourceGame: closest[i] ? { igdbId: closest[i].igdbId, name: closest[i].name } : null,
+    ...(deps.labels && closest[i]
+      ? { sharedTags: sharedLabels(t.game, closest[i], deps.labels, idf) }
+      : {}),
     ...(fits.has(t.game.igdbId) ? { fit: fits.get(t.game.igdbId) } : {}),
   }));
 }

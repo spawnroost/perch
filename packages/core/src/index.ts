@@ -19,3 +19,4 @@ export * from './library-export/index.js';
 export * from './xbox-library/index.js';
 export * from './psn-library/index.js';
 export * from './soundtrack/index.js';
+export * from './explain/index.js';

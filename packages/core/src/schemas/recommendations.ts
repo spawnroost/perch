@@ -15,6 +15,8 @@ export const recommendationSchema = z.object({
   reason: z.string(),
   /** The library game this pick is closest to (what "Because you played" groups by). */
   sourceGame: z.object({ igdbId: z.number().int(), name: z.string() }).nullable(),
+  /** Taste labels shared with `sourceGame` (feeds the AI reasons); absent on lists that skip it. */
+  sharedTags: z.array(z.string()).optional(),
   game: z.object({
     igdbId: z.number().int(),
     name: z.string(),
@@ -37,6 +39,8 @@ export const recommendationSchema = z.object({
 
 export const recommendationsResponseSchema = z.object({
   recommendations: z.array(recommendationSchema),
+  /** True while AI reasons for the top picks are still being written; ask again shortly. */
+  reasonsPending: z.boolean().optional(),
 });
 
 export type RecommendationsResponse = z.infer<typeof recommendationsResponseSchema>;

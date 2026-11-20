@@ -32,7 +32,12 @@ export function recommendationsRoutes(deps: RouteDeps) {
         return { recommendations: recs.map(recommendationDto) } satisfies RecommendationsResponse;
       },
     );
-    return c.json(body);
+    // Model reasons are laid over the cached picks, never stored in the cache payload.
+    const { recommendations, pending } = await deps.reasons.overlay(userId, body.recommendations);
+    return c.json({
+      recommendations,
+      ...(pending ? { reasonsPending: true } : {}),
+    } satisfies RecommendationsResponse);
   });
 
   return r;

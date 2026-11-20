@@ -40,11 +40,15 @@ export async function setupApi(
       | 'psnCooldownMs'
       | 'accentFor'
       | 'steamOpenId'
+      | 'explainer'
+      | 'reasonsWaitMs'
     >
   > = {},
 ) {
   await runMigrations(testUrl!);
   const db: Db = createDb(testUrl!);
+  // The daily LLM counters must not carry over from earlier runs.
+  await db.delete(schema.llmUsage);
   const mailer = captureMailer();
   const app = createApp({
     db,

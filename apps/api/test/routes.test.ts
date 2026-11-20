@@ -7,6 +7,7 @@ import {
   type DeckCategory,
   type Game,
   type IgdbClient,
+  type ReasonExplainer,
   type RecommendationsResponse,
   type TagQuery,
   soundtrackResponseSchema,
@@ -177,6 +178,10 @@ const COLOURS: Record<string, string> = {
 };
 const accentFor = async (url: string) => COLOURS[url] ?? null;
 
+/** The LLM explainer behind the For-you reasons; each test swaps `explainImpl` (default: no reasons). */
+let explainImpl: ReasonExplainer['explain'] = async () => new Map();
+const fakeExplainer: ReasonExplainer = { name: 'fake', explain: (items) => explainImpl(items) };
+
 describe.skipIf(!testUrl)('api routes', () => {
   let ctx: Awaited<ReturnType<typeof setupApi>>;
   beforeAll(async () => {
@@ -184,7 +189,14 @@ describe.skipIf(!testUrl)('api routes', () => {
     ctx = await setupApi(
       { api: big, auth: big },
       {},
-      { igdb: fakeIgdb, steam: fakeSteam, soundtrack: fakeSoundtrack, accentFor },
+      {
+        igdb: fakeIgdb,
+        steam: fakeSteam,
+        soundtrack: fakeSoundtrack,
+        accentFor,
+        explainer: fakeExplainer,
+        reasonsWaitMs: 150,
+      },
     );
   });
   afterAll(async () => {
@@ -1006,6 +1018,96 @@ describe.skipIf(!testUrl)('api routes', () => {
       expect((await get('/api/recommendations?device=all', u.cookie)).status).toBe(200);
     });
 
+    describe('AI reasons', () => {
+      async function feed(cookie: string) {
+        const res = await get('/api/recommendations?device=none&limit=5', cookie);
+        expect(res.status).toBe(200);
+        return (await res.json()) as RecommendationsResponse;
+      }
+      async function libraryWithAlpha() {
+        const u = await newUser();
+        await call('POST', '/api/library', u.cookie, {
+          igdbId: A,
+          hoursPlayed: 50,
+          status: 'playing',
+          lastPlayed: '2026-11-10',
+        });
+        return u;
+      }
+
+      it('overlays the model reasons, stores them, and keeps them out of the rec cache', async () => {
+        const seen: { name: string; closestLibraryGames: string[] }[][] = [];
+        explainImpl = async (items) => {
+          seen.push(
+            items.map((i) => ({ name: i.name, closestLibraryGames: i.closestLibraryGames })),
+          );
+          return new Map(items.map((i) => [i.igdbId, `Because ${i.name} is great`]));
+        };
+        const u = await libraryWithAlpha();
+        const body = await feed(u.cookie);
+        const beta = body.recommendations.find((r) => r.game.igdbId === B)!;
+        expect(beta.reason).toBe('Because Routetest Beta is great');
+        expect(body.reasonsPending).toBeUndefined();
+        expect(seen[0]![0]!.closestLibraryGames).toEqual(['Routetest Alpha']);
+        const rows = await ctx.db
+          .select()
+          .from(schema.gameReasons)
+          .where(eq(schema.gameReasons.userId, u.id));
+        expect(rows.map((r) => r.igdbId)).toContain(B);
+        const [cached] = await ctx.db
+          .select()
+          .from(schema.recommendationCache)
+          .where(eq(schema.recommendationCache.userId, u.id));
+        expect(JSON.stringify(cached!.payload)).not.toContain('is great');
+        // A second call reads the stored reasons without asking the model again.
+        explainImpl = async () => {
+          throw new Error('should not be called');
+        };
+        const again = await feed(u.cookie);
+        expect(again.recommendations.find((r) => r.game.igdbId === B)!.reason).toBe(
+          'Because Routetest Beta is great',
+        );
+      });
+
+      it('answers with the template reason and reasonsPending while the model is slow', async () => {
+        let release!: () => void;
+        const gate = new Promise<void>((r) => (release = r));
+        explainImpl = async (items) => {
+          await gate;
+          return new Map(items.map((i) => [i.igdbId, 'Slow AI reason']));
+        };
+        const u = await libraryWithAlpha();
+        const body = await feed(u.cookie);
+        expect(body.reasonsPending).toBe(true);
+        expect(body.recommendations.find((r) => r.game.igdbId === B)!.reason).toMatch(
+          /^Similar to/,
+        );
+        release();
+        await vi.waitFor(async () => {
+          const next = await feed(u.cookie);
+          expect(next.reasonsPending).toBeUndefined();
+          expect(next.recommendations.find((r) => r.game.igdbId === B)!.reason).toBe(
+            'Slow AI reason',
+          );
+        });
+      });
+
+      it('falls back to the template when the model fails, without pending', async () => {
+        explainImpl = async () => {
+          throw new Error('boom');
+        };
+        const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const u = await libraryWithAlpha();
+        const body = await feed(u.cookie);
+        expect(body.reasonsPending).toBeUndefined();
+        expect(body.recommendations.find((r) => r.game.igdbId === B)!.reason).toMatch(
+          /^Similar to/,
+        );
+        errors.mockRestore();
+        explainImpl = async () => new Map();
+      });
+    });
+
     it('accepts a limit up to 60', async () => {
       const u = await newUser();
       expect((await get('/api/recommendations?device=none&limit=60', u.cookie)).status).toBe(200);
@@ -1311,9 +1413,10 @@ describe.skipIf(!testUrl)('api routes', () => {
       const u = await seeded();
       const path = '/api/recommendations?device=none&limit=7';
       const results = await Promise.all([1, 2, 3].map(() => get(path, u.cookie)));
-      const bodies = await Promise.all(results.map((r) => r.json()));
-      expect(bodies[1]).toEqual(bodies[0]);
-      expect(bodies[2]).toEqual(bodies[0]);
+      const bodies = (await Promise.all(results.map((r) => r.json()))) as RecommendationsResponse[];
+      // Requests that join the reasons batch answer with the pending flag; the picks are the same.
+      expect(bodies[1]!.recommendations).toEqual(bodies[0]!.recommendations);
+      expect(bodies[2]!.recommendations).toEqual(bodies[0]!.recommendations);
       expect(await cacheRows(u.id)).toHaveLength(1);
     });
 

@@ -41,6 +41,7 @@ import type {
   SessionResponse,
 } from '@perch/core/browser';
 import { api } from '@/lib/api';
+import { createReasonsPoller } from '@/lib/reasonsPoll';
 import {
   applyFeedback,
   type FeedbackChange,
@@ -153,8 +154,20 @@ export function useRecommendations(
   });
 }
 
-/** The For you feed for a device; switching devices keeps the old picks until the new ones land. */
-export const useForYouFeed = (device: string) => useRecommendations(device, FOR_YOU_LIMIT, true);
+const nextReasonsPoll = createReasonsPoller();
+
+/**
+ * The For you feed for a device; switching devices keeps the old picks until the new ones land.
+ * While the server is still writing the AI reasons, asks again every 2 s (at most 5 times).
+ */
+export function useForYouFeed(device: string) {
+  return useQuery({
+    ...recommendationsQuery(device, FOR_YOU_LIMIT),
+    placeholderData: keepPreviousData,
+    refetchInterval: (query) =>
+      nextReasonsPoll(query, !!query.state.data?.reasonsPending, query.state.dataUpdateCount),
+  });
+}
 
 /** The genre and theme chips; the lists are fixed, so they are fetched once. */
 export function useBrowseFacets() {

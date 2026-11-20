@@ -53,6 +53,7 @@ export function recommendationDto(
     backlog: r.backlog,
     reason: r.reason,
     sourceGame: r.sourceGame,
+    ...(r.sharedTags ? { sharedTags: r.sharedTags } : {}),
     game: {
       igdbId: r.game.igdbId,
       name: r.game.name,

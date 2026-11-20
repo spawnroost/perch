@@ -52,7 +52,7 @@ export function closestSource(
 }
 
 /** Top shared vocab labels of two games, strongest (idf-weighted) first. */
-function sharedLabels(
+export function sharedLabels(
   a: EngineGame,
   b: EngineGame,
   labels: Readonly<Record<string, string>>,

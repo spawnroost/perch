@@ -178,6 +178,7 @@ async function recommendPicks(
       mapVocab,
       ...fetchers,
       explain: createNoneProvider({ labels }),
+      labels,
     },
     { library, feedback, limit: opts.limit, devices: selectDevices(allDevices, opts.device) },
   );

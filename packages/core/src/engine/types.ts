@@ -70,6 +70,8 @@ export interface Recommendation {
   reason: string;
   /** The library game this pick is closest to (the source of the reason); null when none. */
   sourceGame: { igdbId: number; name: string } | null;
+  /** Labels this pick shares with `sourceGame`, strongest first; set only when the caller gave labels. */
+  sharedTags?: string[];
   /** Set only when devices were given. */
   fit?: { status: 'green' | 'yellow' | 'unknown'; deviceId: string };
 }

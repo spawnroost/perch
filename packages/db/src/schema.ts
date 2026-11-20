@@ -383,3 +383,32 @@ export const gameSoundtracks = pgTable('game_soundtracks', {
   payload: jsonb('payload'),
   fetchedAt: ts('fetched_at').defaultNow().notNull(),
 });
+
+/**
+ * LLM-written one-line reasons for a user's For-you picks. A row is only valid while
+ * `recs_version` equals the user's current `users.recs_version`; anything older is regenerated.
+ */
+export const gameReasons = pgTable(
+  'game_reasons',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    igdbId: integer('igdb_id').notNull(),
+    recsVersion: integer('recs_version').notNull(),
+    text: text('text').notNull(),
+    createdAt: ts('created_at').defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.igdbId] })],
+);
+
+/** LLM batches started per day, for the daily caps: key `user:<id>` or `global`, day `YYYY-MM-DD` (UTC). */
+export const llmUsage = pgTable(
+  'llm_usage',
+  {
+    key: text('key').notNull(),
+    day: text('day').notNull(),
+    count: integer('count').default(0).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.key, t.day] })],
+);
