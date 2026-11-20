@@ -428,7 +428,7 @@ export function useUnlinkSteam() {
 }
 
 /** The link persists even when the first import fails (private history), so refresh the account either way. Xbox and PSN. */
-function refreshXbox(qc: QueryClient) {
+function refreshLinkedStore(qc: QueryClient) {
   return invalidateAll(qc, [...libraryAffected, queryKeys.account]);
 }
 
@@ -437,7 +437,7 @@ export function useLinkXbox() {
   return useMutation({
     mutationFn: (gamertag: string) =>
       api.post<XboxSyncResult>('/api/library/xbox/link', { gamertag }),
-    onSettled: () => refreshXbox(qc),
+    onSettled: () => refreshLinkedStore(qc),
   });
 }
 
@@ -445,7 +445,7 @@ export function useSyncXbox() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => api.post<XboxSyncResult>('/api/library/xbox/sync'),
-    onSettled: () => refreshXbox(qc),
+    onSettled: () => refreshLinkedStore(qc),
   });
 }
 
@@ -462,7 +462,7 @@ export function useLinkPsn() {
   return useMutation({
     mutationFn: (onlineId: string) =>
       api.post<PsnSyncResult>('/api/library/psn/link', { onlineId }),
-    onSettled: () => refreshXbox(qc),
+    onSettled: () => refreshLinkedStore(qc),
   });
 }
 
@@ -470,7 +470,7 @@ export function useSyncPsn() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => api.post<PsnSyncResult>('/api/library/psn/sync'),
-    onSettled: () => refreshXbox(qc),
+    onSettled: () => refreshLinkedStore(qc),
   });
 }
 

@@ -183,6 +183,8 @@ export function libraryRoutes(deps: RouteDeps) {
       // The link stays even if the import fails (e.g. a private history): fix it, then resync.
       return c.json(await deps.xboxSync.run(id, profile.xuid));
     } catch (err) {
+      // A typo should not cost the user the cooldown: let them retry right away.
+      if (err instanceof XboxGamertagNotFoundError) deps.xboxSync.refund(id);
       return xboxFailure(c, err);
     }
   });
@@ -250,6 +252,8 @@ export function libraryRoutes(deps: RouteDeps) {
     requireIgdb(deps);
     if (!deps.env.PSN_NPSSO)
       return psnError(c, 503, { error: 'psn_not_configured', message: PSN_NOT_CONFIGURED_HELP });
+    if (deps.psnSync.authDown())
+      return psnError(c, 503, { error: 'psn_not_configured', message: PSN_NOT_CONFIGURED_HELP });
     const throttled = psnThrottled(c, id);
     if (throttled) return throttled;
     try {
@@ -261,6 +265,8 @@ export function libraryRoutes(deps: RouteDeps) {
       // The link stays even if the import fails (e.g. a private history): fix it, then resync.
       return c.json(await deps.psnSync.run(id, profile.accountId));
     } catch (err) {
+      // A typo should not cost the user the cooldown: let them retry right away.
+      if (err instanceof PsnNotFoundError) deps.psnSync.refund(id);
       return psnFailure(c, err);
     }
   });
@@ -271,6 +277,8 @@ export function libraryRoutes(deps: RouteDeps) {
       return psnError(c, 400, { error: 'psn_not_linked', message: PSN_NOT_LINKED_HELP });
     requireIgdb(deps);
     if (!deps.env.PSN_NPSSO)
+      return psnError(c, 503, { error: 'psn_not_configured', message: PSN_NOT_CONFIGURED_HELP });
+    if (deps.psnSync.authDown())
       return psnError(c, 503, { error: 'psn_not_configured', message: PSN_NOT_CONFIGURED_HELP });
     const throttled = psnThrottled(c, id);
     if (throttled) return throttled;

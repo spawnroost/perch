@@ -194,7 +194,7 @@ export function accountRoutes({ db, env, steamSync, xboxSync, psnSync }: RouteDe
       xboxSyncAvailable: xboxSync.configured,
       psnOnlineId: psnOnlineId ?? null,
       psnSyncedAt: psnSyncedAt ? new Date(psnSyncedAt).toISOString() : null,
-      psnSyncAvailable: psnSync.configured,
+      psnSyncAvailable: psnSync.configured && !psnSync.authDown(),
       ...(await signInMethods(id)),
     });
   });

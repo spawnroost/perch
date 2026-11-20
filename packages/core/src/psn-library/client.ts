@@ -32,14 +32,16 @@ const MAX_PAGES = 10;
 const REFRESH_MARGIN_MS = 60_000;
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
+const isRateLimit = (err: unknown) => /rate.?limit|too many|\b429\b/i.test(message(err));
+// A 429 often surfaces as a TypeError/SyntaxError (non-JSON body), so it is never a network failure.
 const isNetwork = (err: unknown) =>
-  err instanceof TypeError ||
-  err instanceof SyntaxError ||
-  /fetch failed|network|econn|etimedout|enotfound|socket/i.test(message(err));
+  !isRateLimit(err) &&
+  (err instanceof TypeError ||
+    err instanceof SyntaxError ||
+    /fetch failed|network|econn|etimedout|enotfound|socket/i.test(message(err)));
 const isNpssoProblem = (err: unknown) => /npsso|access code/i.test(message(err));
 const isExpiredToken = (err: unknown) =>
   /unauthori[sz]ed|expired|invalid[^.]*token|access token/i.test(message(err));
-const isRateLimit = (err: unknown) => /rate.?limit|too many|\b429\b/i.test(message(err));
 
 interface Session {
   tokens: PsnAuthTokens;
@@ -80,7 +82,7 @@ export function createPsnClient(options: PsnClientOptions): PsnClient {
         try {
           session = open(await api.exchangeRefreshTokenForAuthTokens(session.tokens.refreshToken));
         } catch (err) {
-          if (isNetwork(err)) throw err;
+          if (isNetwork(err) || isRateLimit(err)) throw err;
           session = await fromNpsso(npsso);
         }
       } else {
@@ -89,14 +91,16 @@ export function createPsnClient(options: PsnClientOptions): PsnClient {
       alerted = false;
       return session.tokens.accessToken;
     } catch (err) {
-      session = null;
       if (err instanceof PsnAuthFailedError || isNpssoProblem(err)) {
+        session = null;
         if (!alerted) {
           alerted = true;
           console.error('PSN_NPSSO expired, renew it');
         }
         throw new PsnAuthFailedError();
       }
+      // Outages and rate limits are not the session's fault: keep it for the next try.
+      if (isRateLimit(err)) throw new PsnRateLimitedError();
       throw new PsnNetworkError(`PlayStation sign-in failed: ${message(err)}`);
     }
   }
@@ -133,9 +137,10 @@ export function createPsnClient(options: PsnClientOptions): PsnClient {
   return {
     async lookupAccountId(onlineId) {
       const id = onlineId.trim();
+      const encoded = encodeURIComponent(id);
       let reply: Awaited<ReturnType<PsnApi['getProfileFromUserName']>>;
       try {
-        reply = await call((auth) => api.getProfileFromUserName(auth, id));
+        reply = await call((auth) => api.getProfileFromUserName(auth, encoded));
       } catch (err) {
         if (err instanceof PsnAuthFailedError || err instanceof PsnNotConfiguredError) throw err;
         if (err instanceof PsnNetworkError) throw err;
@@ -167,7 +172,9 @@ export function createPsnClient(options: PsnClientOptions): PsnClient {
           if (isRateLimit(err)) throw new PsnRateLimitedError();
           if (isNetwork(err))
             throw new PsnNetworkError(`PlayStation request failed: ${message(err)}`);
-          if (/denied|forbidden|private|privacy|permission|not found/i.test(message(err)))
+          if (
+            /denied|forbidden|private|privacy|permit|access control|not found/i.test(message(err))
+          )
             throw new PsnProfilePrivateError();
           throw new PsnNetworkError(`PlayStation answered: ${message(err)}`);
         }

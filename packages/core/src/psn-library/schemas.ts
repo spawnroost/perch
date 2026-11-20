@@ -35,7 +35,13 @@ export interface PsnProfile {
 }
 
 export const psnLinkSchema = z.object({
-  onlineId: z.string().trim().min(1).max(40),
+  onlineId: z
+    .string()
+    .trim()
+    .regex(
+      /^[A-Za-z0-9_-]{3,16}$/,
+      'A PlayStation online ID is 3 to 16 letters, numbers, hyphens or underscores.',
+    ),
 });
 
 /** Same shape as the export-file import: new/updated counts and up to 50 unmatched titles. */

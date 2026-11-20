@@ -433,6 +433,16 @@ describe.skipIf(!testUrl)('xbox library import', () => {
     expect((await post(limited, '/sync', unlinked.cookie)).status).toBe(400);
   });
 
+  it('gives the manual attempt back when the gamertag is not found', async () => {
+    mode = 'nobody';
+    const u = await signedIn(limited);
+    expect((await post(limited, '/link', u.cookie, { gamertag: GAMERTAG })).status).toBe(404);
+    expect((await post(limited, '/link', u.cookie, { gamertag: GAMERTAG })).status).toBe(404);
+    mode = 'ok';
+    expect((await post(limited, '/link', u.cookie, { gamertag: GAMERTAG })).status).toBe(200);
+    expect((await post(limited, '/link', u.cookie, { gamertag: GAMERTAG })).status).toBe(429);
+  });
+
   it('auto-sync tries a failing user at most once a minute', async () => {
     mode = 'down';
     const u = await signedIn(limited, true);

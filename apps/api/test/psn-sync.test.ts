@@ -110,6 +110,8 @@ describe.skipIf(!testUrl)('psn library import', () => {
   let ctx: Awaited<ReturnType<typeof setupApi>>;
   let noKey: Awaited<ReturnType<typeof setupApi>>;
   let limited: Awaited<ReturnType<typeof setupApi>>;
+  // Its server NPSSO goes dead, which switches PlayStation off for 15 minutes.
+  let dead: Awaited<ReturnType<typeof setupApi>>;
   let calls: string[] = [];
   let mode: 'ok' | 'private' | 'busy' | 'down' | 'nobody' | 'authFailed' = 'ok';
   // Holds back the played games of ACCOUNT (the first account) until released, to overlap imports.
@@ -171,9 +173,15 @@ describe.skipIf(!testUrl)('psn library import', () => {
       { igdb, psnApi },
     );
     noKey = await setupApi({ api: big, auth: big }, {}, { igdb, psnApi });
+    dead = await setupApi(
+      { api: big, auth: big },
+      { PSN_NPSSO: 'test-npsso' },
+      { igdb, psnApi, psnCooldownMs: 0 },
+    );
   });
   afterAll(async () => {
     await ctx.db.delete(schema.games).where(inArray(schema.games.igdbId, [G1, G2]));
+    await dead?.cleanup();
     await limited?.cleanup();
     await noKey?.cleanup();
     await ctx?.cleanup();
@@ -220,6 +228,10 @@ describe.skipIf(!testUrl)('psn library import', () => {
     expect(res.status).toBe(400);
     expect(await res.json()).toMatchObject({ error: 'psn_not_linked' });
     expect((await post(ctx, '/link', u.cookie, { onlineId: '  ' })).status).toBe(400);
+    const bad = await post(ctx, '/link', u.cookie, { onlineId: '../x?y' });
+    expect(bad.status).toBe(400);
+    expect(JSON.stringify(await bad.json())).toMatch(/3 to 16/);
+    expect((await post(ctx, '/link', u.cookie, { onlineId: 'a'.repeat(17) })).status).toBe(400);
   });
 
   it('answers 503 psn_not_configured without an NPSSO and hides the PlayStation card', async () => {
@@ -242,11 +254,47 @@ describe.skipIf(!testUrl)('psn library import', () => {
     mode = 'authFailed';
     const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     try {
-      const u = await signedIn(ctx, true);
-      const res = await post(ctx, '/sync', u.cookie);
+      const u = await signedIn(dead, true);
+      const res = await post(dead, '/sync', u.cookie);
       expect(res.status).toBe(503);
       expect(await res.json()).toMatchObject({ error: 'psn_not_configured' });
       expect(errors.mock.calls.some((c) => String(c[0]).includes('PSN_NPSSO expired'))).toBe(true);
+    } finally {
+      errors.mockRestore();
+    }
+  });
+
+  it('after an auth failure PlayStation is off for 15 minutes: no calls, 503, not available', async () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      mode = 'authFailed';
+      const u = await signedIn(dead, true);
+      expect((await post(dead, '/sync', u.cookie)).status).toBe(503);
+      mode = 'ok';
+      calls = [];
+      for (const [path, body] of [
+        ['/sync', undefined],
+        ['/link', { onlineId: ONLINE_ID }],
+      ] as const) {
+        const res = await post(dead, path, u.cookie, body);
+        expect(res.status).toBe(503);
+        expect(await res.json()).toMatchObject({ error: 'psn_not_configured' });
+      }
+      const acct = await (
+        await dead.app.request('/api/account', { headers: { cookie: u.cookie } })
+      ).json();
+      expect(acct.psnSyncAvailable).toBe(false);
+      await new Promise((r) => setTimeout(r, 30));
+      expect(calls).toEqual([]); // not even the auto-sync of a stale link
+      // Blocked requests do not use up the manual cooldown, and it lifts on its own.
+      const later = Date.now() + 16 * 60_000;
+      vi.setSystemTime(later);
+      try {
+        expect((await post(dead, '/sync', u.cookie)).status).toBe(200);
+        expect((await account(u.cookie)).psnSyncAvailable).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
     } finally {
       errors.mockRestore();
     }
@@ -465,6 +513,16 @@ describe.skipIf(!testUrl)('psn library import', () => {
     const unlinked = await signedIn(limited);
     expect((await post(limited, '/sync', unlinked.cookie)).status).toBe(400);
     expect((await post(limited, '/sync', unlinked.cookie)).status).toBe(400);
+  });
+
+  it('gives the manual attempt back when the online ID is not found', async () => {
+    mode = 'nobody';
+    const u = await signedIn(limited);
+    expect((await link(limited, u.cookie)).status).toBe(404);
+    expect((await link(limited, u.cookie)).status).toBe(404); // not a 429 cooldown
+    mode = 'ok';
+    expect((await link(limited, u.cookie)).status).toBe(200);
+    expect((await link(limited, u.cookie)).status).toBe(429);
   });
 
   it('auto-sync tries a failing user at most once a minute', async () => {

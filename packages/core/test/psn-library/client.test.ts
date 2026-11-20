@@ -7,6 +7,7 @@ import {
   PsnNotFoundError,
   PsnProfilePrivateError,
   PsnRateLimitedError,
+  psnLinkSchema,
   type PsnApi,
 } from '../../src/index.js';
 
@@ -241,5 +242,80 @@ describe('fetchPlayedGames', () => {
     await expect(c.fetchPlayedGames('555')).rejects.toBeInstanceOf(PsnRateLimitedError);
     await expect(c.fetchPlayedGames('555')).rejects.toBeInstanceOf(PsnNetworkError);
     await expect(c.fetchPlayedGames('555')).rejects.toBeInstanceOf(PsnNetworkError);
+  });
+});
+
+describe('review fixes', () => {
+  it('only accepts online IDs PlayStation allows', () => {
+    for (const ok of ['Perch_Test-Tag', 'abc', 'a'.repeat(16)])
+      expect(psnLinkSchema.safeParse({ onlineId: ` ${ok} ` })).toMatchObject({
+        success: true,
+        data: { onlineId: ok },
+      });
+    for (const bad of ['ab', 'a'.repeat(17), 'has space', 'a/b', 'a?b=1', '../x', 'é-tag'])
+      expect(psnLinkSchema.safeParse({ onlineId: bad }).success).toBe(false);
+    const msg = psnLinkSchema.safeParse({ onlineId: 'a/b' });
+    expect(JSON.stringify(msg.error?.issues)).toMatch(/letters, numbers/i);
+  });
+
+  it('url-encodes the online ID before handing it to psn-api', async () => {
+    const api = fakeApi();
+    await createPsnClient({ npsso: 'n', api })
+      .lookupAccountId('a b')
+      .catch(() => undefined);
+    expect(api.getProfileFromUserName.mock.calls[0]![1]).toBe('a%20b');
+  });
+
+  it('treats PlayStation "Not permitted by access control" as a private history', async () => {
+    const api = fakeApi();
+    api.getUserPlayedGames.mockRejectedValueOnce(new Error('Not permitted by access control'));
+    await expect(
+      createPsnClient({ npsso: 'n', api }).fetchPlayedGames('555'),
+    ).rejects.toBeInstanceOf(PsnProfilePrivateError);
+  });
+
+  it('classifies a 429 as rate limited even when it looks like a network or parse failure', async () => {
+    const api = fakeApi();
+    api.getUserPlayedGames
+      .mockRejectedValueOnce(new SyntaxError('Unexpected token < in JSON (HTTP 429)'))
+      .mockRejectedValueOnce(new TypeError('network error: 429 Too Many Requests'));
+    const c = createPsnClient({ npsso: 'n', api });
+    await expect(c.fetchPlayedGames('555')).rejects.toBeInstanceOf(PsnRateLimitedError);
+    await expect(c.fetchPlayedGames('555')).rejects.toBeInstanceOf(PsnRateLimitedError);
+  });
+
+  it('a rate limit while signing in is rate limited, not unavailable', async () => {
+    const api = fakeApi({
+      exchangeNpssoForAccessCode: vi.fn(async () => {
+        throw new Error('Too many requests (429)');
+      }),
+    });
+    await expect(
+      createPsnClient({ npsso: 'n', api }).lookupAccountId('abc'),
+    ).rejects.toBeInstanceOf(PsnRateLimitedError);
+  });
+
+  it('keeps the cached session through a network failure, drops it on an auth failure', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    let t = 0;
+    const api = fakeApi();
+    const c = createPsnClient({ npsso: 'n', api, now: () => t });
+    await c.fetchPlayedGames('555');
+    t = 3_600_000; // access token due for renewal
+    api.exchangeRefreshTokenForAuthTokens.mockRejectedValueOnce(new TypeError('fetch failed'));
+    await expect(c.fetchPlayedGames('555')).rejects.toBeInstanceOf(PsnNetworkError);
+    await c.fetchPlayedGames('555');
+    // The refresh token was still usable: no second NPSSO exchange.
+    expect(api.exchangeNpssoForAccessCode).toHaveBeenCalledTimes(1);
+    expect(api.exchangeRefreshTokenForAuthTokens).toHaveBeenCalledTimes(2);
+
+    t = 7_200_000;
+    api.exchangeRefreshTokenForAuthTokens.mockRejectedValueOnce(new Error('invalid refresh'));
+    api.exchangeNpssoForAccessCode.mockRejectedValueOnce(
+      new Error('There was a problem retrieving your PSN access code. Is your NPSSO code valid?'),
+    );
+    await expect(c.fetchPlayedGames('555')).rejects.toBeInstanceOf(PsnAuthFailedError);
+    await c.fetchPlayedGames('555');
+    expect(api.exchangeNpssoForAccessCode).toHaveBeenCalledTimes(3); // session was dropped
   });
 });

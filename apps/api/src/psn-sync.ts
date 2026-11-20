@@ -2,6 +2,7 @@ import {
   claimAutoSync,
   createPsnClient,
   PsnAccountChangedError,
+  PsnAuthFailedError,
   rebuildProfile,
   releaseAutoSync,
   syncPsnLibrary,
@@ -34,7 +35,17 @@ export interface PsnSync {
    * the user may go ahead (and the attempt is recorded), else the seconds until they may.
    */
   cooldown(userId: string): number;
+  /** Gives back the attempt `cooldown` just recorded, for a try that never reached PlayStation's data. */
+  refund(userId: string): void;
+  /**
+   * True for 15 minutes after the server's PlayStation sign-in failed: nothing calls PlayStation
+   * meanwhile. Clears on expiry or on the next successful PlayStation call.
+   */
+  authDown(): boolean;
 }
+
+/** How long PlayStation stays switched off after the server's NPSSO is rejected. */
+export const PSN_AUTH_DOWN_MS = 15 * 60_000;
 
 /** One manual PlayStation call per user per minute unless the app says otherwise. */
 export const PSN_COOLDOWN_MS = 60_000;
@@ -53,6 +64,20 @@ export function createPsnSync(
 
   const throttle = (map: Map<string, number>, userId: string) =>
     throttleAttempt(map, userId, cooldownMs);
+  let authDownUntil = 0;
+  const authDown = () => Date.now() < authDownUntil;
+  /** Runs one PlayStation call: refused while auth is down, flags auth down on a rejected sign-in. */
+  async function guarded<T>(fn: () => Promise<T>): Promise<T> {
+    if (authDown()) throw new PsnAuthFailedError();
+    try {
+      const result = await fn();
+      authDownUntil = 0;
+      return result;
+    } catch (err) {
+      if (err instanceof PsnAuthFailedError) authDownUntil = Date.now() + PSN_AUTH_DOWN_MS;
+      throw err;
+    }
+  }
   const inflight = new Map<string, Promise<PsnSyncResult>>();
   const configured = Boolean(env.PSN_NPSSO && igdb && cache);
 
@@ -68,7 +93,7 @@ export function createPsnSync(
           db,
           cache: cache!,
           client: igdb!,
-          fetchTitles: (id) => client.fetchPlayedGames(id),
+          fetchTitles: (id) => guarded(() => client.fetchPlayedGames(id)),
         },
         userId,
         accountId,
@@ -96,11 +121,20 @@ export function createPsnSync(
 
   return {
     configured,
-    lookup: (onlineId) => client.lookupAccountId(onlineId),
+    lookup: (onlineId) => guarded(() => client.lookupAccountId(onlineId)),
     run,
     cooldown: (userId) => throttle(lastManual, userId),
+    refund: (userId) => void lastManual.delete(userId),
+    authDown,
     maybeAuto(userId, accountId, syncedAt) {
-      if (!configured || !accountId || !syncedAt || inflight.has(key(userId, accountId))) return;
+      if (
+        !configured ||
+        authDown() ||
+        !accountId ||
+        !syncedAt ||
+        inflight.has(key(userId, accountId))
+      )
+        return;
       if (throttle(lastAuto, userId) > 0) return;
       void auto(userId, accountId).catch((err) => console.error('psn auto-sync failed', err));
     },

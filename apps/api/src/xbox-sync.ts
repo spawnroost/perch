@@ -31,6 +31,8 @@ export interface XboxSync {
    * ahead (and the attempt is recorded), else the seconds until they may.
    */
   cooldown(userId: string): number;
+  /** Gives back the attempt `cooldown` just recorded, for a try that found no such gamertag. */
+  refund(userId: string): void;
 }
 
 /** One manual OpenXBL-spending call per user per minute unless the app says otherwise. */
@@ -94,6 +96,7 @@ export function createXboxSync(
     configured,
     run,
     cooldown: (userId) => throttle(lastManual, userId),
+    refund: (userId) => void lastManual.delete(userId),
     maybeAuto(userId, xuid, syncedAt) {
       if (!configured || !xuid || !syncedAt || inflight.has(key(userId, xuid))) return;
       if (throttle(lastAuto, userId) > 0) return;
