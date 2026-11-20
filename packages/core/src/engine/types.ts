@@ -32,6 +32,8 @@ export interface LibraryItem {
   lastPlayed: Date | null;
   status: Status;
   owned: boolean;
+  /** Personal 1-5 rating; absent or null = unrated. */
+  rating?: number | null;
 }
 
 export type FeedbackKind = 'up' | 'down' | 'played' | 'not_interested';

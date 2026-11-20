@@ -96,6 +96,8 @@ describe.skipIf(!url)('recs_version', () => {
     expect(await bump(() => upsertLibraryGame(deps(), USER, input, 'manual'))).toBe(1);
     const [entry] = await listLibrary(db, USER);
     expect(await bump(() => updateLibraryEntry(db, USER, entry!.id, { hoursPlayed: 9 }))).toBe(1);
+    expect(await bump(() => updateLibraryEntry(db, USER, entry!.id, { rating: 4 }))).toBe(1);
+    expect(await bump(() => updateLibraryEntry(db, USER, entry!.id, { rating: null }))).toBe(1);
     expect(
       await bump(() =>
         importLibraryGames(deps(), USER, { platform: 'pc', items: [{ igdbId: G2 }] }),

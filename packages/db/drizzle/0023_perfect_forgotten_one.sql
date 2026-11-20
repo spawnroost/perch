@@ -1,0 +1,2 @@
+ALTER TABLE "library_entries" ADD COLUMN "rating" smallint;--> statement-breakpoint
+ALTER TABLE "library_entries" ADD CONSTRAINT "library_entries_rating_chk" CHECK ("library_entries"."rating" between 1 and 5);

@@ -9,6 +9,7 @@ import {
   pgTable,
   primaryKey,
   real,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -301,6 +302,8 @@ export const libraryEntries = pgTable(
     /** 'playing' | 'finished' | 'dropped' | 'backlog' | 'paused' */
     status: text('status').notNull().default('backlog'),
     owned: boolean('owned').default(true).notNull(),
+    /** Personal 1-5 rating; null = unrated. Scales the game's taste weight. */
+    rating: smallint('rating'),
     /** An import found real, older playtime: ask the user whether it is paused. Cleared on any status choice. */
     playedBeforePending: boolean('played_before_pending').default(false).notNull(),
     /** 'manual' | 'import' | 'steam' | 'xbox' | 'psn' */
@@ -314,6 +317,7 @@ export const libraryEntries = pgTable(
       'library_entries_status_chk',
       sql`${t.status} in ('playing', 'finished', 'dropped', 'backlog', 'paused')`,
     ),
+    check('library_entries_rating_chk', sql`${t.rating} between 1 and 5`),
   ],
 );
 

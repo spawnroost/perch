@@ -162,6 +162,13 @@
       "when": 1795178649070,
       "tag": "0022_sharp_hitman",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1795187670416,
+      "tag": "0023_perfect_forgotten_one",
+      "breakpoints": true
     }
   ]
 }

@@ -8,6 +8,10 @@ export const LAST_PLAYED_COUNT = 3;
 export const PROFILE_TOP_N = 15;
 /** Unknown hours count as one hour: the game is in the library, so it says something. */
 export const NULL_HOURS = 1;
+/** Rating multipliers on the base weight; 3 and unrated are neutral. A 1 flips the sign instead. */
+const RATING_FACTOR: Record<number, number> = { 2: 0.5, 3: 1, 4: 1.2, 5: 1.5 };
+/** A 1 rating weighs at least this much (negative), so even an unplayed game reads as disliked. */
+export const MIN_DISLIKE_WEIGHT = 0.5;
 const DAY_MS = 86_400_000;
 
 export interface ProfileInput {
@@ -20,6 +24,11 @@ function recency(lastPlayed: Date | null, now: Date): number {
   if (!lastPlayed) return MISSING_DATE_RECENCY;
   const days = Math.max(0, (now.getTime() - lastPlayed.getTime()) / DAY_MS);
   return 0.5 ** (days / HALF_LIFE_DAYS);
+}
+
+function rated(base: number, rating: number | null | undefined): number {
+  if (rating === 1) return -Math.max(base, MIN_DISLIKE_WEIGHT);
+  return base * (RATING_FACTOR[rating ?? 3] ?? 1);
 }
 
 /** Library games by weight, highest first. */
@@ -37,11 +46,12 @@ export function weighGames({ library, feedback, now }: ProfileInput): WeightedGa
   );
   return library
     .map((l): WeightedGame => {
-      const base =
+      const hoursWeight =
         Math.log1p(Math.max(0, l.hours ?? NULL_HOURS)) *
         recency(l.lastPlayed, now) *
         (l.status === 'dropped' ? DROPPED_FACTOR : 1) *
         (recent.has(l) ? LAST_PLAYED_BOOST : 1);
+      const base = rated(hoursWeight, l.rating);
       return { igdbId: l.game.igdbId, weight: base + (feedbackSum.get(l.game.igdbId) ?? 0) };
     })
     .sort((a, b) => b.weight - a.weight);
@@ -56,7 +66,7 @@ function normaliseTop(sums: Map<string | number, number>, n: number): Record<str
 
 /**
  * Taste profile from the library: per-game weights (hours x recency x status, x1.5 for the 3 most
- * recently played, plus feedback) applied to each game's vocab, genre and theme vectors.
+ * recently played, x personal rating, plus feedback) applied to each game's vocab, genre and theme vectors.
  */
 export function buildProfile(input: ProfileInput): TasteProfile {
   const weights = weighGames(input);

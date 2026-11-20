@@ -22,6 +22,8 @@ export type { SheetContentProps } from './Sheet';
 export { Skeleton } from './Skeleton';
 export { Tabs, TabsContent, TabsList, TabsTrigger } from './Tabs';
 export { Label } from './Label';
+export { RatingStars } from './RatingStars';
+export type { RatingStarsProps } from './RatingStars';
 export { Notice, noticeVariants } from './Notice';
 export type { NoticeProps } from './Notice';
 export { SectionHeading } from './SectionHeading';

@@ -80,6 +80,8 @@ export interface LibraryPatch {
   lastPlayed?: Date | null;
   status?: Status;
   owned?: boolean;
+  /** 1-5; null clears. */
+  rating?: number | null;
 }
 
 /** Updates the given fields of the user's entry; null when it is not theirs. */
@@ -97,6 +99,7 @@ export async function updateLibraryEntry(
     set.playedBeforePending = false;
   }
   if (patch.owned !== undefined) set.owned = patch.owned;
+  if (patch.rating !== undefined) set.rating = patch.rating;
   if (Object.keys(set).length > 0) {
     const updated = await db.transaction(async (tx) => {
       const rows = await tx

@@ -6,6 +6,9 @@ import { dateInputSchema, igdbIdSchema, isoDate } from './common.js';
 export const statusSchema = z.enum(STATUSES);
 const hours = hoursField.max(1_000_000);
 
+/** Personal rating, 1-5; null = unrated. */
+export const ratingSchema = z.number().int().min(1).max(5).nullable();
+
 export const libraryEntrySchema = z.object({
   id: z.uuid(),
   igdbId: z.number().int(),
@@ -20,6 +23,7 @@ export const libraryEntrySchema = z.object({
   lastPlayed: isoDate.nullable(),
   status: statusSchema,
   owned: z.boolean(),
+  rating: ratingSchema,
   source: z.string(),
   addedAt: isoDate,
 });
@@ -43,6 +47,7 @@ export const libraryPatchSchema = z
     lastPlayed: dateInputSchema.nullable().optional(),
     status: statusSchema.optional(),
     owned: z.boolean().optional(),
+    rating: ratingSchema.optional(),
   })
   .refine((v) => Object.values(v).some((x) => x !== undefined), 'nothing to update');
 

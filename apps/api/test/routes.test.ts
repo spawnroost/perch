@@ -644,6 +644,27 @@ describe.skipIf(!testUrl)('api routes', () => {
       expect(after.entries).toEqual([]);
     });
 
+    it('PATCH sets and clears a 1-5 rating, listed in the library JSON', async () => {
+      const u = await newUser();
+      const created = await call('POST', '/api/library', u.cookie, { igdbId: A, hoursPlayed: 1 });
+      const { entry } = (await created.json()) as { entry: { id: string; rating: number | null } };
+      expect(entry.rating).toBeNull();
+      const rated = await call('PATCH', `/api/library/${entry.id}`, u.cookie, { rating: 4 });
+      expect(rated.status).toBe(200);
+      expect(((await rated.json()) as { entry: unknown }).entry).toMatchObject({ rating: 4 });
+      const list = (await (await get('/api/library', u.cookie)).json()) as {
+        entries: { rating: number | null }[];
+      };
+      expect(list.entries[0]!.rating).toBe(4);
+      for (const rating of [0, 6, 2.5, '3']) {
+        expect((await call('PATCH', `/api/library/${entry.id}`, u.cookie, { rating })).status).toBe(
+          400,
+        );
+      }
+      const cleared = await call('PATCH', `/api/library/${entry.id}`, u.cookie, { rating: null });
+      expect(((await cleared.json()) as { entry: unknown }).entry).toMatchObject({ rating: null });
+    });
+
     it('returns 201 for a new entry and 200 when re-adding updates it', async () => {
       const u = await newUser();
       const first = await call('POST', '/api/library', u.cookie, { igdbId: A, hoursPlayed: 1 });

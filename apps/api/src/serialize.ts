@@ -23,6 +23,7 @@ export function libraryDto(r: LibraryRow): LibraryEntry {
     lastPlayed: iso(r.lastPlayed),
     status: r.status as LibraryEntry['status'],
     owned: r.owned,
+    rating: r.rating,
     source: r.source,
     addedAt: r.addedAt.toISOString(),
   };

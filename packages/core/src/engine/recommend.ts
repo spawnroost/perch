@@ -109,6 +109,7 @@ export function mergeLibrary(library: readonly LibraryItem[]): LibraryItem[] {
       lastPlayed: newer ? l.lastPlayed : prev.lastPlayed,
       status: newer ? l.status : prev.status,
       owned: prev.owned || l.owned,
+      rating: l.rating ?? prev.rating ?? null,
     });
   }
   return [...merged.values()];

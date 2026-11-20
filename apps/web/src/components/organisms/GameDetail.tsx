@@ -12,6 +12,7 @@ import {
   LoadError,
 } from '../molecules';
 import { GameFactsBody, GameFactsRail } from './GameFactsRail';
+import { GameRating } from './GameRating';
 import { PlayerVoice } from './PlayerVoice';
 import { Soundtrack } from './Soundtrack';
 import { useAddToLibrary, useFeedback, useGameDetail, useLibrary } from '@/hooks/queries';
@@ -261,6 +262,7 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
               </DetailSection>
             </Reveal>
           )}
+          {seeded ? null : <GameRating igdbId={game.igdbId} />}
           {seeded ? (
             <Skeleton className="h-40 w-full" aria-busy />
           ) : (

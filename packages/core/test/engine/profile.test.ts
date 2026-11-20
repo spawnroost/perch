@@ -182,6 +182,51 @@ describe('buildProfile vectors', () => {
     expect(p.vocab.b).toBeCloseTo(1, 10);
   });
 
+  it('personal ratings scale the base weight: 5 x1.5, 4 x1.2, 3/null x1, 2 x0.5', () => {
+    const rated = (id: number, rating: number | null) => ({
+      ...item(game(id, `G${id}`, { x: 1 }), 10, 100),
+      rating,
+    });
+    const p = buildProfile({
+      library: [...fillers, rated(1, null), rated(2, 5), rated(3, 4), rated(4, 3), rated(5, 2)],
+      feedback: [],
+      now: NOW,
+    });
+    const base = weightOf(p, 1)!;
+    expect(weightOf(p, 2)! / base).toBeCloseTo(1.5, 10);
+    expect(weightOf(p, 3)! / base).toBeCloseTo(1.2, 10);
+    expect(weightOf(p, 4)! / base).toBeCloseTo(1, 10);
+    expect(weightOf(p, 5)! / base).toBeCloseTo(0.5, 10);
+  });
+
+  it('a 1 rating makes the weight negative (-max(base, 0.5)) and feedback still adds on top', () => {
+    const rated = (id: number, hours: number, rating: number) => ({
+      ...item(game(id, `G${id}`, { x: 1 }), hours, 100),
+      rating,
+    });
+    const p = buildProfile({
+      library: [...fillers, rated(1, 10, 1), rated(2, 0, 1)],
+      feedback: [{ igdbId: 2, kind: 'up' }],
+      now: NOW,
+    });
+    expect(weightOf(p, 1)).toBeCloseTo(-Math.max(Math.log1p(10) * 0.5 ** (100 / 45), 0.5), 10);
+    expect(weightOf(p, 2)).toBeCloseTo(-0.5 + 1, 10);
+  });
+
+  it('ratings change which game leads the ranking', () => {
+    const lib = (ra: number | null, rb: number | null) => [
+      { ...item(game(1, 'A', { a: 1 }), 10, 100), rating: ra },
+      { ...item(game(2, 'B', { b: 1 }), 10, 100), rating: rb },
+    ];
+    const top = (l: ReturnType<typeof lib>) =>
+      buildProfile({ library: l, feedback: [], now: NOW }).weights[0]!.igdbId;
+    expect(top(lib(5, 2))).toBe(1);
+    expect(top(lib(2, 5))).toBe(2);
+    const p = buildProfile({ library: lib(1, null), feedback: [], now: NOW });
+    expect(p.vocab.a).toBeUndefined();
+    expect(p.vocab.b).toBeCloseTo(1, 10);
+  });
+
   it('an empty library gives an empty profile', () => {
     const p = buildProfile({ library: [], feedback: [], now: NOW });
     expect(p).toEqual({ vocab: {}, genres: {}, themes: {}, weights: [] });

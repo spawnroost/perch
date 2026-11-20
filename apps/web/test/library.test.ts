@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { LibraryEntry } from '@perch/core';
 import {
   buildPatch,
+  entriesToRate,
+  gameRating,
   games,
   filterLibrary,
   formatHours,
@@ -29,6 +31,7 @@ function entry(over: Partial<LibraryEntry>): LibraryEntry {
     lastPlayed: null,
     status: 'backlog',
     owned: true,
+    rating: null,
     source: 'manual',
     addedAt: '2026-01-01T00:00:00.000Z',
     ...over,
@@ -103,14 +106,47 @@ describe('buildPatch', () => {
     status: 'playing',
   });
   it('seeds the form from the entry', () => {
-    expect(toForm(base)).toEqual({ hours: '10', lastPlayed: '2026-03-01', status: 'playing' });
-    expect(toForm(entry({}))).toEqual({ hours: '', lastPlayed: '', status: 'backlog' });
+    expect(toForm(base)).toEqual({
+      hours: '10',
+      lastPlayed: '2026-03-01',
+      status: 'playing',
+      rating: null,
+    });
+    expect(toForm(entry({}))).toEqual({
+      hours: '',
+      lastPlayed: '',
+      status: 'backlog',
+      rating: null,
+    });
   });
   it('sends only what changed', () => {
     expect(buildPatch(base, { ...toForm(base), hours: '12.5' })).toEqual({
       ok: true,
       patch: { hoursPlayed: 12.5 },
     });
+  });
+  it('sends a rating change and null to clear it', () => {
+    expect(buildPatch(base, { ...toForm(base), rating: 4 })).toEqual({
+      ok: true,
+      patch: { rating: 4 },
+    });
+    const rated = entry({ rating: 4 });
+    expect(buildPatch(rated, { ...toForm(rated), rating: null })).toEqual({
+      ok: true,
+      patch: { rating: null },
+    });
+    expect(buildPatch(rated, toForm(rated))).toEqual({ ok: true, patch: null });
+  });
+  it('picks a game rating and the entries to patch across platforms', () => {
+    const list = [
+      entry({ id: 'p', igdbId: 7, rating: null }),
+      entry({ id: 'q', igdbId: 7, rating: 3 }),
+      entry({ id: 'r', igdbId: 8, rating: 5 }),
+    ];
+    expect(gameRating(list, 7)).toBe(3);
+    expect(gameRating(list, 9)).toBeNull();
+    expect(entriesToRate(list, 7, 3)).toEqual(['p']);
+    expect(entriesToRate(list, 7, null)).toEqual(['q']);
   });
   it('returns no patch when nothing changed', () => {
     expect(buildPatch(base, toForm(base))).toEqual({ ok: true, patch: null });

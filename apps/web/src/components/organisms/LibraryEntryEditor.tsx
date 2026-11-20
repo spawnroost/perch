@@ -1,17 +1,18 @@
 import { useState } from 'react';
 import type { LibraryEntry } from '@perch/core';
-import { Button, Notice } from '../atoms';
+import { Button, Notice, RatingStars } from '../atoms';
 import { ActionForm, FormField, SelectField } from '../molecules';
 import { useRemoveLibraryEntry, useUpdateLibraryEntry } from '@/hooks/queries';
 import { buildPatch, STATUS_LABEL, STATUSES, toForm, type Status } from '@/lib/library';
 
-/** Edit hours, last played and status of one library entry, or remove it. */
+/** Edit hours, last played, status and rating of one library entry, or remove it. */
 export function LibraryEntryEditor({ entry, onDone }: { entry: LibraryEntry; onDone: () => void }) {
   const update = useUpdateLibraryEntry();
   const remove = useRemoveLibraryEntry();
   const [formError, setFormError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const form = toForm(entry);
+  const [rating, setRating] = useState(form.rating);
   const busy = update.isPending || remove.isPending;
 
   function onSubmit(data: FormData) {
@@ -19,6 +20,7 @@ export function LibraryEntryEditor({ entry, onDone }: { entry: LibraryEntry; onD
       hours: String(data.get('hours') ?? ''),
       lastPlayed: String(data.get('lastPlayed') ?? ''),
       status: String(data.get('status')) as Status,
+      rating,
     });
     if (!result.ok) return setFormError(result.error);
     setFormError(null);
@@ -73,6 +75,10 @@ export function LibraryEntryEditor({ entry, onDone }: { entry: LibraryEntry; onD
           </option>
         ))}
       </SelectField>
+      <div className="flex flex-col gap-1.5">
+        <span className="text-sm font-medium text-fg-muted">Your rating</span>
+        <RatingStars label="Your rating" value={rating} onChange={setRating} disabled={busy} />
+      </div>
     </ActionForm>
   );
 }
