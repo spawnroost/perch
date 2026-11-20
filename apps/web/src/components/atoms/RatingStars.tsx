@@ -57,10 +57,12 @@ export function RatingStars({
             aria-checked={value === n}
             aria-label={ratingLabel(n)}
             tabIndex={n === tabStop(value) ? 0 : -1}
-            disabled={disabled}
-            onClick={() => onChange(clickRating(value, n))}
+            aria-disabled={disabled || undefined}
+            onClick={() => {
+              if (!disabled) onChange(clickRating(value, n));
+            }}
             className={cn(
-              'inline-flex size-7 cursor-pointer items-center justify-center rounded-md transition-colors duration-fast ease-out hover:text-accent disabled:cursor-not-allowed disabled:opacity-50',
+              'inline-flex size-7 cursor-pointer items-center justify-center rounded-md transition-colors duration-fast ease-out hover:text-accent aria-disabled:cursor-progress',
               filled ? 'text-accent' : 'text-fg-subtle',
             )}
           >
