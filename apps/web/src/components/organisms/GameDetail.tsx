@@ -12,6 +12,7 @@ import {
   LoadError,
 } from '../molecules';
 import { GameFactsBody, GameFactsRail } from './GameFactsRail';
+import { PlayerVoice } from './PlayerVoice';
 import { Soundtrack } from './Soundtrack';
 import { useAddToLibrary, useFeedback, useGameDetail, useLibrary } from '@/hooks/queries';
 import { useReduced } from '@/hooks/useMotionPrefs';
@@ -265,6 +266,7 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
           ) : (
             <GameFactsRail facts={facts} timeToBeat={timeToBeat} steamAppId={game.steamAppId} />
           )}
+          {seeded ? null : <PlayerVoice igdbId={game.igdbId} />}
           {seeded ? null : <Soundtrack igdbId={game.igdbId} />}
         </aside>
       </div>

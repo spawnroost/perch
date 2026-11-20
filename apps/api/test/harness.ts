@@ -41,6 +41,7 @@ export async function setupApi(
       | 'accentFor'
       | 'steamOpenId'
       | 'explainer'
+      | 'voiceSummarizer'
       | 'reasonsWaitMs'
     >
   > = {},

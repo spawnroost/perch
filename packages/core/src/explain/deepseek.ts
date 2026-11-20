@@ -1,3 +1,4 @@
+import { deepseekChat, type DeepseekChatOptions } from './chat.js';
 import {
   REASON_HARD_MAX_CHARS,
   REASON_MAX_CHARS,
@@ -7,13 +8,7 @@ import {
   type ReasonItem,
 } from './schemas.js';
 
-export interface DeepseekExplainerOptions {
-  apiKey: string;
-  model?: string;
-  baseUrl?: string;
-  fetch?: typeof fetch;
-  timeoutMs?: number;
-}
+export type DeepseekExplainerOptions = DeepseekChatOptions;
 
 const SYSTEM_PROMPT = `You write one-line reasons why a video game fits a player's taste.
 For each game you get its title, the player's library games it is closest to, and taste tags they share.
@@ -41,9 +36,6 @@ export function cleanReason(raw: string): string | null {
 
 /** DeepSeek via its OpenAI-compatible chat completions endpoint, in JSON mode; one call per batch. */
 export function createDeepseekExplainer(o: DeepseekExplainerOptions): ReasonExplainer {
-  const doFetch = o.fetch ?? fetch;
-  const model = o.model ?? 'deepseek-flash';
-  const baseUrl = (o.baseUrl ?? 'https://api.deepseek.com').replace(/\/+$/, '');
   return {
     name: 'deepseek',
     async explain(items: readonly ReasonItem[]) {
@@ -57,29 +49,12 @@ export function createDeepseekExplainer(o: DeepseekExplainerOptions): ReasonExpl
         sharedTags: i.sharedTags,
         ...(i.fit ? { fit: i.fit } : {}),
       }));
-      const res = await doFetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${o.apiKey}` },
-        signal: AbortSignal.timeout(o.timeoutMs ?? 20_000),
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: JSON.stringify({ games: payload }) },
-          ],
-          response_format: { type: 'json_object' },
-          max_tokens: 2000,
-          // deepseek-flash reasons by default; that burns the token budget and can leave content blank.
-          thinking: { type: 'disabled' },
-          temperature: 0.4,
-          stream: false,
-        }),
+      const content = await deepseekChat(o, {
+        system: SYSTEM_PROMPT,
+        user: { games: payload },
+        maxTokens: 2000,
+        temperature: 0.4,
       });
-      if (!res.ok) throw new Error(`deepseek HTTP ${res.status}`);
-      const body = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-      const content = body.choices?.[0]?.message?.content;
-      // JSON mode returns blank content when the model produced invalid JSON.
-      if (!content?.trim()) throw new Error('deepseek returned empty content');
       const { reasons } = reasonsResponseSchema.parse(JSON.parse(content));
       const asked = new Set(items.map((i) => i.igdbId));
       for (const entry of reasons) {

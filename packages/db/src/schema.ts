@@ -385,6 +385,21 @@ export const gameSoundtracks = pgTable('game_soundtracks', {
 });
 
 /**
+ * AI summary of what Steam players say about a game (`payload` is the core `playerVoiceSchema`).
+ * A null payload is a negative cache: too few usable reviews, or nothing the model could say.
+ * Fresh for 30 days, negative rows for 7 (see core player-voice); `review_count` is how many
+ * usable review texts the summary was built from.
+ */
+export const gamePlayerVoice = pgTable('game_player_voice', {
+  igdbId: integer('igdb_id')
+    .primaryKey()
+    .references(() => games.igdbId, { onDelete: 'cascade' }),
+  payload: jsonb('payload'),
+  reviewCount: integer('review_count').notNull().default(0),
+  fetchedAt: ts('fetched_at').defaultNow().notNull(),
+});
+
+/**
  * LLM-written one-line reasons for a user's For-you picks. A row is only valid while
  * `recs_version` equals the user's current `users.recs_version`; anything older is regenerated.
  */

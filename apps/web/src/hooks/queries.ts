@@ -36,11 +36,13 @@ import type {
   PlayedBefore,
   RecommendationsResponse,
   SimilarResponse,
+  PlayerVoiceResponse,
   SoundtrackResponse,
   SessionQuery,
   SessionResponse,
 } from '@perch/core/browser';
 import { api } from '@/lib/api';
+import { playerVoicePollMs } from '@/lib/playerVoice';
 import { createReasonsPoller } from '@/lib/reasonsPoll';
 import {
   applyFeedback,
@@ -234,6 +236,25 @@ export function useSoundtrack(igdbId: number) {
         ? SOUNDTRACK_POLL_MS
         : false,
   });
+}
+
+/**
+ * AI summary of Steam reviews. The first visit may answer pending while it is written, so it asks
+ * again every 2 s a few times; `waiting` is true until it has an answer or the polls run out.
+ */
+export function usePlayerVoice(igdbId: number) {
+  const queryClient = useQueryClient();
+  const queryKey = queryKeys.playerVoice(igdbId);
+  const query = useQuery({
+    queryKey,
+    queryFn: ({ signal }) =>
+      api.get<PlayerVoiceResponse>(`/api/games/${igdbId}/player-voice`, { signal }),
+    staleTime: 10 * 60_000,
+    refetchInterval: (q) => playerVoicePollMs(q.state.data, q.state.dataUpdateCount),
+  });
+  const updates = queryClient.getQueryState(queryKey)?.dataUpdateCount ?? 0;
+  const waiting = query.isPending || playerVoicePollMs(query.data, updates) !== false;
+  return { ...query, waiting };
 }
 
 /** Ranked picks for a play session; idle until `params` is set (no device picked yet). */

@@ -2,6 +2,8 @@ import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { gameRequirements, games, type Db } from '@perch/db';
 import { RateQueue } from '../igdb/queue.js';
+import { parseReviewTexts } from '../player-voice/reviews.js';
+import type { VoiceReview } from '../player-voice/schemas.js';
 import { parseReviewSummary, type SteamReviews } from '../steam-reviews/summary.js';
 import { htmlToLines, parseSteamRequirements, scoreRequirements } from './parse.js';
 
@@ -50,6 +52,11 @@ export interface SteamClient {
   getDeckCompat(appId: number): Promise<DeckCategory>;
   /** User-review summary; null when the app has no reviews or Steam answers unreadably. */
   getReviewSummary(appId: number): Promise<SteamReviews | null>;
+  /**
+   * The most helpful English review texts (see `pickReviews`); empty when the app has none.
+   * Throws when Steam answers with something other than review JSON.
+   */
+  getReviewTexts(appId: number): Promise<VoiceReview[]>;
 }
 
 const DECK_URL = 'https://store.steampowered.com/saleaction/ajaxgetdeckappcompatibilityreport';
@@ -154,6 +161,19 @@ export function createSteamClient(opts: SteamClientOptions = {}): SteamClient {
       } catch {
         return null;
       }
+    },
+
+    async getReviewTexts(appId) {
+      const id = Math.trunc(appId);
+      const url = `${REVIEWS_URL}/${id}?json=1&filter=all&language=english&purchase_type=steam&num_per_page=100&review_type=all`;
+      const res = await request(url, 'review texts', id);
+      let body: unknown;
+      try {
+        body = JSON.parse(await res.text());
+      } catch {
+        throw new SteamError(`Steam review texts ${id}: response is not JSON`, res.status, 'body');
+      }
+      return parseReviewTexts(body);
     },
   };
 }

@@ -9,6 +9,7 @@ export const queryKeys = {
   devices: ['devices'] as const,
   presets: ['device-presets'] as const,
   soundtrack: (igdbId: number) => ['games', 'soundtrack', igdbId] as const,
+  playerVoice: (igdbId: number) => ['games', 'player-voice', igdbId] as const,
   gameDetailAll: ['games', 'detail'] as const,
   game: (igdbId: number) => ['games', 'detail', igdbId] as const,
   /** Prefix of every batched search-fit query; refreshed with library and device changes. */

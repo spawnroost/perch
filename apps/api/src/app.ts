@@ -12,6 +12,7 @@ import {
   createAccentFetcher,
   createIgdbCache,
   createDeepseekExplainer,
+  createDeepseekVoiceSummarizer,
   createReasonService,
   createTtlMemo,
   type BrowseList,
@@ -19,6 +20,7 @@ import {
   type IgdbClient,
   type ItunesClient,
   type ReasonExplainer,
+  type VoiceSummarizer,
   type ReasonService,
   type SteamClient,
   type TtlMemo,
@@ -69,6 +71,8 @@ export interface AppDeps {
   psnCooldownMs?: number;
   /** Overrides the LLM behind the For-you reasons (tests); the default is DeepSeek when its key is set. */
   explainer?: ReasonExplainer;
+  /** Overrides the LLM behind "What players say" (tests); the default is DeepSeek when its key is set. */
+  voiceSummarizer?: VoiceSummarizer;
   /** Fetch used for DeepSeek calls (tests stub it); defaults to the global fetch. */
   deepseekFetch?: typeof fetch;
   /** Longest a For-you request waits for the reasons batch, in ms (tests); default 2.5 s. */
@@ -104,6 +108,8 @@ export interface RouteDeps extends AppDeps {
   psnSync: PsnSync;
   /** Taste-vocab id -> label, for reasons. */
   labels: Record<string, string>;
+  /** Summarizer of Steam review texts; null without an LLM configured. */
+  playerVoiceSummarizer: VoiceSummarizer | null;
   /** LLM reasons for the top For-you picks; a no-op without an LLM configured. */
   reasons: ReasonService;
   /** Ranked browse lists, remembered between requests (keyed by user, recs version and tags). */
@@ -127,6 +133,14 @@ export function createApp(appDeps: AppDeps) {
     mapVocab: mapGame,
     labels: Object.fromEntries(VOCAB.map((v) => [v.id, v.label])),
     browseLists: createTtlMemo<BrowseList>({ max: 50 }),
+    playerVoiceSummarizer:
+      appDeps.voiceSummarizer ??
+      (env.DEEPSEEK_API_KEY
+        ? createDeepseekVoiceSummarizer({
+            apiKey: env.DEEPSEEK_API_KEY,
+            fetch: appDeps.deepseekFetch,
+          })
+        : null),
     reasons: createReasonService({
       db,
       explainer:

@@ -7,15 +7,18 @@ import {
   gameFitsForUser,
   gameSearchQuerySchema,
   igdbIdParamSchema,
+  playerVoiceLookup,
   similarForUser,
   similarQuerySchema,
   soundtrackLookup,
   soundtrackLinks,
   steamReviewsFor,
+  steamReviewsUrl,
   toTimeToBeatHours,
   type GameDetailResponse,
   type GameFitsResponse,
   type GameSearchResponse,
+  type PlayerVoiceResponse,
   type SimilarResponse,
   type SoundtrackResponse,
 } from '@perch/core';
@@ -88,6 +91,24 @@ export function gamesRoutes(deps: RouteDeps) {
       ...(pending ? { pending: true } : {}),
       links: soundtrackLinks(game.name, soundtrack?.appleMusicUrl ?? null),
     } satisfies SoundtrackResponse);
+  });
+
+  r.get('/:igdbId/player-voice', async (c) => {
+    const { igdbId } = parseParams(c, igdbIdParamSchema);
+    const { cache } = requireIgdb(deps);
+    const game = await cache.getGame(igdbId);
+    if (!game) return c.json({ error: 'game not found' }, 404);
+    // Cached for a month; the first visit waits briefly on Steam and the LLM, then answers pending.
+    const { voice, pending } = await playerVoiceLookup(deps.db, game, c.get('user').id, {
+      client: deps.steam,
+      summarizer: deps.playerVoiceSummarizer,
+      globalCap: deps.env.LLM_DAILY_BATCH_CAP,
+    });
+    return c.json({
+      voice,
+      ...(pending ? { pending: true } : {}),
+      steamReviewsUrl: steamReviewsUrl(game.steamAppId),
+    } satisfies PlayerVoiceResponse);
   });
 
   r.get('/:igdbId', async (c) => {

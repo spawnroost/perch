@@ -10,6 +10,7 @@ import {
   type ReasonExplainer,
   type RecommendationsResponse,
   type TagQuery,
+  playerVoiceResponseSchema,
   soundtrackResponseSchema,
 } from '@perch/core';
 import { schema } from '@perch/db';
@@ -153,6 +154,22 @@ const fakeSteam = {
   async getReviewSummary() {
     return { desc: 'Very Positive', pct: 91, total: 1234 };
   },
+  async getReviewTexts(appId: number) {
+    voiceFetches.push(appId);
+    return Array.from({ length: 12 }, (_, i) => ({
+      text: `Review ${i}: a long enough opinion about the game.`,
+      votedUp: true,
+      playtimeMinutes: 90,
+      deck: false,
+    }));
+  },
+};
+
+const voiceFetches: number[] = [];
+const fakeVoice = {
+  async summarize() {
+    return { likes: ['Tight combat'], complaints: ['Short campaign'], deck: null };
+  },
 };
 
 const soundtrackCalls: string[] = [];
@@ -193,6 +210,7 @@ describe.skipIf(!testUrl)('api routes', () => {
         igdb: fakeIgdb,
         steam: fakeSteam,
         soundtrack: fakeSoundtrack,
+        voiceSummarizer: fakeVoice,
         accentFor,
         explainer: fakeExplainer,
         reasonsWaitMs: 150,
@@ -244,6 +262,7 @@ describe.skipIf(!testUrl)('api routes', () => {
       ['GET', '/api/games/search?q=alpha'],
       ['GET', `/api/games/${A}`],
       ['GET', `/api/games/${A}/soundtrack`],
+      ['GET', `/api/games/${A}/player-voice`],
       ['GET', `/api/games/fit?ids=${A}`],
       ['GET', '/api/library'],
       ['POST', '/api/library'],
@@ -401,6 +420,40 @@ describe.skipIf(!testUrl)('api routes', () => {
       const body = soundtrackResponseSchema.parse(await res.json());
       expect(body.soundtrack).toBeNull();
       expect(body.links.appleMusic).toMatch(/^https:\/\/music\.apple\.com\/search\?term=/);
+    });
+
+    it('serves the player-voice summary with the Steam reviews link, cached after the first lookup', async () => {
+      const u = await newUser();
+      voiceFetches.length = 0;
+      const first = await get(`/api/games/${A}/player-voice`, u.cookie);
+      expect(first.status).toBe(200);
+      const body = playerVoiceResponseSchema.parse(await first.json());
+      expect(body.voice).toEqual({
+        likes: ['Tight combat'],
+        complaints: ['Short campaign'],
+        deck: null,
+      });
+      expect(body.steamReviewsUrl).toBe(
+        'https://store.steampowered.com/app/4000001/#app_reviews_hash',
+      );
+      await get(`/api/games/${A}/player-voice`, u.cookie);
+      expect(voiceFetches).toEqual([4_000_001]);
+    });
+
+    it('answers a null player-voice for a game without a Steam page', async () => {
+      const u = await newUser();
+      const res = await get(`/api/games/${B}/player-voice`, u.cookie);
+      expect(res.status).toBe(200);
+      expect(playerVoiceResponseSchema.parse(await res.json())).toEqual({
+        voice: null,
+        steamReviewsUrl: null,
+      });
+    });
+
+    it('404s the player-voice of an unknown game and 400s a bad id', async () => {
+      const u = await newUser();
+      expect((await get('/api/games/999999999/player-voice', u.cookie)).status).toBe(404);
+      expect((await get('/api/games/abc/player-voice', u.cookie)).status).toBe(400);
     });
 
     it('404s the soundtrack of an unknown game and 400s a bad id', async () => {

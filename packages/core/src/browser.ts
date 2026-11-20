@@ -76,3 +76,5 @@ export type {
   SoundtrackResponse,
   SoundtrackTrack,
 } from './soundtrack/schemas.js';
+export { playerVoiceResponseSchema, playerVoiceSchema } from './player-voice/schemas.js';
+export type { PlayerVoice, PlayerVoiceResponse } from './player-voice/schemas.js';

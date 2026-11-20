@@ -1,3 +1,5 @@
+export { deepseekChat } from './chat.js';
+export type { DeepseekChatOptions, DeepseekChatRequest } from './chat.js';
 export { cleanReason, createDeepseekExplainer } from './deepseek.js';
 export type { DeepseekExplainerOptions } from './deepseek.js';
 export { buildReasonItems } from './items.js';
