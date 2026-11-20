@@ -74,6 +74,9 @@ describe.skipIf(!url)('reason service + usage caps', () => {
     it('enforces the global cap without spending the user slot', async () => {
       expect(await reserveLlmBatch(db, U1, { globalCap: 1, now })).toBe(true);
       expect(await reserveLlmBatch(db, U2, { globalCap: 1, now })).toBe(false);
+      // A scope keeps its own counters: the unscoped ones are not touched.
+      expect(await reserveLlmBatch(db, U2, { globalCap: 1, now, scope: 'voice' })).toBe(true);
+      expect(await reserveLlmBatch(db, U1, { globalCap: 1, now, scope: 'voice' })).toBe(false);
       const rows = await db
         .select()
         .from(llmUsage)

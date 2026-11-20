@@ -38,11 +38,18 @@ function trimAtWord(text: string, max: number): string {
 }
 
 const clean = (s: string) => trimAtWord(s.trim().replace(/\s+/g, ' '), VOICE_MAX_CHARS);
-const cleanList = (list: readonly string[]) =>
-  list
+const cleanList = (list: readonly string[]) => {
+  const seen = new Set<string>();
+  return list
     .map(clean)
-    .filter((s) => s.length > 0)
+    .filter((s) => {
+      const key = s.toLowerCase();
+      if (s.length === 0 || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
     .slice(0, VOICE_MAX_POINTS);
+};
 
 /**
  * Validates the model's answer and trims it to the schema's limits. Throws when it has the wrong

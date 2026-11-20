@@ -1,14 +1,18 @@
 import type { PlayerVoiceResponse } from '@perch/core/browser';
 
 export const PLAYER_VOICE_POLL_MS = 2000;
-export const PLAYER_VOICE_MAX_POLLS = 5;
+/** Covers the server's 40 s summarizer timeout plus the Steam fetch. */
+export const PLAYER_VOICE_MAX_WAIT_MS = 60_000;
 
-/** How long to wait before asking again while the server writes the summary; false to stop. */
+/**
+ * How long to wait before asking again while the server writes the summary; false to stop.
+ * `sincePendingMs` is the time since the first pending answer.
+ */
 export function playerVoicePollMs(
   data: Pick<PlayerVoiceResponse, 'pending'> | undefined,
-  updateCount: number,
+  sincePendingMs: number,
 ): number | false {
-  return data?.pending && updateCount < PLAYER_VOICE_MAX_POLLS ? PLAYER_VOICE_POLL_MS : false;
+  return data?.pending && sincePendingMs < PLAYER_VOICE_MAX_WAIT_MS ? PLAYER_VOICE_POLL_MS : false;
 }
 
 export interface VoiceGroup {

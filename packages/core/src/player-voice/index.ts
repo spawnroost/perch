@@ -26,7 +26,9 @@ export { cleanVoice, createDeepseekVoiceSummarizer } from './summarize.js';
 export const PLAYER_VOICE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 /** A game with too few reviews, or nothing to say, is looked at again after this. */
 export const PLAYER_VOICE_NEGATIVE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-/** After a failed or skipped attempt the game is left alone this long (memory only). */
+/** Most player-voice batches one user can start per day (the For-you reasons count separately). */
+export const VOICE_USER_DAILY_CAP = 50;
+/** After a failed fetch or summary the game is left alone this long (memory only). */
 export const PLAYER_VOICE_BLOCK_MS = 10 * 60 * 1000;
 /** Longest a first lookup is awaited; it continues in the background. */
 const DEFAULT_WAIT_MS = 2500;
@@ -57,6 +59,11 @@ const isFresh = (s: Stored, now: Date) =>
   now.getTime() - s.fetchedAt.getTime() <
   (s.voice ? PLAYER_VOICE_TTL_MS : PLAYER_VOICE_NEGATIVE_TTL_MS);
 
+/** Only bumps fetched_at, so a stored summary survives a refresh that found nothing new. */
+async function touch(db: Db, igdbId: number, fetchedAt: Date) {
+  await db.update(gamePlayerVoice).set({ fetchedAt }).where(eq(gamePlayerVoice.igdbId, igdbId));
+}
+
 async function save(
   db: Db,
   igdbId: number,
@@ -73,7 +80,7 @@ async function save(
     });
 }
 
-/** Games whose last attempt failed or was skipped, with when; left alone for PLAYER_VOICE_BLOCK_MS. */
+/** Games whose last attempt failed, with when; left alone for PLAYER_VOICE_BLOCK_MS. */
 const blocked = new Map<number, number>();
 
 /** Forgets every block (tests). */
@@ -95,7 +102,10 @@ interface Game {
   steamAppId: number;
 }
 
-/** Fetches reviews, summarizes and stores. Failures and a used-up allowance store nothing. */
+/**
+ * Fetches reviews, summarizes and stores. Failures and a used-up allowance store nothing. A stored
+ * summary is never replaced by "none": the refresh only bumps its fetched_at.
+ */
 async function refresh(
   db: Db,
   game: Game,
@@ -115,19 +125,23 @@ async function refresh(
     const client = opts.client ?? getSharedSteamClient();
     const reviews = await client.getReviewTexts(game.steamAppId);
     if (reviews.length < MIN_VOICE_REVIEWS) {
-      await save(db, game.igdbId, null, reviews.length, now());
-      return null;
+      if (keep) await touch(db, game.igdbId, now());
+      else await save(db, game.igdbId, null, reviews.length, now());
+      return keep;
     }
     const allowed = await reserveLlmBatch(db, userId, {
       globalCap: opts.globalCap ?? DEFAULT_GLOBAL_DAILY_BATCH_CAP,
-      userCap: opts.userCap,
+      userCap: opts.userCap ?? VOICE_USER_DAILY_CAP,
       now: now(),
+      scope: 'voice',
     });
-    if (!allowed) {
-      block();
+    // A used-up allowance is the user's, not the game's: no block, other users may still try.
+    if (!allowed) return keep;
+    const voice = await summarizer.summarize(game.name, reviews);
+    if (!voice && keep) {
+      await touch(db, game.igdbId, now());
       return keep;
     }
-    const voice = await summarizer.summarize(game.name, reviews);
     await save(db, game.igdbId, voice, reviews.length, now());
     return voice;
   } catch (err) {
@@ -141,7 +155,7 @@ async function refresh(
  * What Steam players say about a game, from the cache. A stored summary (also a "none" one) past
  * its TTL is served at once and refreshed in the background; with nothing stored the call waits up
  * to `waitMs`, then answers `pending` while the lookup finishes. A lookup spends one LLM batch
- * from the user's and the global daily allowance. Never throws: null on any failure.
+ * from the player-voice daily allowance (its own counters, apart from the For-you reasons). Never throws: null on any failure.
  */
 export async function playerVoiceLookup(
   db: Db,

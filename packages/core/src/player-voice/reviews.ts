@@ -50,12 +50,14 @@ export function pickReviews(raw: readonly unknown[]): VoiceReview[] {
 }
 
 /**
- * The picked reviews of a Steam `appreviews` response body. Empty when Steam says the app has
- * none; throws when the body is not the expected shape, so a Steam hiccup is not cached as "none".
+ * The picked reviews of a Steam `appreviews` response body. Empty only when Steam answers
+ * `success: 1` with no (or few) reviews; throws on anything else, so a Steam hiccup is not cached
+ * as "none".
  */
 export function parseReviewTexts(body: unknown): VoiceReview[] {
   const parsed = bodySchema.parse(body);
-  if (parsed.success !== 1) return [];
+  if (parsed.success !== 1)
+    throw new Error(`Steam reviews response not successful (${parsed.success})`);
   if (!parsed.reviews) throw new Error('Steam reviews response has no reviews list');
   return pickReviews(parsed.reviews);
 }

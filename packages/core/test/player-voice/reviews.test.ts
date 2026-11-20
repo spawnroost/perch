@@ -66,9 +66,13 @@ describe('parseReviewTexts', () => {
   it('reads the reviews of a successful body', () => {
     expect(parseReviewTexts({ success: 1, reviews: [raw()] })).toHaveLength(1);
   });
-  it('is empty when Steam reports no success or no reviews', () => {
-    expect(parseReviewTexts({ success: 0 })).toEqual([]);
+  it('is empty only when Steam succeeds with no reviews', () => {
     expect(parseReviewTexts({ success: 1, reviews: [] })).toEqual([]);
+  });
+  it('throws when success is not 1 or missing', () => {
+    expect(() => parseReviewTexts({ success: 0 })).toThrow();
+    expect(() => parseReviewTexts({ success: 2, reviews: [] })).toThrow();
+    expect(() => parseReviewTexts({ reviews: [] })).toThrow();
   });
   it('throws on an unreadable body', () => {
     expect(() => parseReviewTexts('nope')).toThrow();

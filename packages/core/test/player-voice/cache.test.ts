@@ -9,6 +9,7 @@ import {
   PLAYER_VOICE_BLOCK_MS,
   PLAYER_VOICE_NEGATIVE_TTL_MS,
   PLAYER_VOICE_TTL_MS,
+  VOICE_USER_DAILY_CAP,
   type PlayerVoice,
   type VoiceReview,
   type VoiceSummarizer,
@@ -141,7 +142,7 @@ describe.skipIf(!url)('playerVoiceLookup', () => {
     expect(f.steamCalls).toEqual([]);
   });
 
-  it('spends the daily LLM allowance; a used-up cap stores nothing and blocks for 10 minutes', async () => {
+  it('spends the daily LLM allowance; a used-up cap stores nothing and does not block the game', async () => {
     const f = fakes();
     const capped = { globalCap: 0 };
     expect(await playerVoiceLookup(db, game, 'u1', opts(f, 0, capped))).toEqual({
@@ -150,19 +151,62 @@ describe.skipIf(!url)('playerVoiceLookup', () => {
     });
     expect(f.llmCalls).toEqual([]);
     expect(await stored()).toBeUndefined();
-    // Blocked: a later visit does not even fetch from Steam again.
-    await playerVoiceLookup(db, game, 'u1', opts(f, 60_000));
-    expect(f.steamCalls).toHaveLength(1);
-    // After the block the lookup tries again, now with allowance.
-    const r = await playerVoiceLookup(db, game, 'u1', opts(f, PLAYER_VOICE_BLOCK_MS + 1000));
+    // Not blocked: another user with allowance still gets the summary at once.
+    const r = await playerVoiceLookup(db, game, 'u2', opts(f, 60_000));
     expect(r.voice).toEqual(voice);
+    expect(f.steamCalls).toHaveLength(2);
   });
 
-  it('counts one batch against the user', async () => {
+  it('counts one batch against its own voice keys, apart from the For-you reasons', async () => {
     const f = fakes();
     await playerVoiceLookup(db, game, 'u9', opts(f));
-    const rows = await db.select().from(llmUsage).where(eq(llmUsage.key, 'user:u9'));
-    expect(rows[0]!.count).toBe(1);
+    const rows = await db.select().from(llmUsage);
+    expect(Object.fromEntries(rows.map((r) => [r.key, r.count]))).toEqual({
+      'voice:global': 1,
+      'voice:user:u9': 1,
+    });
+  });
+
+  it('is not stopped by a used-up For-you allowance, and has its own user cap', async () => {
+    const f = fakes();
+    const day = '2026-06-01';
+    await db.insert(llmUsage).values([
+      { key: 'global', day, count: 500 },
+      { key: 'user:u1', day, count: 30 },
+    ]);
+    expect((await playerVoiceLookup(db, game, 'u1', opts(f))).voice).toEqual(voice);
+    expect(VOICE_USER_DAILY_CAP).toBe(50);
+    const later = PLAYER_VOICE_TTL_MS + DAY;
+    const laterDay = at(later)().toISOString().slice(0, 10);
+    await db.insert(llmUsage).values({ key: 'voice:user:u3', day: laterDay, count: 50 });
+    const f2 = fakes();
+    await playerVoiceLookup(db, game, 'u3', opts(f2, later));
+    await playerVoiceIdle();
+    expect(f2.llmCalls).toEqual([]);
+  });
+
+  it('keeps a stored summary, bumping fetched_at, when a refresh finds too few reviews', async () => {
+    await playerVoiceLookup(db, game, 'u1', opts(fakes()));
+    const before = (await stored())!;
+    const later = PLAYER_VOICE_TTL_MS + DAY;
+    const few = fakes({ reviews: async () => reviews(3) });
+    expect((await playerVoiceLookup(db, game, 'u1', opts(few, later))).voice).toEqual(voice);
+    await playerVoiceIdle();
+    const after = (await stored())!;
+    expect(after.payload).toEqual(voice);
+    expect(after.reviewCount).toBe(before.reviewCount);
+    expect(+after.fetchedAt).toBe(+T0 + later);
+  });
+
+  it('keeps a stored summary, bumping fetched_at, when the summarizer answers null', async () => {
+    await playerVoiceLookup(db, game, 'u1', opts(fakes()));
+    const later = PLAYER_VOICE_TTL_MS + DAY;
+    const none = fakes({ voice: async () => null });
+    expect((await playerVoiceLookup(db, game, 'u1', opts(none, later))).voice).toEqual(voice);
+    await playerVoiceIdle();
+    const after = (await stored())!;
+    expect(after.payload).toEqual(voice);
+    expect(+after.fetchedAt).toBe(+T0 + later);
   });
 
   it('keeps the stored summary and blocks 10 minutes when a refresh fails', async () => {

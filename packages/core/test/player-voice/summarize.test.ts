@@ -24,6 +24,15 @@ describe('cleanVoice', () => {
     expect(v).toEqual({ likes: ['a', 'b', 'c'], complaints: ['x', 'y'], deck: null });
   });
 
+  it('drops repeated points, ignoring case', () => {
+    const v = cleanVoice({
+      likes: ['Tight combat', 'tight  COMBAT', 'Music'],
+      complaints: ['Short', 'short'],
+      deck: null,
+    });
+    expect(v).toEqual({ likes: ['Tight combat', 'Music'], complaints: ['Short'], deck: null });
+  });
+
   it('cuts long points at a word boundary to 120 characters', () => {
     const long = `${'word '.repeat(60)}end`;
     const v = cleanVoice({ likes: [long], complaints: [], deck: long })!;

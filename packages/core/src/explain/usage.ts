@@ -31,20 +31,23 @@ async function bump(
 
 /**
  * Spends one LLM batch from the user's and the global daily allowance (UTC day). False, with
- * nothing spent, when either is used up.
+ * nothing spent, when either is used up. `scope` prefixes the counter keys, so a feature can keep
+ * its own allowance apart from the For-you reasons.
  */
 export async function reserveLlmBatch(
   db: Db,
   userId: string,
-  opts: { globalCap: number; userCap?: number; now?: Date },
+  opts: { globalCap: number; userCap?: number; now?: Date; scope?: string },
 ): Promise<boolean> {
   const day = dayOf(opts.now ?? new Date());
+  // Counters of another feature live under their own key prefix, e.g. `voice:global`.
+  const prefix = opts.scope ? `${opts.scope}:` : '';
   try {
     await db.transaction(async (tx) => {
       // Counters of earlier days are of no use any more.
       await tx.delete(llmUsage).where(lt(llmUsage.day, day));
-      if (!(await bump(tx, 'global', day, opts.globalCap))) throw new CapReached();
-      if (!(await bump(tx, `user:${userId}`, day, opts.userCap ?? USER_DAILY_BATCH_CAP)))
+      if (!(await bump(tx, `${prefix}global`, day, opts.globalCap))) throw new CapReached();
+      if (!(await bump(tx, `${prefix}user:${userId}`, day, opts.userCap ?? USER_DAILY_BATCH_CAP)))
         throw new CapReached();
     });
     return true;

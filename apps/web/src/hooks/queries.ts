@@ -8,6 +8,7 @@ import {
   type QueryClient,
   type QueryKey,
 } from '@tanstack/react-query';
+import { useRef } from 'react';
 import type {
   AccountResponse,
   BrowseFacetsResponse,
@@ -240,20 +241,32 @@ export function useSoundtrack(igdbId: number) {
 
 /**
  * AI summary of Steam reviews. The first visit may answer pending while it is written, so it asks
- * again every 2 s a few times; `waiting` is true until it has an answer or the polls run out.
+ * again every 2 s for up to a minute; `waiting` is true until it has an answer or the time runs out.
  */
 export function usePlayerVoice(igdbId: number) {
-  const queryClient = useQueryClient();
-  const queryKey = queryKeys.playerVoice(igdbId);
+  // When the first pending answer for this game arrived; the poll budget counts from it.
+  const pendingSince = useRef<{ igdbId: number; at: number } | null>(null);
+  const sincePending = () => {
+    if (pendingSince.current?.igdbId !== igdbId) pendingSince.current = { igdbId, at: Date.now() };
+    return Date.now() - pendingSince.current.at;
+  };
   const query = useQuery({
-    queryKey,
+    queryKey: queryKeys.playerVoice(igdbId),
     queryFn: ({ signal }) =>
       api.get<PlayerVoiceResponse>(`/api/games/${igdbId}/player-voice`, { signal }),
-    staleTime: 10 * 60_000,
-    refetchInterval: (q) => playerVoicePollMs(q.state.data, q.state.dataUpdateCount),
+    // A pending answer is never fresh: remounting asks again at once.
+    staleTime: (q) => (q.state.data?.pending ? 0 : 10 * 60_000),
+    refetchInterval: (q) => {
+      if (!q.state.data?.pending) {
+        pendingSince.current = null;
+        return false;
+      }
+      return playerVoicePollMs(q.state.data, sincePending());
+    },
   });
-  const updates = queryClient.getQueryState(queryKey)?.dataUpdateCount ?? 0;
-  const waiting = query.isPending || playerVoicePollMs(query.data, updates) !== false;
+  const waiting =
+    query.isPending ||
+    (query.data?.pending === true && playerVoicePollMs(query.data, sincePending()) !== false);
   return { ...query, waiting };
 }
 
