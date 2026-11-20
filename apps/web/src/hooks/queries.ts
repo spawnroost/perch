@@ -15,6 +15,7 @@ import type {
   SteamSyncResult,
   ExportGame,
   ExportImportResult,
+  PsnSyncResult,
   XboxSyncResult,
   AuthProviders,
   DeviceCreate,
@@ -426,7 +427,7 @@ export function useUnlinkSteam() {
   });
 }
 
-/** The link persists even when the first import fails (private history), so refresh the account either way. */
+/** The link persists even when the first import fails (private history), so refresh the account either way. Xbox and PSN. */
 function refreshXbox(qc: QueryClient) {
   return invalidateAll(qc, [...libraryAffected, queryKeys.account]);
 }
@@ -452,6 +453,31 @@ export function useUnlinkXbox() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => api.delete('/api/library/xbox'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.account }),
+  });
+}
+
+export function useLinkPsn() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (onlineId: string) =>
+      api.post<PsnSyncResult>('/api/library/psn/link', { onlineId }),
+    onSettled: () => refreshXbox(qc),
+  });
+}
+
+export function useSyncPsn() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<PsnSyncResult>('/api/library/psn/sync'),
+    onSettled: () => refreshXbox(qc),
+  });
+}
+
+export function useUnlinkPsn() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.delete('/api/library/psn'),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.account }),
   });
 }

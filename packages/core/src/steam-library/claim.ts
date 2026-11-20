@@ -3,7 +3,7 @@ import { users, type Db } from '@perch/db';
 import { shouldAutoSync } from './status.js';
 
 /** The per-store "last synced" columns on users that auto-sync claims. */
-export type SyncedAtColumn = 'steamSyncedAt' | 'xboxSyncedAt';
+export type SyncedAtColumn = 'steamSyncedAt' | 'xboxSyncedAt' | 'psnSyncedAt';
 
 export interface AutoSyncClaim {
   claimed: boolean;

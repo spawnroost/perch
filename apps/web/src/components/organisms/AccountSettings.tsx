@@ -15,6 +15,7 @@ import { useAction } from '@/hooks/useAction';
 import { useSignOut } from '@/hooks/useSignOut';
 import { authClient, unwrapAuth } from '@/lib/auth-client';
 import { SteamSync } from './SteamSync';
+import { PsnSync } from './PsnSync';
 import { XboxSync } from './XboxSync';
 
 function Section({
@@ -128,6 +129,19 @@ function SteamLink() {
   );
 }
 
+function PsnLink() {
+  const data = useAccount().data;
+  if (!data?.psnSyncAvailable) return null;
+  return (
+    <Section
+      title="PlayStation"
+      description="Pull in your PS4 and PS5 games and playtime by online ID."
+    >
+      <PsnSync onlineId={data.psnOnlineId} syncedAt={data.psnSyncedAt} />
+    </Section>
+  );
+}
+
 function XboxLink() {
   const data = useAccount().data;
   if (!data?.xboxSyncAvailable) return null;
@@ -234,6 +248,7 @@ export function AccountSettings() {
       {account?.hasPassword !== false && <ChangePassword />}
       <SteamLink />
       <XboxLink />
+      <PsnLink />
       <SocialLinks />
       <Section title="Sign out">
         {signOut.error && <Notice tone="error">{signOut.error}</Notice>}

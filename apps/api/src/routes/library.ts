@@ -22,6 +22,22 @@ import {
   setLibraryStatus,
   updateLibraryEntry,
   upsertLibraryGame,
+  PSN_BUSY_HELP,
+  PSN_COOLDOWN_HELP,
+  PSN_NOT_CONFIGURED_HELP,
+  PSN_NOT_FOUND_HELP,
+  PSN_NOT_LINKED_HELP,
+  PSN_PRIVATE_HELP,
+  PSN_UNAVAILABLE_HELP,
+  PsnAccountChangedError,
+  PsnAuthFailedError,
+  PsnNetworkError,
+  PsnNotConfiguredError,
+  PsnNotFoundError,
+  PsnProfilePrivateError,
+  PsnRateLimitedError,
+  psnLinkSchema,
+  type PsnSyncError,
   STEAM_NOT_CONFIGURED_HELP,
   STEAM_NOT_LINKED_HELP,
   STEAM_PRIVATE_HELP,
@@ -192,6 +208,84 @@ export function libraryRoutes(deps: RouteDeps) {
     await db
       .update(schema.users)
       .set({ xboxXuid: null, xboxGamertag: null, xboxSyncedAt: null })
+      .where(eq(schema.users.id, c.get('user').id));
+    return c.json({ ok: true });
+  });
+
+  const psnError = (c: Context, status: 400 | 404 | 409 | 429 | 502 | 503, body: PsnSyncError) =>
+    c.json(body, status);
+
+  /** Null when the user may call PlayStation now; else the 429 answer (one call per minute per user). */
+  function psnThrottled(c: Context, userId: string) {
+    const retryAfter = deps.psnSync.cooldown(userId);
+    if (retryAfter === 0) return null;
+    c.header('Retry-After', String(retryAfter));
+    return psnError(c, 429, { error: 'psn_cooldown', message: PSN_COOLDOWN_HELP, retryAfter });
+  }
+
+  /** Typed PlayStation failures as JSON error bodies; anything else is a 500. */
+  function psnFailure(c: Context, err: unknown) {
+    if (err instanceof PsnProfilePrivateError)
+      return psnError(c, 409, { error: 'psn_private', message: PSN_PRIVATE_HELP });
+    if (err instanceof PsnNotFoundError)
+      return psnError(c, 404, { error: 'psn_not_found', message: PSN_NOT_FOUND_HELP });
+    if (err instanceof PsnRateLimitedError)
+      return psnError(c, 429, { error: 'psn_busy', message: PSN_BUSY_HELP });
+    // An expired or missing server NPSSO is not something the user can fix.
+    if (err instanceof PsnAuthFailedError || err instanceof PsnNotConfiguredError)
+      return psnError(c, 503, { error: 'psn_not_configured', message: PSN_NOT_CONFIGURED_HELP });
+    if (err instanceof PsnAccountChangedError)
+      return psnError(c, 400, { error: 'psn_not_linked', message: PSN_NOT_LINKED_HELP });
+    if (err instanceof PsnNetworkError) {
+      console.error(err);
+      return psnError(c, 502, { error: 'psn_unavailable', message: PSN_UNAVAILABLE_HELP });
+    }
+    throw err;
+  }
+
+  // Looks the online ID up (exact match only), caches its account id on the user, then imports.
+  r.post('/psn/link', async (c) => {
+    const { id } = c.get('user');
+    const { onlineId } = await parseBody(c, psnLinkSchema);
+    requireIgdb(deps);
+    if (!deps.env.PSN_NPSSO)
+      return psnError(c, 503, { error: 'psn_not_configured', message: PSN_NOT_CONFIGURED_HELP });
+    const throttled = psnThrottled(c, id);
+    if (throttled) return throttled;
+    try {
+      const profile = await deps.psnSync.lookup(onlineId);
+      await db
+        .update(schema.users)
+        .set({ psnAccountId: profile.accountId, psnOnlineId: profile.onlineId, psnSyncedAt: null })
+        .where(eq(schema.users.id, id));
+      // The link stays even if the import fails (e.g. a private history): fix it, then resync.
+      return c.json(await deps.psnSync.run(id, profile.accountId));
+    } catch (err) {
+      return psnFailure(c, err);
+    }
+  });
+
+  r.post('/psn/sync', async (c) => {
+    const { id, psnAccountId } = c.get('user');
+    if (!psnAccountId)
+      return psnError(c, 400, { error: 'psn_not_linked', message: PSN_NOT_LINKED_HELP });
+    requireIgdb(deps);
+    if (!deps.env.PSN_NPSSO)
+      return psnError(c, 503, { error: 'psn_not_configured', message: PSN_NOT_CONFIGURED_HELP });
+    const throttled = psnThrottled(c, id);
+    if (throttled) return throttled;
+    try {
+      return c.json(await deps.psnSync.run(id, psnAccountId));
+    } catch (err) {
+      return psnFailure(c, err);
+    }
+  });
+
+  // Imported entries stay; only the link and the sync time go.
+  r.delete('/psn', async (c) => {
+    await db
+      .update(schema.users)
+      .set({ psnAccountId: null, psnOnlineId: null, psnSyncedAt: null })
       .where(eq(schema.users.id, c.get('user').id));
     return c.json({ ok: true });
   });

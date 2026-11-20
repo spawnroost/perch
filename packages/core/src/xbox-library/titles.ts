@@ -1,3 +1,4 @@
+import { stripTrademarks } from '../library/clean-title.js';
 import type { XboxTitle } from './schemas.js';
 
 /**
@@ -6,7 +7,7 @@ import type { XboxTitle } from './schemas.js';
  * "Metal: Hellsinger (Xbox Series X|S & PC)". Strips it so the name can match IGDB.
  */
 export function cleanXboxTitle(raw: string): string {
-  let t = raw.replace(/[®™©]/g, '');
+  let t = stripTrademarks(raw);
   // Trailing "(PC)", "(Xbox One)", "(Xbox Series X|S & PC)", "(Windows 10)"; repeat for stacked ones.
   for (let prev = ''; prev !== t;) {
     prev = t;

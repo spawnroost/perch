@@ -30,7 +30,15 @@ export async function setupApi(
   extra: Partial<
     Pick<
       AppDeps,
-      'igdb' | 'steam' | 'steamFetch' | 'xboxFetch' | 'xboxCooldownMs' | 'accentFor' | 'steamOpenId'
+      | 'igdb'
+      | 'steam'
+      | 'steamFetch'
+      | 'xboxFetch'
+      | 'xboxCooldownMs'
+      | 'psnApi'
+      | 'psnCooldownMs'
+      | 'accentFor'
+      | 'steamOpenId'
     >
   > = {},
 ) {

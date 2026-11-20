@@ -6,6 +6,7 @@ import {
   DeviceNotFoundError,
   GameNotFoundError,
   IgdbError,
+  type PsnApi,
   ImportTooLargeError,
   authProvidersFor,
   createAccentFetcher,
@@ -21,6 +22,7 @@ import type { Db } from '@perch/db';
 import { mapGame, VOCAB } from '@perch/taste-vocab';
 import { createAuth, type Auth } from './auth.js';
 import { createSteamSync, type SteamSync } from './steam-sync.js';
+import { createPsnSync, type PsnSync } from './psn-sync.js';
 import { createXboxSync, type XboxSync } from './xbox-sync.js';
 import type { ApiEnv } from './env.js';
 import type { Mailer } from './mailer.js';
@@ -54,6 +56,10 @@ export interface AppDeps {
   xboxFetch?: typeof fetch;
   /** Per-user gap between manual Xbox link/sync calls in ms (tests); default one minute. */
   xboxCooldownMs?: number;
+  /** Overrides the PlayStation API (tests); the default calls PlayStation with PSN_NPSSO. */
+  psnApi?: PsnApi;
+  /** Per-user gap between manual PSN link/sync calls in ms (tests); default one minute. */
+  psnCooldownMs?: number;
   /** Verifies Steam OpenID assertions; the default asks Steam (tests stub it). */
   steamOpenId?: SteamOpenIdVerifier;
   /** Overrides the default limits (tests). */
@@ -81,6 +87,8 @@ export interface RouteDeps extends AppDeps {
   steamSync: SteamSync;
   /** Xbox title-history import, shared by the link/sync routes and the auto-sync trigger. */
   xboxSync: XboxSync;
+  /** PlayStation played-games import, shared by the link/sync routes and the auto-sync trigger. */
+  psnSync: PsnSync;
   /** Taste-vocab id -> label, for reasons. */
   labels: Record<string, string>;
   /** Ranked browse lists, remembered between requests (keyed by user, recs version and tags). */
@@ -90,7 +98,7 @@ export interface RouteDeps extends AppDeps {
 export function createApp(appDeps: AppDeps) {
   const { db, env, mailer, igdb, rateLimit: limits } = appDeps;
   const auth = createAuth(db, env, mailer);
-  const base: Omit<RouteDeps, 'steamSync' | 'xboxSync'> = {
+  const base: Omit<RouteDeps, 'steamSync' | 'xboxSync' | 'psnSync'> = {
     ...appDeps,
     auth,
     cache: igdb
@@ -109,6 +117,7 @@ export function createApp(appDeps: AppDeps) {
     ...base,
     steamSync: createSteamSync(base),
     xboxSync: createXboxSync({ ...base, cooldownMs: appDeps.xboxCooldownMs }),
+    psnSync: createPsnSync({ ...base, cooldownMs: appDeps.psnCooldownMs }),
   };
   const app = new Hono<AppVars>();
 

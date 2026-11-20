@@ -8,6 +8,7 @@ import {
   type XboxSyncResult,
 } from '@perch/core';
 import type { RouteDeps } from './app.js';
+import { throttleAttempt } from './throttle.js';
 
 export interface XboxSync {
   /** True when this server can import (OpenXBL key and game database both configured). */
@@ -45,14 +46,8 @@ export function createXboxSync(
   const lastManual = new Map<string, number>();
   const lastAuto = new Map<string, number>();
 
-  /** Records an attempt in `map` unless one happened less than the cooldown ago; seconds left if so. */
-  function throttle(map: Map<string, number>, userId: string): number {
-    const now = Date.now();
-    const left = (map.get(userId) ?? -Infinity) + cooldownMs - now;
-    if (left > 0) return Math.ceil(left / 1000);
-    map.set(userId, now);
-    return 0;
-  }
+  const throttle = (map: Map<string, number>, userId: string) =>
+    throttleAttempt(map, userId, cooldownMs);
   const inflight = new Map<string, Promise<XboxSyncResult>>();
   const configured = Boolean(env.OPENXBL_API_KEY && igdb && cache);
 

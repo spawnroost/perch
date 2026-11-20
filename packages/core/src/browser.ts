@@ -49,3 +49,17 @@ export {
   xboxSyncResultSchema,
 } from './xbox-library/schemas.js';
 export type { XboxSyncError, XboxSyncErrorCode, XboxSyncResult } from './xbox-library/schemas.js';
+export {
+  PSN_BUSY_HELP,
+  PSN_COOLDOWN_HELP,
+  PSN_NOT_CONFIGURED_HELP,
+  PSN_NOT_FOUND_HELP,
+  PSN_NOT_LINKED_HELP,
+  PSN_PRIVATE_HELP,
+  PSN_SYNC_ERROR_CODES,
+  PSN_UNAVAILABLE_HELP,
+  psnLinkSchema,
+  psnSyncErrorSchema,
+  psnSyncResultSchema,
+} from './psn-library/schemas.js';
+export type { PsnSyncError, PsnSyncErrorCode, PsnSyncResult } from './psn-library/schemas.js';

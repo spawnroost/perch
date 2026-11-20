@@ -17,3 +17,4 @@ export * from './game-facts/index.js';
 export * from './steam-reviews/index.js';
 export * from './library-export/index.js';
 export * from './xbox-library/index.js';
+export * from './psn-library/index.js';

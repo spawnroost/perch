@@ -335,6 +335,9 @@ importers:
       jpeg-js:
         specifier: ^0.4.4
         version: 0.4.4
+      psn-api:
+        specifier: ^2.18.1
+        version: 2.18.1
       zod:
         specifier: ^4.6.7
         version: 4.6.7
@@ -2490,6 +2493,10 @@ packages:
     engines: {node: '>=14'}
     hasBin: true
 
+  psn-api@2.18.1:
+    resolution: {integrity: sha512-D0oVrJK+hVwJFARp2Io/auqJwjRx2t7x4Cke7mYNFbrOUQxSBONl0fHr4eVK5Bai89RNyaAsLPLFmgIw9pxzmQ==}
+    engines: {node: '>=20', pnpm: '>=10'}
+
   punycode@2.3.1:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
@@ -4460,6 +4467,8 @@ snapshots:
   prelude-ls@1.2.1: {}
 
   prettier@3.10.1: {}
+
+  psn-api@2.18.1: {}
 
   punycode@2.3.1: {}
 

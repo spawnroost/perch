@@ -22,6 +22,8 @@ const ApiEnvShape = z.object({
   STEAM_API_KEY: z.string().optional(),
   /** OpenXBL key for the Xbox import; unset answers the Xbox routes with 503. */
   OPENXBL_API_KEY: z.string().optional(),
+  /** PlayStation NPSSO cookie for the PSN import (lasts about two months); unset answers the PSN routes with 503. */
+  PSN_NPSSO: z.string().optional(),
   NODE_ENV: z.string().optional(),
 });
 

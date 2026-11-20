@@ -32,4 +32,5 @@ export { BringYourGames } from './BringYourGames';
 export { PlayedBeforePrompt } from './PlayedBeforePrompt';
 export { PlayedBeforeSheet } from './PlayedBeforeSheet';
 export { SteamSync } from './SteamSync';
+export { PsnSync } from './PsnSync';
 export { XboxSync } from './XboxSync';

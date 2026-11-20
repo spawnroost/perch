@@ -43,6 +43,11 @@ export const users = pgTable('users', {
   xboxGamertag: text('xbox_gamertag'),
   /** When the Xbox title history was last imported; null until the first sync. */
   xboxSyncedAt: ts('xbox_synced_at'),
+  /** PlayStation account linked by online ID; cached so a resync skips the profile lookup. */
+  psnAccountId: text('psn_account_id'),
+  psnOnlineId: text('psn_online_id'),
+  /** When the PlayStation played-games list was last imported; null until the first sync. */
+  psnSyncedAt: ts('psn_synced_at'),
   createdAt: ts('created_at').defaultNow().notNull(),
   updatedAt: ts('updated_at')
     .defaultNow()
@@ -298,7 +303,7 @@ export const libraryEntries = pgTable(
     owned: boolean('owned').default(true).notNull(),
     /** An import found real, older playtime: ask the user whether it is paused. Cleared on any status choice. */
     playedBeforePending: boolean('played_before_pending').default(false).notNull(),
-    /** 'manual' | 'import' | 'steam' | 'xbox' */
+    /** 'manual' | 'import' | 'steam' | 'xbox' | 'psn' */
     source: text('source').notNull().default('manual'),
     addedAt: ts('added_at').defaultNow().notNull(),
   },

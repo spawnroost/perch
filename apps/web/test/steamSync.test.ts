@@ -66,6 +66,9 @@ describe('autoSyncMayRun', () => {
     xboxGamertag: null,
     xboxSyncAvailable: false,
     xboxSyncedAt: null,
+    psnOnlineId: null,
+    psnSyncAvailable: false,
+    psnSyncedAt: null,
   };
   const hours = (h: number) => new Date(now.getTime() - h * 3_600_000).toISOString();
   it('is false with nothing linked or syncing unavailable', () => {
@@ -83,5 +86,14 @@ describe('autoSyncMayRun', () => {
     expect(autoSyncMayRun(xbox, now)).toBe(false);
     expect(autoSyncMayRun({ ...xbox, xboxSyncedAt: hours(8) }, now)).toBe(true);
     expect(autoSyncMayRun({ ...xbox, xboxSyncedAt: hours(2) }, now)).toBe(false);
+  });
+  it('treats PlayStation as due only after a first import, like the server', () => {
+    const psn = { ...none, psnOnlineId: 'Tag', psnSyncAvailable: true };
+    expect(autoSyncMayRun(psn, now)).toBe(false);
+    expect(autoSyncMayRun({ ...psn, psnSyncedAt: hours(8) }, now)).toBe(true);
+    expect(autoSyncMayRun({ ...psn, psnSyncedAt: hours(2) }, now)).toBe(false);
+    expect(autoSyncMayRun({ ...psn, psnSyncedAt: hours(8), psnSyncAvailable: false }, now)).toBe(
+      false,
+    );
   });
 });

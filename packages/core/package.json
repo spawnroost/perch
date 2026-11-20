@@ -15,6 +15,7 @@
     "@perch/db": "workspace:*",
     "drizzle-orm": "^0.45.4",
     "jpeg-js": "^0.4.4",
+    "psn-api": "^2.18.1",
     "zod": "^4.6.7"
   },
   "scripts": {

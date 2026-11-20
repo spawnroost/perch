@@ -98,6 +98,12 @@ export const AccountResponseSchema = z.object({
   xboxSyncedAt: z.string().nullable(),
   /** False when the server has no OpenXBL key (or no game database), so the Xbox card is hidden. */
   xboxSyncAvailable: z.boolean(),
+  /** Linked PlayStation online ID; null when none. */
+  psnOnlineId: z.string().nullable(),
+  /** ISO time of the last PlayStation import; null if never. */
+  psnSyncedAt: z.string().nullable(),
+  /** False when the server has no PSN_NPSSO (or no game database), so the PlayStation card is hidden. */
+  psnSyncAvailable: z.boolean(),
   hasPassword: z.boolean(),
   /** Linked Google/Discord accounts that are currently enabled (provider ids). */
   linkedProviders: z.array(z.string()),

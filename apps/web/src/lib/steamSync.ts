@@ -44,8 +44,9 @@ export function steamSyncErrorText(err: unknown): string {
 }
 
 /**
- * True when the server may be importing in the background right now: a linked, available Steam or
- * Xbox account whose last sync is 6 h old or missing (Xbox only auto-syncs after a first import).
+ * True when the server may be importing in the background right now: a linked, available Steam,
+ * Xbox or PlayStation account whose last sync is 6 h old or missing (Xbox and PlayStation only
+ * auto-sync after a first import).
  */
 export function autoSyncMayRun(
   a: Pick<
@@ -56,6 +57,9 @@ export function autoSyncMayRun(
     | 'xboxGamertag'
     | 'xboxSyncAvailable'
     | 'xboxSyncedAt'
+    | 'psnOnlineId'
+    | 'psnSyncAvailable'
+    | 'psnSyncedAt'
   >,
   now: Date,
 ): boolean {
@@ -66,5 +70,7 @@ export function autoSyncMayRun(
     a.xboxSyncAvailable &&
     a.xboxSyncedAt !== null &&
     due(a.xboxSyncedAt);
-  return steam || xbox;
+  const psn =
+    Boolean(a.psnOnlineId) && a.psnSyncAvailable && a.psnSyncedAt !== null && due(a.psnSyncedAt);
+  return steam || xbox || psn;
 }

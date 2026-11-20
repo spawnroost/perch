@@ -85,6 +85,10 @@ export function createAuth(db: Db, env: ApiEnv, rawMailer: Mailer) {
         xboxXuid: { type: 'string', required: false, input: false },
         xboxGamertag: { type: 'string', required: false, input: false },
         xboxSyncedAt: { type: 'date', required: false, input: false },
+        /** Linked PlayStation account; set only by the PSN link route, never from client input. */
+        psnAccountId: { type: 'string', required: false, input: false },
+        psnOnlineId: { type: 'string', required: false, input: false },
+        psnSyncedAt: { type: 'date', required: false, input: false },
       },
     },
     // Only providers with credentials are registered; the Account page and login buttons key off this.
