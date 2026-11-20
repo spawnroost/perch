@@ -36,6 +36,7 @@ import type {
   PlayedBefore,
   RecommendationsResponse,
   SimilarResponse,
+  SoundtrackResponse,
   SessionQuery,
   SessionResponse,
 } from '@perch/core/browser';
@@ -201,6 +202,16 @@ export function useSimilar(igdbId: number | null, device: string, enabled = true
     queryFn: ({ signal }) =>
       api.get<SimilarResponse>(`/api/games/${igdbId}/similar`, { query: { device }, signal }),
     enabled: enabled && igdbId !== null,
+  });
+}
+
+/** Soundtrack album and music links for a game; the album is slow on a first visit, then cached server-side. */
+export function useSoundtrack(igdbId: number) {
+  return useQuery({
+    queryKey: queryKeys.soundtrack(igdbId),
+    queryFn: ({ signal }) =>
+      api.get<SoundtrackResponse>(`/api/games/${igdbId}/soundtrack`, { signal }),
+    staleTime: 10 * 60_000,
   });
 }
 

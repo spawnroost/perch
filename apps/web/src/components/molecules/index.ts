@@ -21,6 +21,8 @@ export { SeeAllTile } from './SeeAllTile';
 export type { SeeAllTileProps } from './SeeAllTile';
 export { Shelf } from './Shelf';
 export type { ShelfProps } from './Shelf';
+export { TrackRow } from './TrackRow';
+export type { TrackRowProps } from './TrackRow';
 export { StepFooter } from './StepFooter';
 export { StepIndicator } from './StepIndicator';
 export { DeviceCard } from './DeviceCard';

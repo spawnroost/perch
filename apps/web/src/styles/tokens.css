@@ -213,6 +213,16 @@
       transform: scale(1.06) translateX(-1.5%);
     }
   }
+  /* Equalizer bars of the track that is playing; staggered with animation-delay at the use site. */
+  --animate-eq: eq 900ms var(--ease-in-out) infinite alternate;
+  @keyframes eq {
+    from {
+      transform: scaleY(0.25);
+    }
+    to {
+      transform: scaleY(1);
+    }
+  }
   --animate-shimmer: shimmer 1.6s linear infinite;
   @keyframes shimmer {
     from {

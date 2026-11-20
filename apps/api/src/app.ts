@@ -15,6 +15,7 @@ import {
   type BrowseList,
   type IgdbCache,
   type IgdbClient,
+  type ItunesClient,
   type SteamClient,
   type TtlMemo,
 } from '@perch/core';
@@ -50,6 +51,8 @@ export interface AppDeps {
   accentFor?: (coverUrl: string) => Promise<string | null>;
   /** Overrides the Steam client (tests); the default talks to Steam. */
   steam?: SteamClient;
+  /** Overrides the iTunes client behind the game soundtrack (tests); the default calls iTunes. */
+  soundtrack?: ItunesClient;
   /** Fetch used for Steam Web API calls (tests stub it); defaults to the global fetch. */
   steamFetch?: typeof fetch;
   /** Fetch used for OpenXBL calls (tests stub it); defaults to the global fetch. */

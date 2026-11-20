@@ -9,12 +9,15 @@ import {
   igdbIdParamSchema,
   similarForUser,
   similarQuerySchema,
+  soundtrackFor,
+  soundtrackLinks,
   steamReviewsFor,
   toTimeToBeatHours,
   type GameDetailResponse,
   type GameFitsResponse,
   type GameSearchResponse,
   type SimilarResponse,
+  type SoundtrackResponse,
 } from '@perch/core';
 import type { AppVars, RouteDeps } from '../app.js';
 import { parseParams, parseQuery } from '../http.js';
@@ -69,6 +72,19 @@ export function gamesRoutes(deps: RouteDeps) {
       game: found.game,
       recommendations: found.picks.map(recommendationDto),
     } satisfies SimilarResponse);
+  });
+
+  r.get('/:igdbId/soundtrack', async (c) => {
+    const { igdbId } = parseParams(c, igdbIdParamSchema);
+    const { cache } = requireIgdb(deps);
+    const game = await cache.getGame(igdbId);
+    if (!game) return c.json({ error: 'game not found' }, 404);
+    // Cached for a week; the first visit waits briefly on the rate-limited iTunes lookup.
+    const soundtrack = await soundtrackFor(deps.db, game, { client: deps.soundtrack });
+    return c.json({
+      soundtrack,
+      links: soundtrackLinks(game.name, soundtrack?.appleMusicUrl ?? null),
+    } satisfies SoundtrackResponse);
   });
 
   r.get('/:igdbId', async (c) => {

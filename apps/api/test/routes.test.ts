@@ -9,6 +9,7 @@ import {
   type IgdbClient,
   type RecommendationsResponse,
   type TagQuery,
+  soundtrackResponseSchema,
 } from '@perch/core';
 import { schema } from '@perch/db';
 import { cachedRecommendations } from '../src/recommendation-cache.js';
@@ -153,6 +154,21 @@ const fakeSteam = {
   },
 };
 
+const soundtrackCalls: string[] = [];
+const fakeSoundtrack = {
+  async findSoundtrack(name: string) {
+    soundtrackCalls.push(name);
+    if (name !== 'Routetest Alpha') return null;
+    return {
+      albumName: 'Routetest Alpha (Original Soundtrack)',
+      artist: 'Composer',
+      artworkUrl: 'https://img.test/album.jpg',
+      appleMusicUrl: 'https://music.apple.com/us/album/alpha/1',
+      tracks: [{ name: 'Theme', number: 1, durationMs: 1000, previewUrl: 'https://p.test/1.m4a' }],
+    };
+  },
+};
+
 const COLOURS: Record<string, string> = {
   'https://img.test/alpha-small.jpg': '#c81e28',
   'https://img.test/beta-small.jpg': '#2a6fdb',
@@ -166,7 +182,7 @@ describe.skipIf(!testUrl)('api routes', () => {
     ctx = await setupApi(
       { api: big, auth: big },
       {},
-      { igdb: fakeIgdb, steam: fakeSteam, accentFor },
+      { igdb: fakeIgdb, steam: fakeSteam, soundtrack: fakeSoundtrack, accentFor },
     );
   });
   afterAll(async () => {
@@ -213,6 +229,7 @@ describe.skipIf(!testUrl)('api routes', () => {
     it.each([
       ['GET', '/api/games/search?q=alpha'],
       ['GET', `/api/games/${A}`],
+      ['GET', `/api/games/${A}/soundtrack`],
       ['GET', `/api/games/fit?ids=${A}`],
       ['GET', '/api/library'],
       ['POST', '/api/library'],
@@ -344,6 +361,38 @@ describe.skipIf(!testUrl)('api routes', () => {
       expect(body.facts).toMatchObject({
         about: { developers: [], modes: [], coop: null, dlcCount: 0, series: null },
       });
+    });
+
+    it('serves the matched soundtrack with links, cached after the first lookup', async () => {
+      const u = await newUser();
+      soundtrackCalls.length = 0;
+      const first = await get(`/api/games/${A}/soundtrack`, u.cookie);
+      expect(first.status).toBe(200);
+      const body = soundtrackResponseSchema.parse(await first.json());
+      expect(body.soundtrack?.albumName).toBe('Routetest Alpha (Original Soundtrack)');
+      expect(body.soundtrack?.tracks).toHaveLength(1);
+      expect(body.links).toEqual({
+        spotify: 'https://open.spotify.com/search/Routetest%20Alpha%20soundtrack',
+        youtube: 'https://www.youtube.com/results?search_query=Routetest%20Alpha%20soundtrack',
+        appleMusic: 'https://music.apple.com/us/album/alpha/1',
+      });
+      await get(`/api/games/${A}/soundtrack`, u.cookie);
+      expect(soundtrackCalls).toEqual(['Routetest Alpha']);
+    });
+
+    it('answers a null soundtrack with search links when nothing matches', async () => {
+      const u = await newUser();
+      const res = await get(`/api/games/${B}/soundtrack`, u.cookie);
+      expect(res.status).toBe(200);
+      const body = soundtrackResponseSchema.parse(await res.json());
+      expect(body.soundtrack).toBeNull();
+      expect(body.links.appleMusic).toMatch(/^https:\/\/music\.apple\.com\/search\?term=/);
+    });
+
+    it('404s the soundtrack of an unknown game and 400s a bad id', async () => {
+      const u = await newUser();
+      expect((await get('/api/games/999999999/soundtrack', u.cookie)).status).toBe(404);
+      expect((await get('/api/games/abc/soundtrack', u.cookie)).status).toBe(400);
     });
 
     it('answers fit within its budget and lists games still waiting on Steam as pending', async () => {

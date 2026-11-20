@@ -34,3 +34,4 @@ export { PlayedBeforeSheet } from './PlayedBeforeSheet';
 export { SteamSync } from './SteamSync';
 export { PsnSync } from './PsnSync';
 export { XboxSync } from './XboxSync';
+export { Soundtrack } from './Soundtrack';

@@ -371,3 +371,15 @@ export const recommendationCache = pgTable(
   },
   (t) => [primaryKey({ columns: [t.userId, t.key] })],
 );
+
+/**
+ * Soundtrack album matched for a game (iTunes). `payload` null is a cached "no match"; both
+ * kinds are refreshed after the TTL. Shape is the core `soundtrackSchema`.
+ */
+export const gameSoundtracks = pgTable('game_soundtracks', {
+  igdbId: integer('igdb_id')
+    .primaryKey()
+    .references(() => games.igdbId, { onDelete: 'cascade' }),
+  payload: jsonb('payload'),
+  fetchedAt: ts('fetched_at').defaultNow().notNull(),
+});

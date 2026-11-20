@@ -63,3 +63,16 @@ export {
   psnSyncResultSchema,
 } from './psn-library/schemas.js';
 export type { PsnSyncError, PsnSyncErrorCode, PsnSyncResult } from './psn-library/schemas.js';
+export {
+  SOUNDTRACK_MAX_TRACKS,
+  soundtrackLinksSchema,
+  soundtrackResponseSchema,
+  soundtrackSchema,
+  soundtrackTrackSchema,
+} from './soundtrack/schemas.js';
+export type {
+  Soundtrack,
+  SoundtrackLinks,
+  SoundtrackResponse,
+  SoundtrackTrack,
+} from './soundtrack/schemas.js';

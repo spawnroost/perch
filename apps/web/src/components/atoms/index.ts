@@ -9,6 +9,7 @@ export type { CoverProps } from './Cover';
 export type { CardProps } from './Card';
 export { DEVICE_BANNER, DeviceArt, useArtParallax } from './DeviceArt';
 export type { DeviceArtProps } from './DeviceArt';
+export { EqualizerBars } from './EqualizerBars';
 export { FilterChip } from './FilterChip';
 export type { FilterChipProps } from './FilterChip';
 export { HudChip } from './HudChip';
