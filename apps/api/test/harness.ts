@@ -33,6 +33,7 @@ export async function setupApi(
       | 'igdb'
       | 'steam'
       | 'soundtrack'
+      | 'prices'
       | 'steamFetch'
       | 'xboxFetch'
       | 'xboxCooldownMs'

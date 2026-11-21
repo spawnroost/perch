@@ -8,6 +8,7 @@ import {
   gameSearchQuerySchema,
   igdbIdParamSchema,
   playerVoiceLookup,
+  pricesLookup,
   similarForUser,
   similarQuerySchema,
   soundtrackLookup,
@@ -19,6 +20,7 @@ import {
   type GameFitsResponse,
   type GameSearchResponse,
   type PlayerVoiceResponse,
+  type PriceResponse,
   type SimilarResponse,
   type SoundtrackResponse,
 } from '@perch/core';
@@ -91,6 +93,16 @@ export function gamesRoutes(deps: RouteDeps) {
       ...(pending ? { pending: true } : {}),
       links: soundtrackLinks(game.name, soundtrack?.appleMusicUrl ?? null),
     } satisfies SoundtrackResponse);
+  });
+
+  r.get('/:igdbId/prices', async (c) => {
+    const { igdbId } = parseParams(c, igdbIdParamSchema);
+    const { cache } = requireIgdb(deps);
+    const game = await cache.getGame(igdbId);
+    if (!game) return c.json({ error: 'game not found' }, 404);
+    // Cached for 12 hours; the first visit waits briefly on the rate-limited CheapShark lookup.
+    const { prices, pending } = await pricesLookup(deps.db, game, { client: deps.prices });
+    return c.json({ prices, ...(pending ? { pending: true } : {}) } satisfies PriceResponse);
   });
 
   r.get('/:igdbId/player-voice', async (c) => {

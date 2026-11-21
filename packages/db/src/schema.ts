@@ -431,3 +431,15 @@ export const llmUsage = pgTable(
   },
   (t) => [primaryKey({ columns: [t.key, t.day] })],
 );
+
+/**
+ * Cheapest PC-store price and historic low for a game (CheapShark). `payload` null is a cached
+ * "not sold / no match"; both kinds are refreshed after the TTL. Shape is the core `priceInfoSchema`.
+ */
+export const gamePrices = pgTable('game_prices', {
+  igdbId: integer('igdb_id')
+    .primaryKey()
+    .references(() => games.igdbId, { onDelete: 'cascade' }),
+  payload: jsonb('payload'),
+  fetchedAt: ts('fetched_at').defaultNow().notNull(),
+});

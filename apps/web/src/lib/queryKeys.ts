@@ -10,6 +10,7 @@ export const queryKeys = {
   devices: ['devices'] as const,
   presets: ['device-presets'] as const,
   soundtrack: (igdbId: number) => ['games', 'soundtrack', igdbId] as const,
+  prices: (igdbId: number) => ['games', 'prices', igdbId] as const,
   playerVoice: (igdbId: number) => ['games', 'player-voice', igdbId] as const,
   gameDetailAll: ['games', 'detail'] as const,
   game: (igdbId: number) => ['games', 'detail', igdbId] as const,

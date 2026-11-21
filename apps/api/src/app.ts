@@ -20,6 +20,7 @@ import {
   type BrowseList,
   type IgdbCache,
   type IgdbClient,
+  type CheapSharkClient,
   type ItunesClient,
   type ReasonExplainer,
   type VoiceSummarizer,
@@ -62,6 +63,8 @@ export interface AppDeps {
   steam?: SteamClient;
   /** Overrides the iTunes client behind the game soundtrack (tests); the default calls iTunes. */
   soundtrack?: ItunesClient;
+  /** Overrides the CheapShark client behind the game prices and price watch (tests); the default calls CheapShark. */
+  prices?: CheapSharkClient;
   /** Fetch used for Steam Web API calls (tests stub it); defaults to the global fetch. */
   steamFetch?: typeof fetch;
   /** Fetch used for OpenXBL calls (tests stub it); defaults to the global fetch. */

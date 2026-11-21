@@ -225,7 +225,12 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
             </Reveal>
           )}
           {!seeded && (
-            <GameFactsBody facts={facts} timeToBeat={timeToBeat} steamAppId={game.steamAppId} />
+            <GameFactsBody
+              facts={facts}
+              timeToBeat={timeToBeat}
+              steamAppId={game.steamAppId}
+              igdbId={game.igdbId}
+            />
           )}
         </div>
 
@@ -266,7 +271,12 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
           {seeded ? (
             <Skeleton className="h-40 w-full" aria-busy />
           ) : (
-            <GameFactsRail facts={facts} timeToBeat={timeToBeat} steamAppId={game.steamAppId} />
+            <GameFactsRail
+              facts={facts}
+              timeToBeat={timeToBeat}
+              steamAppId={game.steamAppId}
+              igdbId={game.igdbId}
+            />
           )}
           {seeded ? null : <PlayerVoice igdbId={game.igdbId} />}
           {seeded ? null : <Soundtrack igdbId={game.igdbId} />}

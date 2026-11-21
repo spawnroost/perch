@@ -38,6 +38,7 @@ import type {
   RecommendationsResponse,
   SimilarResponse,
   PlayerVoiceResponse,
+  PriceResponse,
   SoundtrackResponse,
   RouletteResponse,
   TasteSummary,
@@ -242,6 +243,19 @@ export function useSoundtrack(igdbId: number) {
       api.get<SoundtrackResponse>(`/api/games/${igdbId}/soundtrack`, { signal }),
     staleTime: 10 * 60_000,
     // While the server is still looking the album up, ask again every 5 s for about a minute.
+    refetchInterval: (query) =>
+      query.state.data?.pending && query.state.dataUpdateCount < SOUNDTRACK_MAX_POLLS
+        ? SOUNDTRACK_POLL_MS
+        : false,
+  });
+}
+
+/** Best current PC-store price and historic low; the first visit may answer pending, then it asks again. */
+export function usePrices(igdbId: number) {
+  return useQuery({
+    queryKey: queryKeys.prices(igdbId),
+    queryFn: ({ signal }) => api.get<PriceResponse>(`/api/games/${igdbId}/prices`, { signal }),
+    staleTime: (q) => (q.state.data?.pending ? 0 : 10 * 60_000),
     refetchInterval: (query) =>
       query.state.data?.pending && query.state.dataUpdateCount < SOUNDTRACK_MAX_POLLS
         ? SOUNDTRACK_POLL_MS

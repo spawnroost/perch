@@ -8,6 +8,7 @@ import {
   StoreLinks,
   TimeToBeatBars,
 } from '../molecules';
+import { GamePrices } from './GamePrices';
 import { useReduced } from '@/hooks/useMotionPrefs';
 import { fadeTransition } from '@/lib/motion';
 import { aboutRows, criticSummary, externalUrl, steamReviewsSummary } from '@/lib/gameFacts';
@@ -17,6 +18,7 @@ export interface GameFactsRailProps {
   facts: GameDetailResponse['facts'];
   timeToBeat: GameDetailResponse['timeToBeat'];
   steamAppId: number | null;
+  igdbId: number;
 }
 
 function useFacts({ facts, timeToBeat, steamAppId }: GameFactsRailProps) {
@@ -69,11 +71,13 @@ export function GameFactsRail(props: GameFactsRailProps) {
           </div>
         ) : null}
       </DetailSection>
-      <DetailSection
-        title="Where to buy"
-        empty={stores.length > 0 ? undefined : 'No store links listed.'}
-      >
-        <StoreLinks stores={stores} />
+      <DetailSection title="Where to buy">
+        <GamePrices igdbId={props.igdbId} />
+        {stores.length > 0 ? (
+          <StoreLinks stores={stores} />
+        ) : (
+          <p className="text-sm text-fg-subtle">No store links listed.</p>
+        )}
       </DetailSection>
     </FadeIn>
   );

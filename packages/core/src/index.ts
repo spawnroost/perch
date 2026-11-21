@@ -21,3 +21,4 @@ export * from './psn-library/index.js';
 export * from './soundtrack/index.js';
 export * from './player-voice/index.js';
 export * from './explain/index.js';
+export * from './prices/index.js';

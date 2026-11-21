@@ -76,6 +76,13 @@ export type {
   SoundtrackResponse,
   SoundtrackTrack,
 } from './soundtrack/schemas.js';
+export {
+  historicLowSchema,
+  priceInfoSchema,
+  priceOfferSchema,
+  priceResponseSchema,
+} from './prices/schemas.js';
+export type { HistoricLow, PriceInfo, PriceOffer, PriceResponse } from './prices/schemas.js';
 export { playerVoiceResponseSchema, playerVoiceSchema } from './player-voice/schemas.js';
 export type { PlayerVoice, PlayerVoiceResponse } from './player-voice/schemas.js';
 export { MOODS } from './engine/roulette.js';

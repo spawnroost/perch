@@ -33,6 +33,8 @@ export { SearchResultRow } from './SearchResultRow';
 export type { SearchResultRowProps } from './SearchResultRow';
 export { ProviderButton } from './ProviderButton';
 export type { ProviderButtonProps } from './ProviderButton';
+export { PriceTile } from './PriceTile';
+export type { PriceTileProps } from './PriceTile';
 export { RatingTile } from './RatingTile';
 export type { RatingTileProps } from './RatingTile';
 export { TimeToBeatBars } from './TimeToBeatBars';

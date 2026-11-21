@@ -169,6 +169,13 @@
       "when": 1795187670416,
       "tag": "0023_perfect_forgotten_one",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1795239255937,
+      "tag": "0024_lean_anita_blake",
+      "breakpoints": true
     }
   ]
 }

@@ -12,6 +12,7 @@ import {
   type TagQuery,
   playerVoiceResponseSchema,
   tasteSummarySchema,
+  priceResponseSchema,
   soundtrackResponseSchema,
 } from '@perch/core';
 import { schema } from '@perch/db';
@@ -190,6 +191,25 @@ const fakeSoundtrack = {
   },
 };
 
+const priceCalls: { name: string; steamAppId: number | null }[] = [];
+const fakePrices = {
+  async findPrices(game: { name: string; steamAppId: number | null }) {
+    priceCalls.push(game);
+    if (game.name !== 'Routetest Alpha') return null;
+    return {
+      currency: 'USD' as const,
+      best: {
+        store: 'GOG',
+        price: 4.99,
+        retailPrice: 9.99,
+        savingsPct: 50,
+        url: 'https://www.cheapshark.com/redirect?dealID=x',
+      },
+      historicLow: { price: 0.99, date: null },
+    };
+  },
+};
+
 const COLOURS: Record<string, string> = {
   'https://img.test/alpha-small.jpg': '#c81e28',
   'https://img.test/beta-small.jpg': '#2a6fdb',
@@ -211,6 +231,7 @@ describe.skipIf(!testUrl)('api routes', () => {
         igdb: fakeIgdb,
         steam: fakeSteam,
         soundtrack: fakeSoundtrack,
+        prices: fakePrices,
         voiceSummarizer: fakeVoice,
         accentFor,
         explainer: fakeExplainer,
@@ -263,6 +284,7 @@ describe.skipIf(!testUrl)('api routes', () => {
       ['GET', '/api/games/search?q=alpha'],
       ['GET', `/api/games/${A}`],
       ['GET', `/api/games/${A}/soundtrack`],
+      ['GET', `/api/games/${A}/prices`],
       ['GET', `/api/games/${A}/player-voice`],
       ['GET', `/api/games/fit?ids=${A}`],
       ['GET', '/api/library'],
@@ -423,6 +445,23 @@ describe.skipIf(!testUrl)('api routes', () => {
       const body = soundtrackResponseSchema.parse(await res.json());
       expect(body.soundtrack).toBeNull();
       expect(body.links.appleMusic).toMatch(/^https:\/\/music\.apple\.com\/search\?term=/);
+    });
+
+    it('serves cached prices, and a null payload for a game not sold on a PC store', async () => {
+      const u = await newUser();
+      priceCalls.length = 0;
+      const first = await get(`/api/games/${A}/prices`, u.cookie);
+      expect(first.status).toBe(200);
+      const body = priceResponseSchema.parse(await first.json());
+      expect(body.prices?.best).toMatchObject({ store: 'GOG', price: 4.99, savingsPct: 50 });
+      expect(body.prices?.historicLow?.price).toBe(0.99);
+      await get(`/api/games/${A}/prices`, u.cookie);
+      expect(priceCalls).toHaveLength(1);
+      const none = priceResponseSchema.parse(
+        await (await get(`/api/games/${B}/prices`, u.cookie)).json(),
+      );
+      expect(none.prices).toBeNull();
+      expect((await get('/api/games/999999999/prices', u.cookie)).status).toBe(404);
     });
 
     it('serves the player-voice summary with the Steam reviews link, cached after the first lookup', async () => {
