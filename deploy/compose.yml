@@ -1,0 +1,169 @@
+# Perch production stack (one Compose project, `perch`, on the shared VPS).
+#   postgres -> migrate (one-shot) -> api, web, cron
+# No host ports are published. The shared edge Caddy (/srv/edge) reaches the containers over the
+# external Docker network `edge` by alias: perch-api:8787 and perch-web:8080 (site file: deploy/perch.caddy).
+#
+# Server: docker compose --env-file .env up -d     (see deploy/README.md; ship.sh does this)
+
+name: ${COMPOSE_PROJECT_NAME:-perch}
+
+x-logging: &logging
+  options:
+    max-size: '10m'
+    max-file: '3'
+
+x-db-url: &db-url postgres://perch:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/perch
+
+x-api-env: &api-env
+  NODE_ENV: production
+  TZ: ${TZ:-UTC}
+  API_PORT: '8787'
+  DATABASE_URL: *db-url
+  BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET (16+ chars)}
+  BETTER_AUTH_URL: ${BETTER_AUTH_URL:?set BETTER_AUTH_URL (public https origin)}
+  WEB_ORIGIN: ${WEB_ORIGIN:?set WEB_ORIGIN (public https origin)}
+  TRUST_PROXY: ${TRUST_PROXY:-1}
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  MAIL_FROM: ${MAIL_FROM:-}
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+  DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET:-}
+  IGDB_CLIENT_ID: ${IGDB_CLIENT_ID:-}
+  IGDB_CLIENT_SECRET: ${IGDB_CLIENT_SECRET:-}
+  STEAM_API_KEY: ${STEAM_API_KEY:-}
+  OPENXBL_API_KEY: ${OPENXBL_API_KEY:-}
+  PSN_NPSSO: ${PSN_NPSSO:-}
+  DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+  LLM_DAILY_BATCH_CAP: ${LLM_DAILY_BATCH_CAP:-60}
+  LLM_USER_DAILY_BATCH_CAP: ${LLM_USER_DAILY_BATCH_CAP:-10}
+  VOICE_DAILY_BATCH_CAP: ${VOICE_DAILY_BATCH_CAP:-35}
+  VOICE_USER_DAILY_CAP: ${VOICE_USER_DAILY_CAP:-15}
+
+# Cron container: IGDB cache jobs, the daily backup, and `perch ...` commands run by hand.
+x-cron-env: &cron-env
+  NODE_ENV: production
+  TZ: ${TZ:-UTC}
+  DATABASE_URL: *db-url
+  # `perch user:create` hashes passwords with the same auth setup as the API.
+  BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET (16+ chars)}
+  BETTER_AUTH_URL: ${BETTER_AUTH_URL:?set BETTER_AUTH_URL (public https origin)}
+  WEB_ORIGIN: ${WEB_ORIGIN:?set WEB_ORIGIN (public https origin)}
+  IGDB_CLIENT_ID: ${IGDB_CLIENT_ID:-}
+  IGDB_CLIENT_SECRET: ${IGDB_CLIENT_SECRET:-}
+  CACHE_AT: ${CACHE_AT:-00:15 06:15 12:15 18:15}
+  REFRESH_AT: ${REFRESH_AT:-04:30}
+  REFRESH_DOW: ${REFRESH_DOW:-7}
+  BACKUP_AT: ${BACKUP_AT:-02:00}
+  BACKUP_KEEP: ${BACKUP_KEEP:-14}
+  R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+  R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+  R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+  R2_BACKUP_BUCKET: ${R2_BACKUP_BUCKET:-}
+
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: perch
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: perch
+      TZ: ${TZ:-UTC}
+    # Project default network only, no published port: `docker compose exec postgres psql -U perch -d perch`.
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U perch -d perch']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 512m
+    stop_grace_period: 1m
+    logging: *logging
+
+  migrate:
+    image: perch-tools:${IMAGE_TAG:-local}
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: tools
+    restart: 'no'
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: *db-url
+    command: ['pnpm', 'db:migrate']
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *logging
+
+  api:
+    image: perch-api:${IMAGE_TAG:-local}
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: api
+    restart: unless-stopped
+    environment: *api-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    mem_limit: 768m
+    networks:
+      default:
+        aliases: ['${EDGE_ALIAS:-perch}-api']
+      edge:
+        aliases: ['${EDGE_ALIAS:-perch}-api']
+    logging: *logging
+
+  web:
+    image: perch-web:${IMAGE_TAG:-local}
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: web
+      args:
+        VITE_SUPPORT_URL: ${VITE_SUPPORT_URL:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:8080/']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    mem_limit: 128m
+    networks:
+      default:
+        aliases: ['${EDGE_ALIAS:-perch}-web']
+      edge:
+        aliases: ['${EDGE_ALIAS:-perch}-web']
+    logging: *logging
+
+  # Every 6 h: IGDB art/facts/time-to-beat backfills; weekly: full IGDB refresh; daily: pg backup.
+  # (The price-watch digest emails run inside the api process, not here.) Dumps live in the `backups` volume.
+  cron:
+    image: perch-tools:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    environment: *cron-env
+    command: ['sh', '/app/deploy/cron.sh']
+    volumes:
+      - backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    mem_limit: 384m
+    logging: *logging
+
+networks:
+  # The VPS-wide Caddy (/srv/edge) creates this network; it must exist before `up`.
+  edge:
+    name: ${EDGE_NETWORK:-edge}
+    external: true
+
+volumes:
+  pgdata:
+  backups:

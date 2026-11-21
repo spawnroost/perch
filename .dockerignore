@@ -7,7 +7,6 @@
 !.env.example
 deploy/env.local
 deploy/*.env
-data
 docs
 coverage
 *.log

@@ -5,7 +5,7 @@
 #   web:   `pnpm web:build` output behind a tiny Caddy file server.
 #   tools: same sources + pg client + rclone for `db:migrate`, `perch ...` and the cron/backup loop.
 #
-# VITE_SITE_URL is baked into the web build (canonical/OG URLs, sitemap), so it is a build arg.
+# VITE_SUPPORT_URL (optional tip link) is baked into the web build, so it is a build arg.
 
 ARG NODE_VERSION=24
 FROM node:${NODE_VERSION}-alpine AS base
@@ -35,8 +35,8 @@ FROM deps AS source
 COPY . .
 
 FROM source AS web-build
-ARG VITE_SITE_URL=http://localhost:5173
-ENV VITE_SITE_URL=$VITE_SITE_URL
+ARG VITE_SUPPORT_URL=
+ENV VITE_SUPPORT_URL=$VITE_SUPPORT_URL
 RUN pnpm web:build
 
 # ----- web: static files, SPA fallback, cache rules -------------------------------

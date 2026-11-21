@@ -1,5 +1,5 @@
 # Static server inside the web image. TLS and the security headers live in the edge Caddy
-# (deploy/Caddyfile.snippet); this one only serves files and sets cache rules.
+# (deploy/perch.caddy); this one only serves files and sets cache rules.
 {
 	admin off
 	auto_https off

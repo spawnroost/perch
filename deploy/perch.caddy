@@ -1,0 +1,38 @@
+# Site file for the shared edge Caddy: copied to /srv/edge/sites/perch.caddy by deploy/ship.sh, which
+# validates the whole edge config and reloads Caddy (see deploy/README.md). Self-contained: it defines its
+# own header snippet and does not use the edge's `(common)`.
+#
+# Upstreams are Docker network aliases on the external network `edge`, which the perch api and web
+# containers join (no host ports are published).
+#
+# CSP notes: index.html has only a `type="module"` script file, so script-src needs no 'unsafe-inline'.
+# Cover art (IGDB, Steam) is remote https images; audio previews come from iTunes (media-src https:).
+# The browser only talks to this origin (connect-src 'self'); OAuth and Steam sign-in are top-level
+# redirects, which CSP does not restrict.
+
+(perch_security) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-src 'none'; worker-src 'self'; manifest-src 'self'; media-src 'self' https:; upgrade-insecure-requests"
+		-Server
+	}
+	encode zstd gzip
+}
+
+perch.spawnroost.com {
+	import perch_security
+
+	# API: the app sets its own cache headers.
+	handle /api/* {
+		reverse_proxy perch-api:8787
+	}
+
+	# Everything else is the static web app (SPA shell, assets, manifest).
+	handle {
+		reverse_proxy perch-web:8080
+	}
+}
