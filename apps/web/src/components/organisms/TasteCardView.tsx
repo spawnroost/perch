@@ -3,10 +3,11 @@ import { Link } from 'react-router';
 import { Download } from 'lucide-react';
 import { Button, Notice, Skeleton } from '../atoms';
 import { LoadError } from '../molecules';
-import { TASTE_CARD_STEPS, TasteCard } from './TasteCard';
+import { TASTE_CARD_BOX, TASTE_CARD_STEPS, TasteCard } from './TasteCard';
 import { useTasteCard } from '@/hooks/queries';
 import { useCardExport } from '@/hooks/useCardExport';
 import { useReduced } from '@/hooks/useMotionPrefs';
+import { cn } from '@/lib/cn';
 import { revealSettleMs } from '@/lib/tasteCard';
 
 /** The /me/card page: your taste card, and a button that saves it as a PNG. */
@@ -26,7 +27,7 @@ export function TasteCardView() {
     return () => clearTimeout(t);
   }, [loaded, card.data, reduced]);
 
-  if (card.isPending) return <Skeleton className="mx-auto aspect-3/4 w-full max-w-sm" />;
+  if (card.isPending) return <Skeleton className={cn(TASTE_CARD_BOX, 'aspect-3/4 self-center')} />;
   if (card.isError || !card.data) {
     return (
       <LoadError message="Could not load your taste card." onRetry={() => void card.refetch()} />
@@ -46,7 +47,7 @@ export function TasteCardView() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-sm flex-col items-stretch gap-3">
+    <div className="flex w-full max-w-sm flex-col items-stretch gap-3 self-center lg:w-auto lg:max-w-none lg:items-center">
       <TasteCard ref={ref} summary={card.data} />
       <Button
         variant="primary"
