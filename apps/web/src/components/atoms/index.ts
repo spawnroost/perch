@@ -30,3 +30,6 @@ export { SectionHeading } from './SectionHeading';
 export { Select } from './Select';
 export { Textarea } from './Textarea';
 export { ProviderMark } from './ProviderMark';
+export { Reveal } from './Reveal';
+export { StatTile } from './StatTile';
+export { TasteBar } from './TasteBar';

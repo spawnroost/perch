@@ -45,6 +45,7 @@ export async function loadRecommendInput(
       status: entry.status as Status,
       owned: entry.owned,
       rating: entry.rating,
+      platform: entry.platform,
     })),
     feedback: fb.map((f) => ({ igdbId: f.igdbId, kind: f.kind as FeedbackItem['kind'] })),
   };

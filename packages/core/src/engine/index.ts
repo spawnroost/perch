@@ -56,7 +56,16 @@ export {
   rouletteForUser,
   sessionForUser,
   similarForUser,
+  tasteSummaryForUser,
 } from './for-user.js';
 export type { DeviceFit, GameFit, UserEngineDeps, UserRecommendation } from './for-user.js';
 export { browse, BROWSE_POOL, createBrowseList } from './browse.js';
 export type { BrowseInput, BrowseList, BrowsePage } from './browse.js';
+export {
+  COLLAGE_MAX,
+  PLAYSTYLE_FALLBACK,
+  playstyleLabel,
+  TASTE_TOP_N,
+  tasteSummary,
+} from './taste-card.js';
+export type { TasteArt, TasteSummaryInput } from './taste-card.js';

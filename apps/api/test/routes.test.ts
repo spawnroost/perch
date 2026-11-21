@@ -11,6 +11,7 @@ import {
   type RecommendationsResponse,
   type TagQuery,
   playerVoiceResponseSchema,
+  tasteSummarySchema,
   soundtrackResponseSchema,
 } from '@perch/core';
 import { schema } from '@perch/db';
@@ -283,6 +284,7 @@ describe.skipIf(!testUrl)('api routes', () => {
       ['GET', '/api/browse/facets'],
       ['GET', '/api/session?minutes=30'],
       ['GET', '/api/roulette'],
+      ['GET', '/api/me/taste-card'],
       ['GET', '/api/feedback'],
       ['POST', '/api/feedback'],
       ['DELETE', `/api/feedback/${C}/up`],
@@ -1446,6 +1448,36 @@ describe.skipIf(!testUrl)('api routes', () => {
       expect((await get('/api/session?minutes=30&deviceId=none', mine.cookie)).status).toBe(400);
       expect((await get('/api/session?minutes=30&deviceId=all', mine.cookie)).status).toBe(400);
       expect((await get('/api/session?minutes=30')).status).toBe(401);
+    });
+  });
+
+  describe('taste card', () => {
+    it('summarises the caller library, and is empty for a new user', async () => {
+      const u = await newUser();
+      const empty = tasteSummarySchema.parse(
+        await (await get('/api/me/taste-card', u.cookie)).json(),
+      );
+      expect(empty).toMatchObject({ empty: true, gameCount: 0, mostPlayed: null });
+
+      await call('POST', '/api/library', u.cookie, {
+        igdbId: A,
+        status: 'finished',
+        hoursPlayed: 12,
+      });
+      await call('POST', '/api/library', u.cookie, { igdbId: B, status: 'backlog' });
+      const res = await get('/api/me/taste-card', u.cookie);
+      expect(res.status).toBe(200);
+      const card = tasteSummarySchema.parse(await res.json());
+      expect(card).toMatchObject({ empty: false, gameCount: 2, totalHours: 12 });
+      expect(card.statusCounts).toMatchObject({ finished: 1, backlog: 1 });
+      expect(card.mostPlayed?.igdbId).toBe(A);
+      expect(card.topTastes.length).toBeGreaterThan(0);
+
+      const other = await newUser();
+      const theirs = tasteSummarySchema.parse(
+        await (await get('/api/me/taste-card', other.cookie)).json(),
+      );
+      expect(theirs.empty).toBe(true);
     });
   });
 

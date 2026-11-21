@@ -7,3 +7,4 @@ export * from './feedback.js';
 export * from './session.js';
 export * from './browse.js';
 export * from './roulette.js';
+export * from './taste-card.js';

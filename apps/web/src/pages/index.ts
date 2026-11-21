@@ -12,3 +12,4 @@ export { ResetPasswordPage } from './ResetPasswordPage';
 export { SimilarPage } from './SimilarPage';
 export { SignupPage } from './SignupPage';
 export { VerifyEmailPage } from './VerifyEmailPage';
+export { TasteCardPage } from './TasteCardPage';

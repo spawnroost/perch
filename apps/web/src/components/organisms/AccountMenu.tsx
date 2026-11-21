@@ -22,6 +22,11 @@ export function AccountMenu() {
         {signOut.error && <Notice tone="error">{signOut.error}</Notice>}
         <SheetClose asChild>
           <Button asChild variant="secondary">
+            <Link to="/me/card">Your taste card</Link>
+          </Button>
+        </SheetClose>
+        <SheetClose asChild>
+          <Button asChild variant="secondary">
             <Link to="/account">Account settings</Link>
           </Button>
         </SheetClose>

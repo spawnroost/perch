@@ -40,6 +40,7 @@ import type {
   PlayerVoiceResponse,
   SoundtrackResponse,
   RouletteResponse,
+  TasteSummary,
   SessionQuery,
   SessionResponse,
 } from '@perch/core/browser';
@@ -69,6 +70,13 @@ export function useLibrary(enabled = true) {
     queryFn: ({ signal }) => api.get<{ entries: LibraryEntry[] }>('/api/library', { signal }),
     select: (data) => data.entries,
     enabled,
+  });
+}
+
+export function useTasteCard() {
+  return useQuery({
+    queryKey: queryKeys.tasteCard,
+    queryFn: ({ signal }) => api.get<TasteSummary>('/api/me/taste-card', { signal }),
   });
 }
 

@@ -7,6 +7,7 @@ export const libraryAffected = [
   queryKeys.browseAll,
   queryKeys.gameDetailAll,
   queryKeys.gameFitsAll,
+  queryKeys.tasteCard,
 ] as const;
 
 /** Query keys to refetch after devices change: picks and fit on game pages depend on them. */

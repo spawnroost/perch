@@ -10,6 +10,7 @@ describe('invalidation', () => {
       queryKeys.browseAll,
       queryKeys.gameDetailAll,
       queryKeys.gameFitsAll,
+      queryKeys.tasteCard,
     ]);
   });
   it('a device change refreshes the devices, picks and game pages', () => {

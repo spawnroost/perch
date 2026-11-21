@@ -15,6 +15,8 @@ import {
   createDeepseekVoiceSummarizer,
   createReasonService,
   createTtlMemo,
+  tasteSummaryForUser,
+  type TasteSummary,
   type BrowseList,
   type IgdbCache,
   type IgdbClient,
@@ -176,6 +178,9 @@ export function createApp(appDeps: AppDeps) {
     const { id, email, name } = c.get('user');
     return c.json({ id, email, name });
   });
+  app.get('/api/me/taste-card', requireAuth(), async (c) =>
+    c.json((await tasteSummaryForUser(deps, c.get('user').id)) satisfies TasteSummary),
+  );
 
   app.route('/api/account', accountRoutes(deps));
   app.route('/api/games', gamesRoutes(deps));

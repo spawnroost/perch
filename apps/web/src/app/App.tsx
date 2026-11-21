@@ -17,6 +17,7 @@ import {
   ResetPasswordPage,
   SignupPage,
   SimilarPage,
+  TasteCardPage,
   VerifyEmailPage,
 } from '@/pages';
 import { shouldRetry } from '@/lib/retry';
@@ -50,6 +51,7 @@ export function App() {
                 <Route path="library" element={<LibraryPage />} />
                 <Route path="devices" element={<DevicesPage />} />
                 <Route path="games/:id" element={<GamePage />} />
+                <Route path="me/card" element={<TasteCardPage />} />
                 <Route path="account" element={<AccountPage />} />
               </Route>
               <Route path="onboarding" element={<OnboardingPage />} />

@@ -1,4 +1,5 @@
-import type { Db, games } from '@perch/db';
+import { inArray } from 'drizzle-orm';
+import { games as gamesTable, type Db, type games } from '@perch/db';
 import type { IgdbCache } from '../igdb/cache.js';
 import type { Game } from '../igdb/schemas.js';
 import type { SteamClient } from '../requirements/steam.js';
@@ -17,6 +18,8 @@ import { createBrowseList, type BrowseList } from './browse.js';
 import type { TtlMemo } from '../browse/ttl-memo.js';
 import { getRecsVersion } from '../recommendation-cache/version.js';
 import { createFitFetchers, loadDevices, loadRecommendInput } from './load.js';
+import { tasteSummary, type TasteArt } from './taste-card.js';
+import type { TasteSummary } from '../schemas/taste-card.js';
 import { buildProfile } from './profile.js';
 import { computeIdf } from './rank.js';
 import { backlogPoolIds, mergeLibrary, recommend, similaritySources } from './recommend.js';
@@ -480,4 +483,27 @@ export async function gameFitsForUser(
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** The user's taste card summary (see `tasteSummary`). Reads the library and the cover art; writes nothing. */
+export async function tasteSummaryForUser(
+  deps: Pick<UserEngineDeps, 'db' | 'mapVocab' | 'labels'>,
+  userId: string,
+  now: Date = new Date(),
+): Promise<TasteSummary> {
+  const { library, feedback } = await loadRecommendInput(deps.db, userId, deps.mapVocab);
+  const ids = [...new Set(library.map((l) => l.game.igdbId))];
+  const rows = ids.length
+    ? await deps.db
+        .select({
+          igdbId: gamesTable.igdbId,
+          coverUrl: gamesTable.coverUrl,
+          coverUrlSmall: gamesTable.coverUrlSmall,
+          accent: gamesTable.accent,
+        })
+        .from(gamesTable)
+        .where(inArray(gamesTable.igdbId, ids))
+    : [];
+  const art = new Map<number, TasteArt>(rows.map(({ igdbId, ...a }) => [igdbId, a]));
+  return tasteSummary({ library, feedback, labels: deps.labels, art, now });
 }

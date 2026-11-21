@@ -34,6 +34,8 @@ export interface LibraryItem {
   owned: boolean;
   /** Personal 1-5 rating; absent or null = unrated. */
   rating?: number | null;
+  /** Library platform ('pc', 'ps5', ...); absent when unknown. */
+  platform?: string;
 }
 
 export type FeedbackKind = 'up' | 'down' | 'played' | 'not_interested';

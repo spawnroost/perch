@@ -6,6 +6,7 @@ export const queryKeys = {
   library: ['library'] as const,
   /** Imported games waiting for the "played before" answer. */
   playedBefore: ['library', 'played-before'] as const,
+  tasteCard: ['taste-card'] as const,
   devices: ['devices'] as const,
   presets: ['device-presets'] as const,
   soundtrack: (igdbId: number) => ['games', 'soundtrack', igdbId] as const,

@@ -37,3 +37,4 @@ export { PsnSync } from './PsnSync';
 export { XboxSync } from './XboxSync';
 export { PlayerVoice } from './PlayerVoice';
 export { Soundtrack } from './Soundtrack';
+export { TasteCardView } from './TasteCardView';
