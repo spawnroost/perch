@@ -19,7 +19,7 @@ import { getRecsVersion } from '../recommendation-cache/version.js';
 import { createFitFetchers, loadDevices, loadRecommendInput } from './load.js';
 import { buildProfile } from './profile.js';
 import { computeIdf } from './rank.js';
-import { mergeLibrary, recommend, similaritySources } from './recommend.js';
+import { backlogPoolIds, mergeLibrary, recommend, similaritySources } from './recommend.js';
 import { similarTo, SIMILAR_LIMIT } from './similar.js';
 import { pickFromBacklog, type Mood, type Relaxed } from './roulette.js';
 import { batteryMatters, rankForSession, type SessionRanked } from './session.js';
@@ -166,11 +166,15 @@ async function recommendPicks(
     warmTimeToBeat?: boolean;
     /** With `warmTimeToBeat`: wait up to this long for the fetch, so this response can use it. */
     warmWaitMs?: number;
+    /** The user's devices, when the caller has loaded them already. */
+    allDevices?: Awaited<ReturnType<typeof loadDevices>>;
+    /** Rank only the user's backlog games (see `backlogPoolIds`) instead of the whole feed. */
+    backlogOnly?: boolean;
   },
 ): Promise<SessionPick[]> {
   const { db, cache, mapVocab, labels, steam } = deps;
   const { library, feedback } = await loadRecommendInput(db, userId, mapVocab);
-  const allDevices = await loadDevices(db, userId);
+  const allDevices = opts.allDevices ?? (await loadDevices(db, userId));
   const fetchers = createFitFetchers(db, steam);
   const recs = await recommend(
     {
@@ -181,7 +185,13 @@ async function recommendPicks(
       explain: createNoneProvider({ labels }),
       labels,
     },
-    { library, feedback, limit: opts.limit, devices: selectDevices(allDevices, opts.device) },
+    {
+      library,
+      feedback,
+      limit: opts.limit,
+      devices: selectDevices(allDevices, opts.device),
+      ...(opts.backlogOnly ? { pool: backlogPoolIds(library) } : {}),
+    },
   );
   return enrichPicks(deps, recs, allDevices, fetchers, opts);
 }
@@ -295,6 +305,7 @@ export async function sessionForUser(
   const device = q.deviceId === undefined ? (all[0] ?? null) : selectDevices(all, q.deviceId)[0];
   if (device === undefined) throw new DeviceNotFoundError(`no device matches "${q.deviceId}"`);
   const recs = await recommendPicks(deps, userId, {
+    allDevices: all,
     device: device?.id ?? 'none',
     limit: 50,
     gpuRequirementsFor: batteryMatters(device, q.battery) ? device?.id : undefined,
@@ -308,11 +319,11 @@ export async function sessionForUser(
   );
 }
 
-/** How many ranked recommendations the roulette scans for backlog games. */
+/** How many of the user's backlog games the roulette ranks (the draw is over the best 10). */
 const ROULETTE_SCAN = 60;
 
 /**
- * One game to play from the user's backlog (owned, barely played), drawn as in `pickFromBacklog`
+ * One game to play from the user's backlog (owned, status 'backlog'), drawn as in `pickFromBacklog`
  * and filtered by `device` as in `recommendForUser`. Null when no backlog game is left.
  */
 export async function rouletteForUser(
@@ -324,13 +335,15 @@ export async function rouletteForUser(
   const all = await loadDevices(deps.db, userId);
   const selected = selectDevices(all, q.device); // throws for a device that is not theirs
   const picks = await recommendPicks(deps, userId, {
+    allDevices: all,
+    backlogOnly: true,
     device: q.device,
     limit: ROULETTE_SCAN,
     warmTimeToBeat: true,
     warmWaitMs: deps.warmWaitMs ?? SESSION_WARM_WAIT_MS,
   });
   const out = pickFromBacklog({
-    games: picks.filter((p) => p.backlog),
+    games: picks,
     device: selected.length === 1 ? (selected[0] ?? null) : null,
     minutes: q.minutes,
     mood: q.mood,

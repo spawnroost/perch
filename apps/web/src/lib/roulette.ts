@@ -1,5 +1,5 @@
 /** Backlog roulette logic: the filters, the "last picks" memory and the Play action's targets. */
-import type { LibraryEntry, Mood, Relaxed } from '@perch/core';
+import type { Mood, Relaxed } from '@perch/core';
 import { ALL_TAB } from './forYou';
 
 export type RouletteFilters = {
@@ -65,15 +65,15 @@ export function relaxedNote(relaxed: Relaxed | null, mood: Mood | null): string 
   if (relaxed === 'mood') {
     return `Nothing in your backlog is quite ${mood ?? 'that'}, so here is a wildcard.`;
   }
-  if (relaxed === 'exclude') return 'You have spun through everything: games can come up again.';
+  if (relaxed === 'exclude') {
+    return mood
+      ? `You have spun through every ${mood} game, so repeats are back on.`
+      : 'You have spun through everything, so repeats are back on.';
+  }
+  if (relaxed === 'both') {
+    return `Nothing in your backlog is quite ${mood ?? 'that'} and you have spun through it all, so repeats are back on.`;
+  }
   return null;
-}
-
-/** Library entry ids to set to Playing: the game's owned entries not already playing. */
-export function entriesToPlay(entries: readonly LibraryEntry[], igdbId: number): string[] {
-  return entries
-    .filter((e) => e.igdbId === igdbId && e.owned && e.status !== 'playing')
-    .map((e) => e.id);
 }
 
 /** Card-shuffle keyframes: sideways swing (px), tilt (deg) and start delay (s) per card back. */

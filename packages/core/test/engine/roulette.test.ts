@@ -191,3 +191,49 @@ describe('pickFromBacklog relaxing order', () => {
     expect(out.relaxed).toBe('exclude');
   });
 });
+
+describe('pickFromBacklog review cases', () => {
+  it('reports repeats, not a dropped mood, when the only mood matches were excluded', () => {
+    const calm = rec({ vocab: { cozy: 1 } });
+    const loud = rec({ vocab: { shooter: 1 } });
+    const out = pickFromBacklog({
+      games: [calm, loud],
+      mood: 'chill',
+      exclude: [calm.game.igdbId],
+      rng: () => 0,
+    })!;
+    expect(out.pick.game.igdbId).toBe(calm.game.igdbId);
+    expect(out.relaxed).toBe('exclude');
+  });
+
+  it('reports both when nothing matches the mood and everything was excluded', () => {
+    const a = rec({ vocab: { shooter: 1 }, score: 2 });
+    const b = rec({ vocab: { shooter: 1 }, score: 1 });
+    const out = pickFromBacklog({
+      games: [a, b],
+      mood: 'chill',
+      exclude: [a.game.igdbId, b.game.igdbId],
+      rng: () => 0,
+    })!;
+    expect(out.relaxed).toBe('both');
+  });
+
+  it('still skips the most recent pick when exclusions are relaxed and others remain', () => {
+    const a = rec({ score: 3 });
+    const b = rec({ score: 2 });
+    const c = rec({ score: 1 });
+    const exclude = [a.game.igdbId, b.game.igdbId, c.game.igdbId]; // newest first
+    for (const roll of [0, 0.5, 0.9999]) {
+      const out = pickFromBacklog({ games: [a, b, c], exclude, rng: () => roll })!;
+      expect(out.pick.game.igdbId).not.toBe(a.game.igdbId);
+      expect(out.relaxed).toBe('exclude');
+    }
+  });
+
+  it('may repeat the most recent pick when it is the only game', () => {
+    const only = rec();
+    const out = pickFromBacklog({ games: [only], exclude: [only.game.igdbId], rng: () => 0 })!;
+    expect(out.pick.game.igdbId).toBe(only.game.igdbId);
+    expect(out.relaxed).toBe('exclude');
+  });
+});

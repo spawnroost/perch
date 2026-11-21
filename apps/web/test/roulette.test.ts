@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import type { LibraryEntry } from '@perch/core';
 import {
   MOOD_OPTIONS,
   RECENT_PICKS_MAX,
@@ -7,7 +6,6 @@ import {
   relaxedNote,
   rememberPick,
   rouletteParams,
-  entriesToPlay,
   ROULETTE_RECENT_KEY,
 } from '../src/lib/roulette.js';
 
@@ -84,31 +82,14 @@ describe('relaxedNote', () => {
   });
   it('names the mood that was dropped, or the repeats', () => {
     expect(relaxedNote('mood', 'chill')).toMatch(/chill/i);
-    expect(relaxedNote('exclude', null)).toMatch(/again/i);
+    expect(relaxedNote('exclude', null)).toMatch(/repeats/i);
   });
-});
-
-const entry = (over: Partial<LibraryEntry>): LibraryEntry =>
-  ({
-    id: 'e',
-    igdbId: 7,
-    owned: true,
-    status: 'backlog',
-    ...over,
-  }) as LibraryEntry;
-
-describe('entriesToPlay', () => {
-  it('lists the owned entries of the game that are not playing yet', () => {
-    const entries = [
-      entry({ id: 'a' }),
-      entry({ id: 'b', status: 'playing' }),
-      entry({ id: 'c', owned: false }),
-      entry({ id: 'd', igdbId: 8 }),
-      entry({ id: 'e', status: 'paused' }),
-    ];
-    expect(entriesToPlay(entries, 7)).toEqual(['a', 'e']);
+  it('says repeats are back on, not that the mood is missing, when its games were all spun', () => {
+    const note = relaxedNote('exclude', 'chill')!;
+    expect(note).toMatch(/spun through every chill/i);
+    expect(note).not.toMatch(/nothing/i);
   });
-  it('is empty when the game is not in the library', () => {
-    expect(entriesToPlay([], 7)).toEqual([]);
+  it('covers both filters being dropped', () => {
+    expect(relaxedNote('both', 'story')).toMatch(/story.*repeats/i);
   });
 });

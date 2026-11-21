@@ -691,6 +691,37 @@ describe.skipIf(!testUrl)('api routes', () => {
       expect(after.entries.map((e) => e.rating)).toEqual([null, null]);
     });
 
+    it('PUT /games/:igdbId/status sets the status on every platform; 404 when not in the library', async () => {
+      const u = await newUser();
+      const other = await newUser();
+      const path = `/api/library/games/${A}/status`;
+      expect((await call('PUT', path, u.cookie, { status: 'playing' })).status).toBe(404);
+      await call('POST', '/api/library', u.cookie, {
+        igdbId: A,
+        platform: 'pc',
+        status: 'backlog',
+      });
+      await call('POST', '/api/library', u.cookie, {
+        igdbId: A,
+        platform: 'ps5',
+        status: 'paused',
+      });
+      await call('POST', '/api/library', other.cookie, { igdbId: A, status: 'backlog' });
+      const ok = await call('PUT', path, u.cookie, { status: 'playing' });
+      expect(ok.status).toBe(200);
+      expect(await ok.json()).toEqual({ status: 'playing', updated: 2 });
+      const statuses = async (c: string) =>
+        (
+          (await (await get('/api/library', c)).json()) as { entries: { status: string }[] }
+        ).entries.map((e) => e.status);
+      expect(await statuses(u.cookie)).toEqual(['playing', 'playing']);
+      expect(await statuses(other.cookie)).toEqual(['backlog']);
+      for (const status of ['bogus', undefined, 3]) {
+        expect((await call('PUT', path, u.cookie, { status })).status).toBe(400);
+      }
+      expect((await call('PUT', path)).status).toBe(401);
+    });
+
     it('returns 201 for a new entry and 200 when re-adding updates it', async () => {
       const u = await newUser();
       const first = await call('POST', '/api/library', u.cookie, { igdbId: A, hoursPlayed: 1 });
@@ -1443,6 +1474,28 @@ describe.skipIf(!testUrl)('api routes', () => {
       const all = await spin(`?device=none&exclude=${A},${B}`, u.cookie);
       expect([A, B]).toContain(all.pick?.game.igdbId);
       expect(all.relaxed).toBe('exclude');
+    });
+
+    it('draws only from games with status backlog, however long played; never finished, playing or paused', async () => {
+      const u = await newUser();
+      await call('POST', '/api/library', u.cookie, {
+        igdbId: A,
+        status: 'backlog',
+        hoursPlayed: 10,
+      });
+      await call('POST', '/api/library', u.cookie, {
+        igdbId: B,
+        status: 'finished',
+        hoursPlayed: 0.5,
+      });
+      await call('POST', '/api/library', u.cookie, { igdbId: C, status: 'playing' });
+      await call('POST', '/api/library', u.cookie, { igdbId: D, status: 'paused' });
+      for (let i = 0; i < 6; i++) {
+        const out = await spin('?device=none', u.cookie);
+        expect(out.pick?.game.igdbId).toBe(A);
+      }
+      await call('PUT', `/api/library/games/${A}/status`, u.cookie, { status: 'playing' });
+      expect(await spin('?device=none', u.cookie)).toEqual({ pick: null, relaxed: null });
     });
 
     it('returns a null pick for an empty backlog', async () => {

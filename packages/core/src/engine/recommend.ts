@@ -13,6 +13,7 @@ import {
 import { buildProfile } from './profile.js';
 import { computeIdf, rankCandidates, MAX_SLOTS } from './rank.js';
 import type {
+  Candidate,
   EngineGame,
   FeedbackItem,
   LibraryItem,
@@ -39,6 +40,11 @@ export interface RecommendInput {
   /** Filter to games these devices can run. Omit for no filtering. */
   devices?: readonly FilterDevice[];
   fitOptions?: FitOptions;
+  /**
+   * Rank only these library games (ids), whatever their hours: no similar or tag candidates are
+   * fetched, and feedback still hides games. For "pick from my backlog".
+   */
+  pool?: readonly number[];
 }
 
 export type Fit = NonNullable<Recommendation['fit']>;
@@ -138,6 +144,26 @@ export function similaritySources(
     .map((l) => l.game);
 }
 
+/** Ids of the games to roulette over: owned library games whose status is 'backlog' (one row per game). */
+export function backlogPoolIds(library: readonly LibraryItem[]): number[] {
+  return mergeLibrary(library)
+    .filter((l) => l.owned && l.status === 'backlog')
+    .map((l) => l.game.igdbId);
+}
+
+/** The pool's library games as backlog candidates, minus those the user turned down. */
+function poolCandidates(
+  library: readonly LibraryItem[],
+  feedback: readonly FeedbackItem[],
+  pool: readonly number[],
+): Candidate[] {
+  const wanted = new Set(pool);
+  const turnedDown = new Set(feedback.filter((f) => f.kind !== 'up').map((f) => f.igdbId));
+  return library
+    .filter((l) => wanted.has(l.game.igdbId) && !turnedDown.has(l.game.igdbId))
+    .map((l) => ({ game: l.game, backlog: true }));
+}
+
 /** Profile -> candidates -> rank + diversity -> reasons. Data access is injected via `deps`. */
 export async function recommend(
   deps: RecommendDeps,
@@ -146,13 +172,15 @@ export async function recommend(
   const now = (deps.now ?? (() => new Date()))();
   const library = mergeLibrary(input.library);
   const profile = buildProfile({ library, feedback: input.feedback, now });
-  const candidates = await buildCandidates({
-    profile,
-    library,
-    hidden: hiddenIds(library, input.feedback),
-    deps,
-    now,
-  });
+  const candidates = input.pool
+    ? poolCandidates(library, input.feedback, input.pool)
+    : await buildCandidates({
+        profile,
+        library,
+        hidden: hiddenIds(library, input.feedback),
+        deps,
+        now,
+      });
   // A backlog game is both a candidate and a library entry: count it once.
   const idfGames = new Map(
     [...candidates.map((c) => c.game), ...library.map((l) => l.game)].map((g) => [g.igdbId, g]),

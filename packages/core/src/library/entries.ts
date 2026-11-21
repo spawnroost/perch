@@ -136,6 +136,27 @@ export async function setGameRating(
   });
 }
 
+/**
+ * Sets the status on all the user's entries of a game (one per platform) in one transaction;
+ * bumps recs_version once. Returns how many entries changed: 0 when the game is not in their library.
+ */
+export async function setGameStatus(
+  db: Db,
+  userId: string,
+  igdbId: number,
+  status: Status,
+): Promise<number> {
+  return db.transaction(async (tx) => {
+    const rows = await tx
+      .update(libraryEntries)
+      .set({ status })
+      .where(and(eq(libraryEntries.userId, userId), eq(libraryEntries.igdbId, igdbId)))
+      .returning({ id: libraryEntries.id });
+    if (rows.length > 0) await bumpRecsVersion(tx, userId);
+    return rows.length;
+  });
+}
+
 /** Deletes the user's entry; false when it is not theirs. */
 export async function deleteLibraryEntry(db: Db, userId: string, id: string): Promise<boolean> {
   return db.transaction(async (tx) => {

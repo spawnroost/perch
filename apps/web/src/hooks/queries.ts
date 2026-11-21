@@ -381,6 +381,19 @@ export function useUpdateLibraryEntry() {
   });
 }
 
+/** Sets one status on all of a game's library entries (every platform) in one request. */
+export function useSetGameStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ igdbId, status }: { igdbId: number; status: LibraryEntry['status'] }) =>
+      api.put<{ status: LibraryEntry['status']; updated: number }>(
+        `/api/library/games/${igdbId}/status`,
+        { status },
+      ),
+    onSuccess: () => invalidateAll(qc, libraryAffected),
+  });
+}
+
 /** Rates a game on all its library entries; the library cache updates at once and rolls back on error. */
 export function useRateGame() {
   const qc = useQueryClient();

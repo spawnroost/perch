@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router';
 import { Dices } from 'lucide-react';
 import { Button, Notice, Sheet, SheetClose, SheetContent, SheetTrigger } from '../atoms';
 import { CardShuffle, DeviceSwitcher, LoadError, RoulettePick } from '../molecules';
-import { useDevices, useLibrary, useUpdateLibraryEntry } from '@/hooks/queries';
+import { useDevices, useSetGameStatus } from '@/hooks/queries';
 import { useRoulette } from '@/hooks/useRoulette';
 import { deviceOptions } from '@/lib/forYou';
-import { ANY, entriesToPlay, MOOD_OPTIONS, relaxedNote } from '@/lib/roulette';
+import { ANY, MOOD_OPTIONS, relaxedNote } from '@/lib/roulette';
 import { SESSION_MINUTES } from '@/lib/session';
 import type { Mood } from '@perch/core/browser';
 
@@ -18,8 +18,7 @@ const MINUTE_OPTIONS = [
 function RouletteBody({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const devices = useDevices().data ?? [];
-  const library = useLibrary();
-  const update = useUpdateLibraryEntry();
+  const setStatus = useSetGameStatus();
   const { filters, choose, respin, shuffling, result, error } = useRoulette();
   const [playError, setPlayError] = useState<string | null>(null);
   const pick = shuffling ? null : (result?.pick ?? null);
@@ -28,11 +27,7 @@ function RouletteBody({ onClose }: { onClose: () => void }) {
     if (!pick) return;
     setPlayError(null);
     try {
-      await Promise.all(
-        entriesToPlay(library.data ?? [], pick.game.igdbId).map((id) =>
-          update.mutateAsync({ id, patch: { status: 'playing' } }),
-        ),
-      );
+      await setStatus.mutateAsync({ igdbId: pick.game.igdbId, status: 'playing' });
     } catch (err) {
       setPlayError(err instanceof Error ? err.message : 'Could not mark it as playing.');
       return;
@@ -105,7 +100,7 @@ function RouletteBody({ onClose }: { onClose: () => void }) {
           variant="primary"
           onClick={() => void play()}
           disabled={!pick}
-          loading={update.isPending}
+          loading={setStatus.isPending}
         >
           Play
         </Button>

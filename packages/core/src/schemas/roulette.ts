@@ -38,7 +38,7 @@ export const rouletteResponseSchema = z.object({
   /** Null when the backlog is empty (or nothing in it fits the device). */
   pick: recommendationSchema.extend({ sessionReason: z.string() }).nullable(),
   /** Which filter was dropped to find the pick; null when none was. */
-  relaxed: z.enum(['mood', 'exclude']).nullable(),
+  relaxed: z.enum(['mood', 'exclude', 'both']).nullable(),
 });
 
 export type RouletteResponse = z.infer<typeof rouletteResponseSchema>;

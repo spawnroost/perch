@@ -6,6 +6,7 @@ import {
   findLibraryEntry,
   idParamSchema,
   igdbIdParamSchema,
+  libraryGameStatusSchema,
   libraryRatingSchema,
   exportImportSchema,
   importConfirmSchema,
@@ -22,6 +23,7 @@ import {
   previewImport,
   rebuildProfile,
   setGameRating,
+  setGameStatus,
   setLibraryStatus,
   updateLibraryEntry,
   upsertLibraryGame,
@@ -381,6 +383,17 @@ export function libraryRoutes(deps: RouteDeps) {
     }
     await rebuild(userId);
     return c.json({ rating });
+  });
+
+  // Status is per game too (Play from the roulette): every platform entry of it gets the same one.
+  r.put('/games/:igdbId/status', async (c) => {
+    const userId = c.get('user').id;
+    const { igdbId } = parseParams(c, igdbIdParamSchema);
+    const { status } = await parseBody(c, libraryGameStatusSchema);
+    const updated = await setGameStatus(db, userId, igdbId, status);
+    if (updated === 0) return c.json({ error: 'not found' }, 404);
+    await rebuild(userId);
+    return c.json({ status, updated });
   });
 
   r.patch('/:id', async (c) => {

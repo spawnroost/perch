@@ -27,7 +27,8 @@ const QUICK_TAGS = ['roguelike', 'puzzle', 'platformer'] as const;
 
 export type RouletteGame = SessionRec;
 
-export type Relaxed = 'mood' | 'exclude';
+/** Which filters were dropped to find a game: the mood, the recent-pick exclusions, or both. */
+export type Relaxed = 'mood' | 'exclude' | 'both';
 
 export interface RouletteInput<T extends RouletteGame> {
   /** The user's backlog games. */
@@ -35,7 +36,7 @@ export interface RouletteInput<T extends RouletteGame> {
   device?: SessionDevice | null;
   minutes?: number;
   mood?: Mood;
-  /** Game ids not to pick (the last few spins). */
+  /** Game ids not to pick (the last few spins), most recent first. */
   exclude?: readonly number[];
   /** Uniform in [0, 1); injectable for tests. */
   rng?: () => number;
@@ -93,14 +94,22 @@ export function pickFromBacklog<T extends RouletteGame>(
   const skip = new Set(exclude);
   const byMood = (gs: readonly T[]) => (mood ? gs.filter((g) => matchesMood(g, mood)) : gs);
   const fresh = games.filter((g) => !skip.has(g.game.igdbId));
-  const moody = byMood(fresh);
-  let pool: readonly T[] = moody;
+  let pool = byMood(fresh);
   let relaxed: Relaxed | null = null;
-  if (pool.length === 0 && fresh.length > 0) [pool, relaxed] = [fresh, 'mood'];
   if (pool.length === 0) {
-    // Everything was picked recently: allow repeats, still preferring the mood.
-    const again = byMood(games);
-    [pool, relaxed] = [again.length > 0 ? again : games, 'exclude'];
+    const anyMatch = byMood(games);
+    if (anyMatch.length > 0) {
+      // Games of the mood exist but were all picked lately: allow repeats, keep the mood.
+      [pool, relaxed] = [anyMatch, 'exclude'];
+    } else if (fresh.length > 0) {
+      [pool, relaxed] = [fresh, 'mood'];
+    } else {
+      [pool, relaxed] = [games, mood ? 'both' : 'exclude'];
+    }
+  }
+  // Repeats are allowed, but not the game spun last when there is anything else.
+  if (relaxed !== null && relaxed !== 'mood' && exclude[0] !== undefined && pool.length > 1) {
+    pool = pool.filter((g) => g.game.igdbId !== exclude[0]);
   }
   if (pool.length === 0) return null;
   const top = rankPool(pool, input).slice(0, ROULETTE_POOL);

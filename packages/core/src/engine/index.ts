@@ -28,7 +28,7 @@ export { matchesMood, MOODS, pickFromBacklog, ROULETTE_POOL, QUICK_MAX_HOURS } f
 export type { Mood, Relaxed, RouletteGame, RouletteInput, RoulettePick } from './roulette.js';
 export { SIMILAR_LIMIT, similarTo } from './similar.js';
 export type { SimilarInput } from './similar.js';
-export { mergeLibrary, recommend, similaritySources } from './recommend.js';
+export { backlogPoolIds, mergeLibrary, recommend, similaritySources } from './recommend.js';
 export type { RecommendDeps, RecommendInput } from './recommend.js';
 export { createFitFetchers, loadDevices, loadRecommendInput } from './load.js';
 export type {
