@@ -20,10 +20,11 @@ export function TasteCardView() {
   // The PNG is taken after the reveal, so it never catches the card half-faded.
   const loaded = card.data !== undefined && !card.data.empty;
   useEffect(() => {
+    setSettled(false);
     if (!loaded) return;
     const t = setTimeout(() => setSettled(true), revealSettleMs(TASTE_CARD_STEPS, reduced));
     return () => clearTimeout(t);
-  }, [loaded, reduced]);
+  }, [loaded, card.data, reduced]);
 
   if (card.isPending) return <Skeleton className="mx-auto aspect-3/4 w-full max-w-sm" />;
   if (card.isError || !card.data) {

@@ -118,27 +118,35 @@ export function tasteSummary(input: TasteSummaryInput): TasteSummary {
   }
   for (const m of merged) statusCounts[m.status] += 1;
 
-  const profile = buildProfile({
-    library: input.library,
-    feedback: input.feedback,
-    now: input.now,
-  });
-  const named = (list: typeof IGDB_GENRES) => new Map(list.map((f) => [f.id, f.name]));
-  const genreNames = named(IGDB_GENRES);
-  const themeNames = named(IGDB_THEMES);
-  const tastes = [
-    ...Object.entries(profile.genres).map(([id, weight]) => ({
+  const profile = buildProfile({ library: merged, feedback: input.feedback, now: input.now });
+  const weightOf = new Map(profile.weights.map((w) => [w.igdbId, w.weight]));
+  // Genres and themes are tallied on one scale (the profile scales each list to its own top).
+  const tally = (pick: (g: LibraryItem['game']) => number[]) => {
+    const sums = new Map<number, number>();
+    for (const m of merged) {
+      const w = weightOf.get(m.game.igdbId) ?? 0;
+      if (w <= 0) continue;
+      for (const id of new Set(pick(m.game))) sums.set(id, (sums.get(id) ?? 0) + w);
+    }
+    return sums;
+  };
+  const genreNames = new Map(IGDB_GENRES.map((f) => [f.id, f.name]));
+  const themeNames = new Map(IGDB_THEMES.map((f) => [f.id, f.name]));
+  const raw = [
+    ...[...tally((g) => g.genres)].map(([id, weight]) => ({
       kind: 'genre' as const,
-      name: genreNames.get(Number(id)),
+      name: genreNames.get(id),
       weight,
     })),
-    ...Object.entries(profile.themes).map(([id, weight]) => ({
+    ...[...tally((g) => g.themes)].map(([id, weight]) => ({
       kind: 'theme' as const,
-      name: themeNames.get(Number(id)),
+      name: themeNames.get(id),
       weight,
     })),
-  ]
-    .flatMap((t) => (t.name && t.weight > 0 ? [{ ...t, name: t.name }] : []))
+  ].flatMap((t) => (t.name ? [{ ...t, name: t.name }] : []));
+  const max = Math.max(...raw.map((t) => t.weight));
+  const tastes = raw
+    .map((t) => ({ ...t, weight: t.weight / max }))
     .sort((a, b) => b.weight - a.weight)
     .slice(0, TASTE_TOP_N);
 
@@ -186,7 +194,6 @@ export function tasteSummary(input: TasteSummaryInput): TasteSummary {
       rating,
     }));
 
-  const weightOf = new Map(profile.weights.map((w) => [w.igdbId, w.weight]));
   const covers = merged
     .filter((m) => art.get(m.game.igdbId)?.coverUrl)
     .sort(

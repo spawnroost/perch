@@ -29,6 +29,7 @@ export function TasteCard({ summary, ref }: { summary: TasteSummary; ref?: Ref<H
       {!reduced && (
         <motion.div
           aria-hidden
+          data-export-skip
           className="pointer-events-none absolute inset-y-0 -left-1/2 z-10 w-1/2 -skew-x-12 bg-linear-to-r from-transparent via-accent-soft to-transparent"
           initial={{ x: '0%' }}
           animate={{ x: '400%' }}

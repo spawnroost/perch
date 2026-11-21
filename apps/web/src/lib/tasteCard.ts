@@ -92,7 +92,7 @@ export interface ExportRenderOptions {
   pixelRatio: number;
   cacheBust: boolean;
   imagePlaceholder: string;
-  filter?: (node: HTMLElement) => boolean;
+  filter: (node: HTMLElement) => boolean;
 }
 export type ExportRender = (node: HTMLElement, options: ExportRenderOptions) => Promise<string>;
 
@@ -101,20 +101,21 @@ const BLANK_PIXEL =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
 /**
- * Renders the card to a PNG data URL. Cover images are fetched (IGDB allows any origin); if the
+ * Renders the card to a PNG data URL, leaving out elements marked `data-export-skip` (the sheen). Cover images are fetched (IGDB allows any origin); if the
  * render still fails, it retries without any image, so the download never ends in an error for a cover.
  */
 export async function exportCardPng(
   node: HTMLElement,
   render: ExportRender,
 ): Promise<{ dataUrl: string; withCovers: boolean }> {
-  const base = { pixelRatio: 2, cacheBust: true, imagePlaceholder: BLANK_PIXEL };
+  const keep = (n: HTMLElement) => n.dataset?.exportSkip === undefined;
+  const base = { pixelRatio: 2, cacheBust: true, imagePlaceholder: BLANK_PIXEL, filter: keep };
   try {
     return { dataUrl: await render(node, base), withCovers: true };
   } catch {
     const dataUrl = await render(node, {
       ...base,
-      filter: (n) => (n.tagName ?? '').toUpperCase() !== 'IMG',
+      filter: (n) => keep(n) && (n.tagName ?? '').toUpperCase() !== 'IMG',
     });
     return { dataUrl, withCovers: false };
   }

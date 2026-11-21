@@ -100,6 +100,10 @@ describe('exportCardPng', () => {
       withCovers: true,
     });
     expect(render).toHaveBeenCalledTimes(1);
+    const filter = render.mock.calls[0]?.[1].filter as (n: unknown) => boolean;
+    expect(filter({ tagName: 'IMG' })).toBe(true);
+    expect(filter({ tagName: 'DIV', dataset: { exportSkip: '' } })).toBe(false);
+    expect(filter({ nodeType: 3 })).toBe(true);
   });
 
   it('falls back to the card without cover images when the first render fails', async () => {
@@ -109,9 +113,10 @@ describe('exportCardPng', () => {
       .mockResolvedValueOnce('data:image/png;base64,BBB');
     const out = await exportCardPng(node, render);
     expect(out).toEqual({ dataUrl: 'data:image/png;base64,BBB', withCovers: false });
-    const filter = render.mock.calls[1]?.[1].filter as (n: { tagName: string }) => boolean;
+    const filter = render.mock.calls[1]?.[1].filter as (n: unknown) => boolean;
     expect(filter({ tagName: 'IMG' })).toBe(false);
     expect(filter({ tagName: 'DIV' })).toBe(true);
+    expect(filter({ tagName: 'DIV', dataset: { exportSkip: '' } })).toBe(false);
   });
 
   it('gives up when even the plain card fails', async () => {

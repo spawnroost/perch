@@ -113,6 +113,35 @@ describe('tasteSummary', () => {
     expect(names(flipped)[0]).not.toBe('Platform');
   });
 
+  it('counts a game on two platforms once, as the merged library does', () => {
+    const [a, b, c, d] = [
+      game(11, 'A', {}, { genres: [4] }),
+      game(12, 'B', {}, { genres: [5] }),
+      game(13, 'C', {}, { genres: [9] }),
+      game(14, 'D', {}, { genres: [10] }),
+    ];
+    const others = [item(b, 10, 2), item(c, 10, 3), item(d, 10, 4)];
+    const split = run([on(item(a, 5, 1), 'pc'), on(item(a, 5, 1), 'ps5'), ...others]);
+    const single = run([item(a, 10, 1), ...others]);
+    expect(split.topTastes).toEqual(single.topTastes);
+    expect(split.covers).toEqual(single.covers);
+  });
+
+  it('lets only owned games shape the top tastes', () => {
+    const racer = game(15, 'Racer', {}, { genres: [10] });
+    const s = run([item(hollow, 5, 1), item(racer, 500, 1, 'playing', false)]);
+    expect(s.topTastes.map((t) => t.name)).not.toContain('Racing');
+  });
+
+  it('scales genres and themes together, so a weak theme is not the top', () => {
+    const genreOnly = game(16, 'G', {}, { genres: [8] });
+    const themeOnly = game(17, 'T', {}, { themes: [33] });
+    const s = run([item(genreOnly, 100, 1), item(themeOnly, 5, 1)]);
+    const weight = (name: string) => s.topTastes.find((t) => t.name === name)?.weight;
+    expect(weight('Platform')).toBe(1);
+    expect(weight('Sandbox')).toBeLessThan(0.5);
+  });
+
   it('derives the playstyle from the top vocab tags', () => {
     const s = run([item(hollow, 50, 1)]);
     expect(s.playstyle).toEqual({

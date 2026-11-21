@@ -351,6 +351,7 @@ export function useFeedback() {
         qc.invalidateQueries({ queryKey: queryKeys.feedback }),
         qc.invalidateQueries({ queryKey: queryKeys.recommendationsAll }),
         qc.invalidateQueries({ queryKey: queryKeys.game(igdbId) }),
+        qc.invalidateQueries({ queryKey: queryKeys.tasteCard }),
       ]),
   });
   const feedback = query.data ?? NO_FEEDBACK;

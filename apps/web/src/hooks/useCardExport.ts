@@ -26,6 +26,7 @@ export function useCardExport(
     if (!node) return;
     setPending(true);
     setError(null);
+    setWithoutCovers(false);
     try {
       const out = await exportCardPng(node, render);
       setWithoutCovers(!out.withCovers);
