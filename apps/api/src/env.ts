@@ -27,10 +27,10 @@ const ApiEnvShape = z.object({
   /** DeepSeek key for the AI reasons on For you; unset keeps the template reasons. */
   DEEPSEEK_API_KEY: z.string().optional(),
   /** Most LLM batches the whole server starts per day (each user is also capped). */
-  LLM_DAILY_BATCH_CAP: z.coerce.number().int().min(0).default(500),
-  LLM_USER_DAILY_BATCH_CAP: z.coerce.number().int().min(0).default(30),
-  VOICE_DAILY_BATCH_CAP: z.coerce.number().int().min(0).default(500),
-  VOICE_USER_DAILY_CAP: z.coerce.number().int().min(0).default(50),
+  LLM_DAILY_BATCH_CAP: z.coerce.number().int().min(0).default(60),
+  LLM_USER_DAILY_BATCH_CAP: z.coerce.number().int().min(0).default(10),
+  VOICE_DAILY_BATCH_CAP: z.coerce.number().int().min(0).default(35),
+  VOICE_USER_DAILY_CAP: z.coerce.number().int().min(0).default(15),
   NODE_ENV: z.string().optional(),
 });
 

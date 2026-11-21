@@ -15,7 +15,7 @@ describe('social provider env', () => {
   it('accepts neither, or both of a pair', () => {
     expect(() => parseEnv(BASE)).not.toThrow();
     expect(parseEnv(BASE).DEEPSEEK_API_KEY).toBeUndefined();
-    expect(parseEnv(BASE).LLM_DAILY_BATCH_CAP).toBe(500);
+    expect(parseEnv(BASE).LLM_DAILY_BATCH_CAP).toBe(60);
     expect(parseEnv({ ...BASE, LLM_DAILY_BATCH_CAP: '7' }).LLM_DAILY_BATCH_CAP).toBe(7);
     expect(() =>
       parseEnv({ ...BASE, GOOGLE_CLIENT_ID: 'a', GOOGLE_CLIENT_SECRET: 'b' }),
