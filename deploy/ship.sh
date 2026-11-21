@@ -87,15 +87,17 @@ site="$edge/sites/perch.caddy"
 if [ -f "$site" ] && cmp -s "$dir/perch.caddy" "$site"; then
   echo "edge: $site unchanged, no reload"
 else
-  [ -f "$site" ] && cp "$site" "$site.bak"
-  cp "$dir/perch.caddy" "$site"
+  # /srv/edge belongs to the `deploy` user (its .env is unreadable to us): act as it via sudo.
+  E=(sudo -u deploy)
+  [ -f "$site" ] && "${E[@]}" cp "$site" "$site.bak"
+  "${E[@]}" cp "$dir/perch.caddy" "$site"
   cd "$edge"
-  if docker compose exec -T caddy caddy validate --config /etc/caddy/Caddyfile; then
-    docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile
-    rm -f "$site.bak"
+  if "${E[@]}" docker compose exec -T caddy caddy validate --config /etc/caddy/Caddyfile; then
+    "${E[@]}" docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile
+    "${E[@]}" rm -f "$site.bak"
     echo "edge: perch.caddy installed and Caddy reloaded"
   else
-    if [ -f "$site.bak" ]; then mv "$site.bak" "$site"; else rm -f "$site"; fi
+    if [ -f "$site.bak" ]; then "${E[@]}" mv "$site.bak" "$site"; else "${E[@]}" rm -f "$site"; fi
     echo "edge: caddy validate FAILED; previous perch.caddy restored, Caddy not reloaded" >&2
     exit 1
   fi
