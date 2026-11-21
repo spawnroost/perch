@@ -156,6 +156,7 @@ export function createApp(appDeps: AppDeps) {
           ? createDeepseekExplainer({ apiKey: env.DEEPSEEK_API_KEY, fetch: appDeps.deepseekFetch })
           : null),
       globalDailyCap: env.LLM_DAILY_BATCH_CAP,
+      userDailyCap: env.LLM_USER_DAILY_BATCH_CAP,
       waitMs: appDeps.reasonsWaitMs,
     }),
   };

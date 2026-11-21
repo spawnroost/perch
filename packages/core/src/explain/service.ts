@@ -13,6 +13,7 @@ export interface ReasonServiceOptions {
   /** Null = no LLM configured: reasons stay as the template wrote them. */
   explainer: ReasonExplainer | null;
   globalDailyCap?: number;
+  userDailyCap?: number;
   /** Longest a request waits for a batch before answering with `pending`. */
   waitMs?: number;
   /** How long a failed or skipped pick is left alone. */
@@ -93,7 +94,7 @@ export function createReasonService(o: ReasonServiceOptions): ReasonService {
       // Registered before the first await so concurrent requests see this batch.
       const flight = (async () => {
         try {
-          if (!(await reserveLlmBatch(db, userId, { globalCap, now: now() }))) {
+          if (!(await reserveLlmBatch(db, userId, { globalCap, userCap: o.userDailyCap, now: now() }))) {
             block(key, askedIds); // later requests skip the usage check for a while
             return;
           }

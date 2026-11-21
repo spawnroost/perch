@@ -28,6 +28,9 @@ const ApiEnvShape = z.object({
   DEEPSEEK_API_KEY: z.string().optional(),
   /** Most LLM batches the whole server starts per day (each user is also capped). */
   LLM_DAILY_BATCH_CAP: z.coerce.number().int().min(0).default(500),
+  LLM_USER_DAILY_BATCH_CAP: z.coerce.number().int().min(0).default(30),
+  VOICE_DAILY_BATCH_CAP: z.coerce.number().int().min(0).default(500),
+  VOICE_USER_DAILY_CAP: z.coerce.number().int().min(0).default(50),
   NODE_ENV: z.string().optional(),
 });
 

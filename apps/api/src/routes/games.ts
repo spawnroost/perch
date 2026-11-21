@@ -114,7 +114,8 @@ export function gamesRoutes(deps: RouteDeps) {
     const { voice, pending } = await playerVoiceLookup(deps.db, game, c.get('user').id, {
       client: deps.steam,
       summarizer: deps.playerVoiceSummarizer,
-      globalCap: deps.env.LLM_DAILY_BATCH_CAP,
+      globalCap: deps.env.VOICE_DAILY_BATCH_CAP,
+      userCap: deps.env.VOICE_USER_DAILY_CAP,
     });
     return c.json({
       voice,
