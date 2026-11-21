@@ -19,7 +19,7 @@ function RouletteBody({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const devices = useDevices().data ?? [];
   const setStatus = useSetGameStatus();
-  const { filters, choose, respin, shuffling, result, error } = useRoulette();
+  const { filters, choose, respin, shuffling, slow, result, error } = useRoulette();
   const [playError, setPlayError] = useState<string | null>(null);
   const pick = shuffling ? null : (result?.pick ?? null);
 
@@ -84,6 +84,7 @@ function RouletteBody({ onClose }: { onClose: () => void }) {
             you own but have not started, or try a different device.
           </Notice>
         )}
+        {slow && !error && <p className="text-xs text-fg-muted">Still shuffling…</p>}
         {note && <p className="text-xs text-fg-muted">{note}</p>}
         {playError && <Notice tone="error">{playError}</Notice>}
       </div>

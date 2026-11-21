@@ -17,7 +17,13 @@ import {
 import { createBrowseList, type BrowseList } from './browse.js';
 import type { TtlMemo } from '../browse/ttl-memo.js';
 import { getRecsVersion } from '../recommendation-cache/version.js';
-import { createFitFetchers, loadDevices, loadRecommendInput } from './load.js';
+import {
+  createCachedFitFetchers,
+  createFitFetchers,
+  loadDevices,
+  loadRecommendInput,
+  warmFitCache,
+} from './load.js';
 import { tasteSummary, type TasteArt } from './taste-card.js';
 import type { TasteSummary } from '../schemas/taste-card.js';
 import { buildProfile } from './profile.js';
@@ -173,12 +179,14 @@ async function recommendPicks(
     allDevices?: Awaited<ReturnType<typeof loadDevices>>;
     /** Rank only the user's backlog games (see `backlogPoolIds`) instead of the whole feed. */
     backlogOnly?: boolean;
+    /** Use only Steam/Deck data already cached (unknown fit stays allowed); never fetch live. */
+    cachedFitsOnly?: boolean;
   },
 ): Promise<SessionPick[]> {
   const { db, cache, mapVocab, labels, steam } = deps;
   const { library, feedback } = await loadRecommendInput(db, userId, mapVocab);
   const allDevices = opts.allDevices ?? (await loadDevices(db, userId));
-  const fetchers = createFitFetchers(db, steam);
+  const fetchers = opts.cachedFitsOnly ? createCachedFitFetchers(db) : createFitFetchers(db, steam);
   const recs = await recommend(
     {
       getGames: (ids) => cache.getGames(ids),
@@ -324,6 +332,8 @@ export async function sessionForUser(
 
 /** How many of the user's backlog games the roulette ranks (the draw is over the best 10). */
 const ROULETTE_SCAN = 60;
+/** Most games whose Steam/Deck data a roulette spin warms in the background. */
+const ROULETTE_WARM_MAX = 30;
 
 /**
  * One game to play from the user's backlog (owned, status 'backlog'), drawn as in `pickFromBacklog`
@@ -342,9 +352,18 @@ export async function rouletteForUser(
     backlogOnly: true,
     device: q.device,
     limit: ROULETTE_SCAN,
+    cachedFitsOnly: true,
     warmTimeToBeat: true,
     warmWaitMs: deps.warmWaitMs ?? SESSION_WARM_WAIT_MS,
   });
+  // Missing Steam/Deck data is fetched off the request path, for the next spin.
+  warmFitCache(
+    deps.db,
+    deps.steam,
+    picks.map((p) => p.game),
+    selected,
+    ROULETTE_WARM_MAX,
+  );
   const out = pickFromBacklog({
     games: picks,
     device: selected.length === 1 ? (selected[0] ?? null) : null,

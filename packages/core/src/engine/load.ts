@@ -1,8 +1,14 @@
 import { eq } from 'drizzle-orm';
 import { devices, feedback, games, libraryEntries, type Db } from '@perch/db';
-import { getDeckCategory } from '../deck/index.js';
-import { getRequirements, type SteamClient } from '../requirements/steam.js';
-import type { DeckCategory, FilterDevice, FitRequirements } from './filters.js';
+import { getDeckCategory, peekDeckCategory } from '../deck/index.js';
+import { getRequirements, peekRequirements, type SteamClient } from '../requirements/steam.js';
+import {
+  deviceKind,
+  platformMatches,
+  type DeckCategory,
+  type FilterDevice,
+  type FitRequirements,
+} from './filters.js';
 import type { Status } from '../library/fields.js';
 import type { FeedbackItem, LibraryItem, Vocab } from './types.js';
 
@@ -82,4 +88,46 @@ export function createFitFetchers(
     fetchRequirements: (game) => getRequirements(db, game.igdbId, { client: steam }),
     fetchDeck: (steamAppId) => getDeckCategory(db, steamAppId, { client: steam }),
   };
+}
+
+/** Fit fetchers that only read what is already cached (any age): no Steam request, ever. */
+export function createCachedFitFetchers(db: Db): ReturnType<typeof createFitFetchers> {
+  return {
+    fetchRequirements: (game) => peekRequirements(db, game.igdbId),
+    fetchDeck: (steamAppId) => peekDeckCategory(db, steamAppId),
+  };
+}
+
+/** Games a background fit warm is already working on, so overlapping spins don't queue them twice. */
+const warming = new Set<number>();
+
+/**
+ * Fills the Steam requirements / Deck cache for `games` in the background, one game at a time
+ * (the Steam client rate limits anyway), at most `max` games. Only fetches what `devices` need,
+ * and only what is missing or stale. Returns at once; failures are ignored (fit stays unknown).
+ */
+export function warmFitCache(
+  db: Db,
+  steam: SteamClient | undefined,
+  games: readonly { igdbId: number; platforms?: readonly number[]; steamAppId?: number | null }[],
+  devices: readonly FilterDevice[],
+  max: number,
+): void {
+  const todo = games.filter((g) => g.steamAppId != null && !warming.has(g.igdbId)).slice(0, max);
+  for (const g of todo) warming.add(g.igdbId);
+  void (async () => {
+    for (const g of todo) {
+      try {
+        const live = devices.filter((d) => platformMatches(g, d));
+        if (live.some((d) => deviceKind(d) === 'pc')) {
+          await getRequirements(db, g.igdbId, { client: steam }).catch(() => null);
+        }
+        if (live.some((d) => deviceKind(d) === 'deck')) {
+          await getDeckCategory(db, g.steamAppId!, { client: steam }).catch(() => null);
+        }
+      } finally {
+        warming.delete(g.igdbId);
+      }
+    }
+  })();
 }

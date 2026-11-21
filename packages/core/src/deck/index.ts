@@ -15,6 +15,12 @@ export interface GetDeckCategoryOptions {
   now?: () => Date;
 }
 
+/** The cached Deck category whatever its age; never fetches. 'unknown' when none. */
+export async function peekDeckCategory(db: Db, steamAppId: number): Promise<DeckCategory> {
+  const [row] = await db.select().from(deckCompat).where(eq(deckCompat.steamAppId, steamAppId));
+  return (row?.category as DeckCategory | undefined) ?? 'unknown';
+}
+
 /**
  * Steam Deck category for a Steam app: the cached row if fresher than the TTL, else fetched and
  * upserted. If a refetch fails, the stale row is kept and returned; with no row an HTTP failure

@@ -12,6 +12,9 @@ import {
 /** How long the cards shuffle before a pick is revealed, even when the answer is already in. */
 export const SHUFFLE_MS = 1100;
 
+/** How long a spin may take before the dialog admits it is still waiting on the answer. */
+export const SLOW_MS = 3000;
+
 const storage = () => {
   try {
     return window.localStorage;
@@ -39,6 +42,13 @@ export function useRoulette() {
     return () => clearTimeout(timer);
   }, [spin.n, reduced]);
 
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    setSlow(false);
+    const timer = setTimeout(() => setSlow(true), SLOW_MS);
+    return () => clearTimeout(timer);
+  }, [spin.n]);
+
   const picked = query.data?.pick?.game.igdbId;
   useEffect(() => {
     if (picked !== undefined) rememberPick(storage(), picked);
@@ -57,6 +67,8 @@ export function useRoulette() {
     spinId: spin.n,
     /** Shuffling until both the answer and the shuffle time are in. */
     shuffling: !shuffled || query.isPending,
+    /** The request is still out well after the shuffle should have ended. */
+    slow: slow && query.isPending,
     result: query.data,
     error: query.isError ? query.error : null,
     retry: respin,

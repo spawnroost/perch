@@ -210,6 +210,15 @@ export function requirementsExcerpt(pc: PcRequirementsHtml): string | null {
   return text || null;
 }
 
+/** The cached `steam` requirements row whatever its age; never fetches. Null when none. */
+export async function peekRequirements(db: Db, igdbId: number): Promise<RequirementsRow | null> {
+  const [row] = await db
+    .select()
+    .from(gameRequirements)
+    .where(and(eq(gameRequirements.igdbId, igdbId), eq(gameRequirements.source, 'steam')));
+  return row ?? null;
+}
+
 /**
  * Steam requirements for a game: the cached `steam` row if fresher than the TTL, else fetched by
  * `games.steam_app_id`, parsed, upserted and returned. Null if the game has no Steam app id.
