@@ -5,6 +5,7 @@ export { ForgotPasswordPage } from './ForgotPasswordPage';
 export { ForYouShelfPage } from './ForYouShelfPage';
 export { GamePage } from './GamePage';
 export { HomePage } from './HomePage';
+export { LegalPage } from './LegalPage';
 export { LibraryPage } from './LibraryPage';
 export { LoginPage } from './LoginPage';
 export { OnboardingPage } from './OnboardingPage';

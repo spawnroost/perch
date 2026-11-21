@@ -11,7 +11,7 @@ export const HOME_PATH = '/';
 /** Only for signed-out visitors; signed-in users are sent home. */
 const GUEST_ONLY = new Set(['/login', '/signup', '/forgot-password']);
 /** Reached from an email link, so usable in any auth state. */
-const ALWAYS_OPEN = new Set(['/verify-email', '/reset-password']);
+const ALWAYS_OPEN = new Set(['/verify-email', '/reset-password', '/privacy', '/terms']);
 
 export interface GuardInput {
   auth: AuthState;

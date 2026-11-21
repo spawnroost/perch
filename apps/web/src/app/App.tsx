@@ -11,6 +11,7 @@ import {
   ForYouShelfPage,
   GamePage,
   HomePage,
+  LegalPage,
   LibraryPage,
   LoginPage,
   OnboardingPage,
@@ -60,6 +61,8 @@ export function App() {
               <Route path="verify-email" element={<VerifyEmailPage />} />
               <Route path="forgot-password" element={<ForgotPasswordPage />} />
               <Route path="reset-password" element={<ResetPasswordPage />} />
+              <Route path="privacy" element={<LegalPage doc="privacy" />} />
+              <Route path="terms" element={<LegalPage doc="terms" />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
             {Showcase && (

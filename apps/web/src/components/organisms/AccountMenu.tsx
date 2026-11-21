@@ -35,6 +35,18 @@ export function AccountMenu() {
         <Button variant="secondary" loading={signOut.pending} onClick={() => void signOut.run()}>
           Sign out
         </Button>
+        <p className="flex gap-4 pt-2 text-xs text-fg-muted">
+          <SheetClose asChild>
+            <Link to="/privacy" className="underline underline-offset-4">
+              Privacy
+            </Link>
+          </SheetClose>
+          <SheetClose asChild>
+            <Link to="/terms" className="underline underline-offset-4">
+              Terms
+            </Link>
+          </SheetClose>
+        </p>
       </SheetContent>
     </Sheet>
   );
