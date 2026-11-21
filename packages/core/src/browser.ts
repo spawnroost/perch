@@ -78,3 +78,5 @@ export type {
 } from './soundtrack/schemas.js';
 export { playerVoiceResponseSchema, playerVoiceSchema } from './player-voice/schemas.js';
 export type { PlayerVoice, PlayerVoiceResponse } from './player-voice/schemas.js';
+export { MOODS } from './engine/roulette.js';
+export type { Mood, Relaxed } from './engine/roulette.js';

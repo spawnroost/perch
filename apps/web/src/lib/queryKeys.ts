@@ -32,6 +32,8 @@ export const queryKeys = {
   browse: (genres: readonly number[], themes: readonly number[], device: string) =>
     ['browse', 'feed', genres, themes, device] as const,
   browseFacets: ['browse', 'facets'] as const,
+  /** One roulette spin: `spin` makes every spin its own request, never a cached one. */
+  roulette: (spin: number, params: object) => ['roulette', spin, params] as const,
   recommendations: (device: string, limit: number) =>
     ['recommendations', 'feed', device, limit] as const,
 };

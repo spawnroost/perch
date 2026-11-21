@@ -21,6 +21,7 @@ import { buildProfile } from './profile.js';
 import { computeIdf } from './rank.js';
 import { mergeLibrary, recommend, similaritySources } from './recommend.js';
 import { similarTo, SIMILAR_LIMIT } from './similar.js';
+import { pickFromBacklog, type Mood, type Relaxed } from './roulette.js';
 import { batteryMatters, rankForSession, type SessionRanked } from './session.js';
 import { DeviceNotFoundError, selectDevices } from '../devices/store.js';
 import type { Recommendation, Vocab } from './types.js';
@@ -305,6 +306,41 @@ export async function sessionForUser(
     0,
     limit,
   );
+}
+
+/** How many ranked recommendations the roulette scans for backlog games. */
+const ROULETTE_SCAN = 60;
+
+/**
+ * One game to play from the user's backlog (owned, barely played), drawn as in `pickFromBacklog`
+ * and filtered by `device` as in `recommendForUser`. Null when no backlog game is left.
+ */
+export async function rouletteForUser(
+  deps: UserEngineDeps,
+  userId: string,
+  q: { device?: string; minutes?: number; mood?: Mood; exclude?: readonly number[] },
+  rng?: () => number,
+): Promise<{ pick: SessionRanked<UserRecommendation>; relaxed: Relaxed | null } | null> {
+  const all = await loadDevices(deps.db, userId);
+  const selected = selectDevices(all, q.device); // throws for a device that is not theirs
+  const picks = await recommendPicks(deps, userId, {
+    device: q.device,
+    limit: ROULETTE_SCAN,
+    warmTimeToBeat: true,
+    warmWaitMs: deps.warmWaitMs ?? SESSION_WARM_WAIT_MS,
+  });
+  const out = pickFromBacklog({
+    games: picks.filter((p) => p.backlog),
+    device: selected.length === 1 ? (selected[0] ?? null) : null,
+    minutes: q.minutes,
+    mood: q.mood,
+    exclude: q.exclude,
+    rng,
+  });
+  if (!out) return null;
+  const { gpuRequirement, ...pick } = out.pick;
+  void gpuRequirement;
+  return { ...out, pick };
 }
 
 /** Why the engine would pick this game for the user: empty when the library says nothing yet. */

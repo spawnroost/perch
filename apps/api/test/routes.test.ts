@@ -282,6 +282,7 @@ describe.skipIf(!testUrl)('api routes', () => {
       ['GET', '/api/browse?genres=12'],
       ['GET', '/api/browse/facets'],
       ['GET', '/api/session?minutes=30'],
+      ['GET', '/api/roulette'],
       ['GET', '/api/feedback'],
       ['POST', '/api/feedback'],
       ['DELETE', `/api/feedback/${C}/up`],
@@ -1414,6 +1415,48 @@ describe.skipIf(!testUrl)('api routes', () => {
       expect((await get('/api/session?minutes=30&deviceId=none', mine.cookie)).status).toBe(400);
       expect((await get('/api/session?minutes=30&deviceId=all', mine.cookie)).status).toBe(400);
       expect((await get('/api/session?minutes=30')).status).toBe(401);
+    });
+  });
+
+  describe('roulette', () => {
+    type RouletteBody = {
+      pick: { game: { igdbId: number }; backlog: boolean; sessionReason: string } | null;
+      relaxed: 'mood' | 'exclude' | null;
+    };
+    const spin = async (path: string, cookie: string) =>
+      (await (await get(`/api/roulette${path}`, cookie)).json()) as RouletteBody;
+
+    it('picks a backlog game, honours exclude, and relaxes it when all are excluded', async () => {
+      const u = await newUser();
+      for (const igdbId of [A, B])
+        await call('POST', '/api/library', u.cookie, { igdbId, status: 'backlog' });
+      const first = await spin('?device=none&minutes=30', u.cookie);
+      expect(first.pick?.backlog).toBe(true);
+      expect([A, B]).toContain(first.pick?.game.igdbId);
+      expect(first.pick?.sessionReason.length).toBeGreaterThan(0);
+      expect(first.relaxed).toBeNull();
+
+      const other = first.pick?.game.igdbId === A ? B : A;
+      const next = await spin(`?device=none&exclude=${first.pick?.game.igdbId}`, u.cookie);
+      expect(next.pick?.game.igdbId).toBe(other);
+
+      const all = await spin(`?device=none&exclude=${A},${B}`, u.cookie);
+      expect([A, B]).toContain(all.pick?.game.igdbId);
+      expect(all.relaxed).toBe('exclude');
+    });
+
+    it('returns a null pick for an empty backlog', async () => {
+      const u = await newUser();
+      expect(await spin('?device=none', u.cookie)).toEqual({ pick: null, relaxed: null });
+    });
+
+    it('400 on a bad query, 404 for a device that is not yours, 401 when anonymous', async () => {
+      const mine = await newUser();
+      expect((await get('/api/roulette?mood=spicy', mine.cookie)).status).toBe(400);
+      expect((await get('/api/roulette?minutes=1', mine.cookie)).status).toBe(400);
+      expect((await get('/api/roulette?exclude=a,b', mine.cookie)).status).toBe(400);
+      expect((await get('/api/roulette?device=nope', mine.cookie)).status).toBe(404);
+      expect((await get('/api/roulette')).status).toBe(401);
     });
   });
 

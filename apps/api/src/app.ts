@@ -40,6 +40,7 @@ import { feedbackRoutes, profileRoutes } from './routes/feedback.js';
 import { gamesRoutes } from './routes/games.js';
 import { libraryRoutes } from './routes/library.js';
 import { recommendationsRoutes } from './routes/recommendations.js';
+import { rouletteRoutes } from './routes/roulette.js';
 import { sessionRoutes } from './routes/session.js';
 import { accountRoutes, steamAuthRoutes } from './routes/steam.js';
 import type { SteamOpenIdVerifier } from './steam-openid.js';
@@ -184,6 +185,7 @@ export function createApp(appDeps: AppDeps) {
   app.route('/api/recommendations', recommendationsRoutes(deps));
   app.route('/api/browse', browseRoutes(deps));
   app.route('/api/session', sessionRoutes(deps));
+  app.route('/api/roulette', rouletteRoutes(deps));
   app.route('/api/feedback', feedbackRoutes(deps));
   app.route('/api/profile', profileRoutes(deps));
 

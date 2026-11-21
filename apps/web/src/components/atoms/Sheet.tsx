@@ -17,6 +17,9 @@ const panelVariants = cva(
           'inset-y-0 right-0 w-full max-w-md border-l border-line data-[state=open]:animate-sheet-in-right data-[state=closed]:animate-sheet-out-right',
         bottom:
           'inset-x-0 bottom-0 max-h-4/5 rounded-t-xl border-t border-line data-[state=open]:animate-sheet-in-bottom data-[state=closed]:animate-sheet-out-bottom',
+        /** Centred dialog for focused moments (the roulette). */
+        center:
+          'inset-x-4 top-1/2 mx-auto max-h-[calc(100dvh-2rem)] max-w-lg -translate-y-1/2 overflow-y-auto rounded-2xl border border-line data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out',
         /** Command palette: full screen on mobile, a centred panel from `sm`. Brings its own header and close. */
         palette:
           'inset-0 gap-0 p-0 sm:inset-x-0 sm:top-24 sm:bottom-auto sm:mx-auto sm:max-h-[calc(100dvh-8rem)] sm:w-full sm:max-w-xl sm:rounded-xl sm:border sm:border-line data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out',
@@ -30,7 +33,7 @@ export interface SheetContentProps extends Omit<
   ComponentProps<typeof Dialog.Content>,
   'title' | 'children'
 > {
-  side?: 'right' | 'bottom' | 'palette';
+  side?: 'right' | 'bottom' | 'center' | 'palette';
   title: string;
   description: string;
   children?: ReactNode;

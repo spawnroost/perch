@@ -1,6 +1,7 @@
 export { AccountMenu } from './AccountMenu';
 export { AppLayout } from './AppLayout';
 export { AuthLayout } from './AuthLayout';
+export { BacklogRoulette } from './BacklogRoulette';
 export { DevicesStep } from './DevicesStep';
 export { ExportImport } from './ExportImport';
 export { ForgotPasswordForm } from './ForgotPasswordForm';

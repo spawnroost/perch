@@ -42,3 +42,5 @@ export { AboutList } from './AboutList';
 export { DetailSection } from './DetailSection';
 export { SteamSignInButton } from './SteamSignInButton';
 export { UnmatchedTitles } from './UnmatchedTitles';
+export { CardShuffle } from './CardShuffle';
+export { RoulettePick } from './RoulettePick';

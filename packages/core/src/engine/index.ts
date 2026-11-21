@@ -24,6 +24,8 @@ export type {
   FitRequirements,
   FitStatus,
 } from './filters.js';
+export { matchesMood, MOODS, pickFromBacklog, ROULETTE_POOL, QUICK_MAX_HOURS } from './roulette.js';
+export type { Mood, Relaxed, RouletteGame, RouletteInput, RoulettePick } from './roulette.js';
 export { SIMILAR_LIMIT, similarTo } from './similar.js';
 export type { SimilarInput } from './similar.js';
 export { mergeLibrary, recommend, similaritySources } from './recommend.js';
@@ -51,6 +53,7 @@ export {
   gameFitsForUser,
   type GameFitsResult,
   recommendForUser,
+  rouletteForUser,
   sessionForUser,
   similarForUser,
 } from './for-user.js';

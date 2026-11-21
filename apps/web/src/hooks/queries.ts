@@ -39,6 +39,7 @@ import type {
   SimilarResponse,
   PlayerVoiceResponse,
   SoundtrackResponse,
+  RouletteResponse,
   SessionQuery,
   SessionResponse,
 } from '@perch/core/browser';
@@ -283,6 +284,18 @@ export function useSession(params: SessionQuery | null) {
     },
     enabled: params !== null,
     placeholderData: keepPreviousData,
+  });
+}
+
+/** One backlog roulette spin. Each `spin` number is a fresh draw; the result is never reused. */
+export function useRouletteSpin(spin: number, params: Record<string, string | number>) {
+  return useQuery({
+    queryKey: queryKeys.roulette(spin, params),
+    queryFn: ({ signal }) => api.get<RouletteResponse>('/api/roulette', { query: params, signal }),
+    staleTime: Infinity,
+    gcTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
   });
 }
 

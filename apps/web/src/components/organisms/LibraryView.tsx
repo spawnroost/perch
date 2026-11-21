@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { FileUp, ListPlus, Pencil, Plus } from 'lucide-react';
 import { Button, Notice, Sheet, SheetContent } from '../atoms';
+import { BacklogRoulette } from './BacklogRoulette';
 import { GameCard, LibraryControls, LoadError } from '../molecules';
 import { ExportImport } from './ExportImport';
 import { GameSearchAdd } from './GameSearchAdd';
@@ -68,6 +69,7 @@ export function LibraryView() {
           )}
         </div>
         <div className="flex flex-wrap justify-end gap-2">
+          <BacklogRoulette />
           <Button onClick={() => setPanel({ kind: 'import' })}>
             <ListPlus size={14} strokeWidth={1.75} aria-hidden />
             Import list

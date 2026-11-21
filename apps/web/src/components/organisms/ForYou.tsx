@@ -11,6 +11,7 @@ import {
   SeeAllTile,
   Shelf,
 } from '../molecules';
+import { BacklogRoulette } from './BacklogRoulette';
 import { QuickSession } from './QuickSession';
 import { useDevices, useFeedback, useForYouFeed } from '@/hooks/queries';
 import { useCardReturn } from '@/hooks/useCardReturn';
@@ -131,7 +132,10 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
               onChange={select}
               className="min-w-0"
             />
-            <QuickSession devices={devices} />
+            <div className="flex shrink-0 gap-2">
+              <BacklogRoulette />
+              <QuickSession devices={devices} />
+            </div>
           </div>
         )}
         {shelfFeed.isError && (
