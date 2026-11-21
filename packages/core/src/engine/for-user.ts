@@ -114,7 +114,9 @@ export async function browseForUser(
   const { db, cache, mapVocab, labels, steam } = deps;
   const allDevices = await loadDevices(db, userId);
   const devices = selectDevices(allDevices, opts.device); // throws for a device that is not theirs
-  const fetchers = createFitFetchers(db, steam);
+  // Cached fits only: a browse never waits on Steam. A game without cached data has an unknown fit
+  // (shown, never hidden); the page's missing data is fetched in the background below.
+  const fetchers = createCachedFitFetchers(db);
   const make = async () => {
     const { library, feedback } = await loadRecommendInput(db, userId, mapVocab);
     return createBrowseList(
@@ -129,7 +131,9 @@ export async function browseForUser(
     );
   };
   // The ranked, device-filtered list is remembered per user and tag set, and dropped whenever a
-  // write feeds the engine (the user's recs version moves), so pages are stable and cheap.
+  // write feeds the engine (the user's recs version moves), so pages are stable and cheap. The list
+  // only ever grows (a game's fit is decided once, when the walk reaches it), so data warmed later
+  // never shifts a page already served; it shows up in lists built after the memo expires.
   const list = deps.browseLists
     ? await deps.browseLists.get(
         browseKey(userId, await getRecsVersion(db, userId), opts.genres, opts.themes, opts.device),
@@ -140,8 +144,18 @@ export async function browseForUser(
   const picks = await enrichPicks(deps, items, allDevices, fetchers, {
     warmTimeToBeat: opts.warmTimeToBeat,
   });
+  warmFitCache(
+    db,
+    steam,
+    picks.map((p) => p.game),
+    devices,
+    BROWSE_WARM_MAX,
+  );
   return { picks: picks.map(withoutGpu), hasMore };
 }
+
+/** Most games whose Steam/Deck data one browse page warms in the background. */
+const BROWSE_WARM_MAX = 30;
 
 const browseKey = (
   userId: string,

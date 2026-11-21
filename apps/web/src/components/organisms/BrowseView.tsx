@@ -4,6 +4,7 @@ import { DeviceSwitcher, FacetChips, GameCard, LoadError } from '../molecules';
 import { PickGrid } from './PickGrid';
 import { useBrowse, useBrowseFacets, useFeedback } from '@/hooks/queries';
 import { useResolvedDevice } from '@/hooks/useResolvedDevice';
+import { useSlowHint } from '@/hooks/useSlowHint';
 import { CARD_GRID } from '@/lib/cardWidth';
 import {
   browseSearch,
@@ -25,6 +26,7 @@ export function BrowseView() {
   const filtered = hasFilters(selection);
   const browse = useBrowse(selection.genres, selection.themes, deviceId, filtered && resolved);
   const { feedback, send, error } = useFeedback();
+  const slow = useSlowHint(filtered && browse.isFetching);
 
   const update = (next: typeof selection) => setParams(browseSearch(next), { replace: true });
   const toggle = (group: BrowseGroup) => (id: number) => update(withToggled(selection, group, id));
@@ -87,6 +89,11 @@ export function BrowseView() {
       )}
       {!filtered && !failure && (
         <Notice>Pick genres or themes to see matching games, ranked for your taste.</Notice>
+      )}
+      {slow && !failure && (
+        <p role="status" className="text-sm text-fg-muted">
+          Still loading…
+        </p>
       )}
       {filtered && !failure && picks === undefined && (
         <div aria-busy className={CARD_GRID}>
