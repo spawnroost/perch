@@ -22,3 +22,4 @@ export * from './soundtrack/index.js';
 export * from './player-voice/index.js';
 export * from './explain/index.js';
 export * from './prices/index.js';
+export * from './price-watch/index.js';

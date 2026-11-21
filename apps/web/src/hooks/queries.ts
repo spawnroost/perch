@@ -39,6 +39,8 @@ import type {
   SimilarResponse,
   PlayerVoiceResponse,
   PriceResponse,
+  WatchListResponse,
+  WatchResponse,
   SoundtrackResponse,
   RouletteResponse,
   TasteSummary,
@@ -260,6 +262,36 @@ export function usePrices(igdbId: number) {
       query.state.data?.pending && query.state.dataUpdateCount < SOUNDTRACK_MAX_POLLS
         ? SOUNDTRACK_POLL_MS
         : false,
+  });
+}
+
+/** The user's price watches with cached prices; asks again while the server is still looking prices up. */
+export function useWatches() {
+  return useQuery({
+    queryKey: queryKeys.watches,
+    queryFn: ({ signal }) => api.get<WatchListResponse>('/api/watches', { signal }),
+    refetchInterval: (query) =>
+      query.state.data?.watches.some((w) => w.prices === null) && query.state.dataUpdateCount < 6
+        ? 4000
+        : false,
+  });
+}
+
+/** Starts a price watch, or changes its target (null = any sale). */
+export function useSetWatch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ igdbId, targetPrice }: { igdbId: number; targetPrice: number | null }) =>
+      api.put<WatchResponse>(`/api/watches/${igdbId}`, { targetPrice }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.watches }),
+  });
+}
+
+export function useRemoveWatch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (igdbId: number) => api.delete<{ ok: true }>(`/api/watches/${igdbId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.watches }),
   });
 }
 

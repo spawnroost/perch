@@ -40,6 +40,7 @@ import { requireAuth, resolveSession } from './middleware.js';
 import { browseRoutes } from './routes/browse.js';
 import { devicesRoutes, hardwareRoutes } from './routes/devices.js';
 import { feedbackRoutes, profileRoutes } from './routes/feedback.js';
+import { watchesRoutes } from './routes/watches.js';
 import { gamesRoutes } from './routes/games.js';
 import { libraryRoutes } from './routes/library.js';
 import { recommendationsRoutes } from './routes/recommendations.js';
@@ -195,6 +196,7 @@ export function createApp(appDeps: AppDeps) {
   app.route('/api/session', sessionRoutes(deps));
   app.route('/api/roulette', rouletteRoutes(deps));
   app.route('/api/feedback', feedbackRoutes(deps));
+  app.route('/api/watches', watchesRoutes(deps));
   app.route('/api/profile', profileRoutes(deps));
 
   app.notFound((c) => c.json({ error: 'not found' }, 404));

@@ -9,6 +9,7 @@ import {
   TimeToBeatBars,
 } from '../molecules';
 import { GamePrices } from './GamePrices';
+import { PriceWatch } from './PriceWatch';
 import { useReduced } from '@/hooks/useMotionPrefs';
 import { fadeTransition } from '@/lib/motion';
 import { aboutRows, criticSummary, externalUrl, steamReviewsSummary } from '@/lib/gameFacts';
@@ -73,6 +74,7 @@ export function GameFactsRail(props: GameFactsRailProps) {
       </DetailSection>
       <DetailSection title="Where to buy">
         <GamePrices igdbId={props.igdbId} />
+        <PriceWatch igdbId={props.igdbId} />
         {stores.length > 0 ? (
           <StoreLinks stores={stores} />
         ) : (

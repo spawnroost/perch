@@ -47,3 +47,7 @@ export { UnmatchedTitles } from './UnmatchedTitles';
 export { CardShuffle } from './CardShuffle';
 export { RoulettePick } from './RoulettePick';
 export { TasteCollage } from './TasteCollage';
+export { WatchForm } from './WatchForm';
+export type { WatchFormProps } from './WatchForm';
+export { WatchRow } from './WatchRow';
+export type { WatchRowProps } from './WatchRow';

@@ -6,6 +6,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   primaryKey,
   real,
@@ -49,6 +50,8 @@ export const users = pgTable('users', {
   psnOnlineId: text('psn_online_id'),
   /** When the PlayStation played-games list was last imported; null until the first sync. */
   psnSyncedAt: ts('psn_synced_at'),
+  /** When the last price-watch digest email went out; a claim on it keeps it to one a day. */
+  priceDigestAt: ts('price_digest_at'),
   createdAt: ts('created_at').defaultNow().notNull(),
   updatedAt: ts('updated_at')
     .defaultNow()
@@ -443,3 +446,25 @@ export const gamePrices = pgTable('game_prices', {
   payload: jsonb('payload'),
   fetchedAt: ts('fetched_at').defaultNow().notNull(),
 });
+
+/**
+ * A user's price alert on a game. `target_price` null means "any sale". `last_notified_price` is
+ * the deal the last digest announced; it is cleared when the deal ends, so the same deal is never
+ * announced twice but a later one is.
+ */
+export const priceWatches = pgTable(
+  'price_watches',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    igdbId: integer('igdb_id')
+      .notNull()
+      .references(() => games.igdbId, { onDelete: 'cascade' }),
+    targetPrice: numeric('target_price', { precision: 8, scale: 2, mode: 'number' }),
+    lastNotifiedPrice: numeric('last_notified_price', { precision: 8, scale: 2, mode: 'number' }),
+    lastNotifiedAt: ts('last_notified_at'),
+    createdAt: ts('created_at').defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.igdbId] })],
+);

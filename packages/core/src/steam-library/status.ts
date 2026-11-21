@@ -26,7 +26,11 @@ export function steamImportStatus({
   return 'backlog';
 }
 
-/** True when the last sync is missing or at least 6 hours old. */
-export function shouldAutoSync(syncedAt: Date | null, now: Date): boolean {
-  return !syncedAt || now.getTime() - syncedAt.getTime() >= AUTO_SYNC_INTERVAL_MS;
+/** True when the last sync is missing or at least 6 hours old (or `intervalMs`). */
+export function shouldAutoSync(
+  syncedAt: Date | null,
+  now: Date,
+  intervalMs = AUTO_SYNC_INTERVAL_MS,
+): boolean {
+  return !syncedAt || now.getTime() - syncedAt.getTime() >= intervalMs;
 }

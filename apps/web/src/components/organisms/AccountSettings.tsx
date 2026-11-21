@@ -16,6 +16,7 @@ import { useSignOut } from '@/hooks/useSignOut';
 import { authClient, unwrapAuth } from '@/lib/auth-client';
 import { SteamSync } from './SteamSync';
 import { PsnSync } from './PsnSync';
+import { Watchlist } from './Watchlist';
 import { XboxSync } from './XboxSync';
 
 function Section({
@@ -250,6 +251,12 @@ export function AccountSettings() {
       <XboxLink />
       <PsnLink />
       <SocialLinks />
+      <Section
+        title="Price watch"
+        description="We email you at most once a day when a watched game hits your price. Stop watching a game to stop its emails."
+      >
+        <Watchlist />
+      </Section>
       <Section title="Sign out">
         {signOut.error && <Notice tone="error">{signOut.error}</Notice>}
         <Button

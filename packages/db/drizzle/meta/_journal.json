@@ -176,6 +176,13 @@
       "when": 1795239255937,
       "tag": "0024_lean_anita_blake",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1795239625885,
+      "tag": "0025_steep_sprite",
+      "breakpoints": true
     }
   ]
 }

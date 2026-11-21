@@ -2,8 +2,8 @@ import { and, eq, sql } from 'drizzle-orm';
 import { users, type Db } from '@perch/db';
 import { shouldAutoSync } from './status.js';
 
-/** The per-store "last synced" columns on users that auto-sync claims. */
-export type SyncedAtColumn = 'steamSyncedAt' | 'xboxSyncedAt' | 'psnSyncedAt';
+/** The "last ran" columns on users that background jobs claim (store syncs, the price digest). */
+export type SyncedAtColumn = 'steamSyncedAt' | 'xboxSyncedAt' | 'psnSyncedAt' | 'priceDigestAt';
 
 export interface AutoSyncClaim {
   claimed: boolean;
@@ -15,7 +15,7 @@ export interface AutoSyncClaim {
 
 /**
  * Takes the right to auto-sync by stamping the store's synced-at column only if the last sync is missing or
- * 6 hours old and still unchanged since we read it, so concurrent callers (or server instances)
+ * 6 hours old (`intervalMs` overrides that) and still unchanged since we read it, so concurrent callers (or server instances)
  * have exactly one winner.
  */
 export async function claimAutoSync(
@@ -23,12 +23,13 @@ export async function claimAutoSync(
   userId: string,
   now: Date,
   column: SyncedAtColumn = 'steamSyncedAt',
+  intervalMs?: number,
 ): Promise<AutoSyncClaim> {
   const col = users[column];
   const [row] = await db.select({ at: col }).from(users).where(eq(users.id, userId));
   const previous = row?.at ?? null;
   const lost = { claimed: false, previous, claimedAt: now };
-  if (!row || !shouldAutoSync(previous, now)) return lost;
+  if (!row || !shouldAutoSync(previous, now, intervalMs)) return lost;
   const won = await db
     .update(users)
     .set({ [column]: now })
