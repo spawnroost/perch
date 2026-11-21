@@ -1,12 +1,14 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { createDb, games, runMigrations, type Db } from '@perch/db';
+import { createDb, gamePrices, games, runMigrations, type Db } from '@perch/db';
 import {
   priceInfoSchema,
   pricesFresh,
   pricesIdle,
   pricesLookup,
+  resetPriceFailures,
   PRICES_TTL_MS,
+  CheapSharkQueueFullError,
   type CheapSharkClient,
   type PriceInfo,
 } from '../../src/prices/index.js';
@@ -49,6 +51,7 @@ describe.skipIf(!url)('pricesLookup', () => {
     await db?.$client.end({ timeout: 1 });
   });
   beforeEach(async () => {
+    resetPriceFailures();
     await db.delete(games).where(eq(games.igdbId, ID));
     await db.insert(games).values({ igdbId: ID, name: 'Portal 2', slug: 'prices-test' });
   });
@@ -127,7 +130,7 @@ describe.skipIf(!url)('pricesLookup', () => {
     expect((await pricesLookup(db, game, { client: f.client })).prices).toEqual(info);
   });
 
-  it('keeps the stored prices on failure and backs off for 30 minutes', async () => {
+  it('keeps the stored prices on failure and retries only after a short pause', async () => {
     const ok = fake(async () => info);
     await pricesLookup(db, game, { client: ok.client, now: () => T0 });
     const bad = fake(async () => {
@@ -137,27 +140,42 @@ describe.skipIf(!url)('pricesLookup', () => {
     const r = await pricesLookup(db, game, { client: bad.client, now: () => t13 });
     expect(r.prices).toEqual(info);
     await pricesIdle();
-    await pricesLookup(db, game, {
-      client: bad.client,
-      now: () => new Date(+t13 + 10 * 60 * 1000),
-    });
+    await pricesLookup(db, game, { client: bad.client, now: () => new Date(+t13 + 20_000) });
+    await pricesIdle();
     expect(bad.calls).toHaveLength(1);
-    await pricesLookup(db, game, {
-      client: bad.client,
-      now: () => new Date(+t13 + 40 * 60 * 1000),
-    });
+    await pricesLookup(db, game, { client: bad.client, now: () => new Date(+t13 + 90_000) });
     await pricesIdle();
     expect(bad.calls).toHaveLength(2);
   });
 
-  it('is null, not pending, when the very first lookup fails', async () => {
+  it('a failed first lookup is pending, not "not sold", and stores nothing', async () => {
     const bad = fake(async () => {
       throw new Error('boom');
     });
     expect(await pricesLookup(db, game, { client: bad.client })).toEqual({
       prices: null,
+      pending: true,
+    });
+    const rows = await db.select().from(gamePrices).where(eq(gamePrices.igdbId, ID));
+    expect(rows).toEqual([]);
+    // Once CheapShark answers, the same game is priced.
+    resetPriceFailures();
+    const good = fake(async () => info);
+    expect(await pricesLookup(db, game, { client: good.client })).toEqual({
+      prices: info,
       pending: false,
     });
+  });
+
+  it('a full queue is pending too, and is retried at once', async () => {
+    const full: CheapSharkClient = {
+      async findPrices() {
+        throw new CheapSharkQueueFullError();
+      },
+    };
+    expect((await pricesLookup(db, game, { client: full })).pending).toBe(true);
+    const good = fake(async () => info);
+    expect((await pricesLookup(db, game, { client: good.client })).prices).toEqual(info);
   });
 
   it('pricesFresh waits for the refresh of a stale row', async () => {
@@ -170,6 +188,23 @@ describe.skipIf(!url)('pricesLookup', () => {
       client: f.client,
       now: () => new Date(+T0 + PRICES_TTL_MS + 1),
     });
-    expect(got).toEqual(cheaper);
+    expect(got).toEqual({ prices: cheaper, stale: false });
+  });
+
+  it('pricesFresh flags stale data when the refresh fails, and fresh data otherwise', async () => {
+    const ok = fake(async () => info);
+    await pricesLookup(db, game, { client: ok.client, now: () => T0 });
+    const bad = fake(async () => {
+      throw new Error('down');
+    });
+    const late = { client: bad.client, now: () => new Date(+T0 + 13 * HOUR) };
+    expect(await pricesFresh(db, game, late)).toEqual({ prices: info, stale: true });
+    // Within the pause the failure is remembered, not retried.
+    expect(await pricesFresh(db, game, late)).toEqual({ prices: info, stale: true });
+    expect(bad.calls).toHaveLength(1);
+    expect(await pricesFresh(db, game, { ...late, now: () => T0 })).toEqual({
+      prices: info,
+      stale: false,
+    });
   });
 });

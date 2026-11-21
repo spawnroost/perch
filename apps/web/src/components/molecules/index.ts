@@ -51,3 +51,5 @@ export { WatchForm } from './WatchForm';
 export type { WatchFormProps } from './WatchForm';
 export { WatchRow } from './WatchRow';
 export type { WatchRowProps } from './WatchRow';
+export { CheckField } from './CheckField';
+export type { CheckFieldProps } from './CheckField';

@@ -5,6 +5,9 @@ import {
   DIGEST_MIN_GAP_MS,
   listWatches,
   removeWatch,
+  resetPriceFailures,
+  setPriceEmails,
+  priceEmailsEnabled,
   runPriceDigest,
   setWatch,
   WATCH_LIMIT,
@@ -49,6 +52,7 @@ describe.skipIf(!url)('price watch', () => {
     await db?.$client.end({ timeout: 1 });
   });
   beforeEach(async () => {
+    resetPriceFailures();
     await db.delete(games).where(inArray(games.igdbId, [G1, G2]));
     await db.delete(users).where(inArray(users.id, [U1, U2, U3]));
     await db.insert(users).values([
@@ -78,14 +82,49 @@ describe.skipIf(!url)('price watch', () => {
       expect((await listWatches(db, U1)).map((r) => r.igdbId)).toEqual([G2]);
     });
 
-    it('changing the target forgets the announced deal', async () => {
+    it('changing the target forgets the announced deal; saving the same one keeps it', async () => {
+      await setWatch(db, U1, G1, 6);
+      await db
+        .update(priceWatches)
+        .set({ lastNotifiedPrice: 5, lastNotifiedAt: T0 })
+        .where(eq(priceWatches.userId, U1));
+      await setWatch(db, U1, G1, 6);
+      expect((await listWatches(db, U1))[0]!.lastNotifiedPrice).toBe(5);
+      await setWatch(db, U1, G1, 7);
+      expect((await listWatches(db, U1))[0]!.lastNotifiedPrice).toBeNull();
+      // Any-sale (null) compares as a value too.
       await setWatch(db, U1, G1, null);
       await db
         .update(priceWatches)
         .set({ lastNotifiedPrice: 5 })
         .where(eq(priceWatches.userId, U1));
-      await setWatch(db, U1, G1, 6);
-      expect((await listWatches(db, U1))[0]!.lastNotifiedPrice).toBeNull();
+      await setWatch(db, U1, G1, null);
+      expect((await listWatches(db, U1))[0]!.lastNotifiedPrice).toBe(5);
+    });
+
+    it('concurrent adds cannot pass the cap together', async () => {
+      const extra = Array.from({ length: WATCH_LIMIT - 1 }, (_, i) => 987_800_000 + i);
+      await db
+        .insert(games)
+        .values(extra.map((igdbId) => ({ igdbId, name: `W${igdbId}`, slug: `pw-${igdbId}` })));
+      try {
+        for (const id of extra) await db.insert(priceWatches).values({ userId: U1, igdbId: id });
+        const results = await Promise.allSettled([
+          setWatch(db, U1, G1, null),
+          setWatch(db, U1, G2, null),
+        ]);
+        expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+        expect(results.filter((r) => r.status === 'rejected')).toHaveLength(1);
+        expect(await listWatches(db, U1)).toHaveLength(WATCH_LIMIT);
+      } finally {
+        await db.delete(games).where(inArray(games.igdbId, extra));
+      }
+    });
+
+    it('stores the email preference, on by default', async () => {
+      expect(await priceEmailsEnabled(db, U1)).toBe(true);
+      await setPriceEmails(db, U1, false);
+      expect(await priceEmailsEnabled(db, U1)).toBe(false);
     });
 
     it('caps the number of watches but still lets existing ones change', async () => {
@@ -219,6 +258,34 @@ describe.skipIf(!url)('price watch', () => {
       const s = setup(() => sale(10));
       expect(await s.run()).toEqual({ checked: 0, sent: 0 });
       expect(s.lookups).toEqual([]);
+      expect(s.mails).toEqual([]);
+    });
+
+    it('skips users who turned the emails off, without looking prices up', async () => {
+      await setWatch(db, U1, G1, null);
+      await setPriceEmails(db, U1, false);
+      const s = setup(() => sale(10));
+      expect(await s.run()).toEqual({ checked: 0, sent: 0 });
+      expect(s.lookups).toEqual([]);
+      await setPriceEmails(db, U1, true);
+      expect((await s.run()).sent).toBe(1);
+    });
+
+    it('leaves a watch alone when its prices could not be refreshed', async () => {
+      await setWatch(db, U1, G1, null);
+      await db
+        .update(priceWatches)
+        .set({ lastNotifiedPrice: 10 })
+        .where(eq(priceWatches.userId, U1));
+      const s = setup(() => sale(10));
+      s.deps.prices.client = {
+        async findPrices() {
+          throw new Error('cheapshark down');
+        },
+      };
+      expect(await s.run()).toEqual({ checked: 1, sent: 0 });
+      // Not cleared (the deal may well still run) and nothing mailed on unknown data.
+      expect((await listWatches(db, U1))[0]!.lastNotifiedPrice).toBe(10);
       expect(s.mails).toEqual([]);
     });
 

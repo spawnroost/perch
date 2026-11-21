@@ -50,10 +50,11 @@ export function buildDigest(
   items: readonly DigestItem[],
   webOrigin: string,
 ): { subject: string; text: string } {
+  const allOnSale = items.every((i) => i.deal.savingsPct > 0);
   const subject =
     items.length === 1
-      ? `${items[0]!.name} is on sale`
-      : `${items.length} games on your watchlist are on sale`;
+      ? `${items[0]!.name} is ${allOnSale ? 'on sale' : 'at your price'}`
+      : `${items.length} games on your watchlist ${allOnSale ? 'are on sale' : 'hit your price'}`;
   const blocks = items.map(({ name, targetPrice, deal }) => {
     const off =
       deal.savingsPct > 0 ? `, -${deal.savingsPct}% from ${formatUsd(deal.retailPrice)}` : '';
@@ -64,12 +65,12 @@ export function buildDigest(
   return {
     subject,
     text: [
-      'Games you are watching have dropped to your price:',
+      'Games you are watching have reached your price:',
       '',
       blocks.join('\n\n'),
       '',
       'Prices are in US dollars and can change at any time.',
-      'Stop watching a game or change a target here:',
+      'Change a target, stop watching a game, or turn these emails off in your Account settings:',
       manage,
     ].join('\n'),
   };

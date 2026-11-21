@@ -82,11 +82,46 @@ describe('buildDigest', () => {
   });
 });
 
+describe('buildDigest wording', () => {
+  const at = (savingsPct: number) => ({
+    igdbId: 1,
+    name: 'Celeste',
+    targetPrice: 10,
+    deal: {
+      store: 'GOG',
+      price: 9.99,
+      retailPrice: 9.99,
+      savingsPct,
+      url: 'https://www.cheapshark.com/redirect?dealID=x',
+    },
+  });
+  it('says "at your price" when the target is met without a sale', () => {
+    const d = buildDigest([at(0)], 'https://perch.test');
+    expect(d.subject).toBe('Celeste is at your price');
+    expect(d.text).not.toContain('-0%');
+  });
+  it('says "on sale" only when every game is discounted', () => {
+    expect(buildDigest([at(30)], 'https://perch.test').subject).toBe('Celeste is on sale');
+    const mixed = buildDigest([at(30), { ...at(0), name: 'B' }], 'https://perch.test');
+    expect(mixed.subject).toBe('2 games on your watchlist hit your price');
+    const sales = buildDigest([at(30), { ...at(20), name: 'B' }], 'https://perch.test');
+    expect(sales.subject).toBe('2 games on your watchlist are on sale');
+  });
+  it('links to the account page to turn the emails off', () => {
+    const d = buildDigest([at(30)], 'https://perch.test');
+    expect(d.text).toMatch(/turn these emails off/i);
+    expect(d.text).toContain('https://perch.test/account');
+  });
+});
+
 describe('watchBodySchema', () => {
   it('takes a positive price rounded to cents, or null for any sale', () => {
     expect(watchBodySchema.parse({ targetPrice: null }).targetPrice).toBeNull();
     expect(watchBodySchema.parse({ targetPrice: 9.999 }).targetPrice).toBe(10);
     expect(watchBodySchema.safeParse({ targetPrice: 0 }).success).toBe(false);
+    // Rounded to cents first, then it must still be a price.
+    expect(watchBodySchema.safeParse({ targetPrice: 0.004 }).success).toBe(false);
+    expect(watchBodySchema.parse({ targetPrice: 0.005 }).targetPrice).toBe(0.01);
     expect(watchBodySchema.safeParse({ targetPrice: -1 }).success).toBe(false);
     expect(watchBodySchema.safeParse({}).success).toBe(false);
   });

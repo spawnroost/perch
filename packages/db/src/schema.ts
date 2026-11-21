@@ -52,6 +52,8 @@ export const users = pgTable('users', {
   psnSyncedAt: ts('psn_synced_at'),
   /** When the last price-watch digest email went out; a claim on it keeps it to one a day. */
   priceDigestAt: ts('price_digest_at'),
+  /** Whether the daily price-watch digest may be emailed; watches keep working when off. */
+  priceEmails: boolean('price_emails').default(true).notNull(),
   createdAt: ts('created_at').defaultNow().notNull(),
   updatedAt: ts('updated_at')
     .defaultNow()

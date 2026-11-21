@@ -183,6 +183,13 @@
       "when": 1795239625885,
       "tag": "0025_steep_sprite",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1795240128445,
+      "tag": "0026_friendly_shinko_yamashiro",
+      "breakpoints": true
     }
   ]
 }

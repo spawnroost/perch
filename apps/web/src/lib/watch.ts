@@ -1,11 +1,19 @@
 import type { Watch } from '@perch/core/browser';
 import { formatUsd } from './prices';
 
+/** "1,000" and "1.000,50" are thousands separators, "9,99" a decimal comma; others are left to fail. */
+function normalizeDecimal(text: string): string {
+  if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(text)) return text.replaceAll(',', '');
+  if (/^\d{1,3}(\.\d{3})+,\d+$/.test(text)) return text.replaceAll('.', '').replace(',', '.');
+  if (/^\d+,\d+$/.test(text)) return text.replace(',', '.');
+  return text;
+}
+
 /** What a target-price field holds: a price, or empty for "any sale". */
 export function parseTargetPrice(
   text: string,
 ): { ok: true; value: number | null } | { ok: false; error: string } {
-  const cleaned = text.trim().replace(/^\$/, '').replace(',', '.');
+  const cleaned = normalizeDecimal(text.trim().replace(/^\$/, ''));
   if (cleaned === '') return { ok: true, value: null };
   const n = /^\d+(\.\d+)?$/.test(cleaned) ? Number(cleaned) : NaN;
   const cents = Math.round(n * 100) / 100;

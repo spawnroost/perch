@@ -88,10 +88,17 @@ export type { PlayerVoice, PlayerVoiceResponse } from './player-voice/schemas.js
 export {
   WATCH_LIMIT,
   watchBodySchema,
+  watchEmailsBodySchema,
   watchListResponseSchema,
   watchResponseSchema,
   watchSchema,
 } from './price-watch/schemas.js';
-export type { Watch, WatchBody, WatchListResponse, WatchResponse } from './price-watch/schemas.js';
+export type {
+  Watch,
+  WatchBody,
+  WatchEmailsBody,
+  WatchListResponse,
+  WatchResponse,
+} from './price-watch/schemas.js';
 export { MOODS } from './engine/roulette.js';
 export type { Mood, Relaxed } from './engine/roulette.js';

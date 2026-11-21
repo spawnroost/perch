@@ -195,6 +195,7 @@ const priceCalls: { name: string; steamAppId: number | null }[] = [];
 const fakePrices = {
   async findPrices(game: { name: string; steamAppId: number | null }) {
     priceCalls.push(game);
+    if (game.name === 'Routetest Gamma') throw new Error('cheapshark down');
     if (game.name !== 'Routetest Alpha') return null;
     return {
       currency: 'USD' as const,
@@ -462,6 +463,18 @@ describe.skipIf(!testUrl)('api routes', () => {
       );
       expect(none.prices).toBeNull();
       expect((await get('/api/games/999999999/prices', u.cookie)).status).toBe(404);
+    });
+
+    it('answers pending, not a cached "not sold", when the price lookup fails', async () => {
+      const u = await newUser();
+      const res = await get(`/api/games/${C}/prices`, u.cookie);
+      expect(res.status).toBe(200);
+      expect(priceResponseSchema.parse(await res.json())).toEqual({ prices: null, pending: true });
+      const rows = await ctx.db
+        .select()
+        .from(schema.gamePrices)
+        .where(eq(schema.gamePrices.igdbId, C));
+      expect(rows).toEqual([]);
     });
 
     it('serves the player-voice summary with the Steam reviews link, cached after the first lookup', async () => {

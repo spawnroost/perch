@@ -2,11 +2,14 @@ import { Hono } from 'hono';
 import {
   igdbIdParamSchema,
   listWatches,
+  priceEmailsEnabled,
   pricesLookup,
   removeWatch,
+  setPriceEmails,
   setWatch,
   WatchLimitError,
   watchBodySchema,
+  watchEmailsBodySchema,
   type WatchListResponse,
   type WatchResponse,
 } from '@perch/core';
@@ -21,7 +24,11 @@ export function watchesRoutes(deps: RouteDeps) {
   r.use('*', requireAuth());
 
   r.get('/', async (c) => {
-    const rows = await listWatches(db, c.get('user').id);
+    const userId = c.get('user').id;
+    const [rows, emails] = await Promise.all([
+      listWatches(db, userId),
+      priceEmailsEnabled(db, userId),
+    ]);
     const watches = await Promise.all(
       rows.map(async (w) => {
         // Cached prices only: a cold or stale game is looked up in the background, not awaited.
@@ -38,7 +45,14 @@ export function watchesRoutes(deps: RouteDeps) {
         };
       }),
     );
-    return c.json({ watches } satisfies WatchListResponse);
+    return c.json({ watches, emails } satisfies WatchListResponse);
+  });
+
+  // Before '/:igdbId', which would otherwise take "emails" as an id.
+  r.put('/emails', async (c) => {
+    const { enabled } = await parseBody(c, watchEmailsBodySchema);
+    await setPriceEmails(db, c.get('user').id, enabled);
+    return c.json({ enabled });
   });
 
   r.put('/:igdbId', async (c) => {

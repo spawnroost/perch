@@ -26,13 +26,13 @@ export interface DigestResult {
   sent: number;
 }
 
-/** Users with a watch and an address that can receive mail (verified, not a Steam placeholder). */
+/** Users with a watch who want the email and have an address that can receive it (verified, not a Steam placeholder). */
 async function mailableWatchers(db: Db): Promise<{ id: string; email: string }[]> {
   const rows = await db
     .selectDistinct({ id: users.id, email: users.email })
     .from(priceWatches)
     .innerJoin(users, eq(users.id, priceWatches.userId))
-    .where(eq(users.emailVerified, true));
+    .where(and(eq(users.emailVerified, true), eq(users.priceEmails, true)));
   return rows.filter((u) => !isSteamPlaceholderEmail(u.email));
 }
 
@@ -54,11 +54,13 @@ export async function runPriceDigest(deps: DigestDeps): Promise<DigestResult> {
     try {
       const items: DigestItem[] = [];
       for (const w of await listWatches(db, user.id)) {
-        const prices = await pricesFresh(
+        const { prices, stale } = await pricesFresh(
           db,
           { igdbId: w.igdbId, name: w.name, steamAppId: w.steamAppId },
           deps.prices,
         );
+        // Prices that could not be refreshed prove nothing: neither announce nor clear on them.
+        if (stale) continue;
         const decision = evaluateWatch(w, prices);
         const key = and(eq(priceWatches.userId, user.id), eq(priceWatches.igdbId, w.igdbId));
         if (decision.action === 'clear') {
@@ -75,14 +77,24 @@ export async function runPriceDigest(deps: DigestDeps): Promise<DigestResult> {
       if (items.length > 0) {
         await send({ to: user.email, ...buildDigest(items, webOrigin) });
         mailed = true;
-        const at = now();
-        for (const i of items) {
-          await db
-            .update(priceWatches)
-            .set({ lastNotifiedPrice: i.deal.price, lastNotifiedAt: at })
-            .where(and(eq(priceWatches.userId, user.id), eq(priceWatches.igdbId, i.igdbId)));
-        }
         result.sent++;
+        // One transaction for all mailed games: either every deal is remembered or none is.
+        const at = now();
+        try {
+          await db.transaction(async (tx) => {
+            for (const i of items) {
+              await tx
+                .update(priceWatches)
+                .set({ lastNotifiedPrice: i.deal.price, lastNotifiedAt: at })
+                .where(and(eq(priceWatches.userId, user.id), eq(priceWatches.igdbId, i.igdbId)));
+            }
+          });
+        } catch (err) {
+          console.error(
+            `price digest for user ${user.id} was SENT but could not be recorded; its deals may be announced again:`,
+            err,
+          );
+        }
       }
     } catch (err) {
       console.error(`price digest for user ${user.id} failed:`, err);

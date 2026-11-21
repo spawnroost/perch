@@ -5,8 +5,8 @@ import { priceSummary } from '@/lib/prices';
 
 /** "Best price now" and "Historic low" tiles for the Where to buy block; nothing when no PC store sells it. */
 export function GamePrices({ igdbId }: { igdbId: number }) {
-  const { data, isPending } = usePrices(igdbId);
-  if (isPending || data?.pending) return <Skeleton className="h-20 w-full" aria-busy />;
+  const { data, waiting } = usePrices(igdbId);
+  if (waiting) return <Skeleton className="h-20 w-full" aria-busy />;
   const { best, low } = priceSummary(data?.prices);
   if (!best && !low) return null;
   return (

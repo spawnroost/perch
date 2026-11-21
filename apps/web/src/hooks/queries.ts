@@ -252,17 +252,28 @@ export function useSoundtrack(igdbId: number) {
   });
 }
 
-/** Best current PC-store price and historic low; the first visit may answer pending, then it asks again. */
+/**
+ * Best current PC-store price and historic low. A pending answer (first lookup still running, or
+ * CheapShark unavailable) is never kept: it is asked again every 5 s for a minute, and on remount.
+ * `waiting` is true until there is an answer or the polls ran out.
+ */
 export function usePrices(igdbId: number) {
-  return useQuery({
+  // Answers received for this game that were still pending; the poll budget counts them.
+  const pendingAnswers = useRef<{ igdbId: number; n: number }>({ igdbId, n: 0 });
+  if (pendingAnswers.current.igdbId !== igdbId) pendingAnswers.current = { igdbId, n: 0 };
+  const budgetLeft = () => pendingAnswers.current.n < SOUNDTRACK_MAX_POLLS;
+  const query = useQuery({
     queryKey: queryKeys.prices(igdbId),
-    queryFn: ({ signal }) => api.get<PriceResponse>(`/api/games/${igdbId}/prices`, { signal }),
+    queryFn: async ({ signal }) => {
+      const res = await api.get<PriceResponse>(`/api/games/${igdbId}/prices`, { signal });
+      pendingAnswers.current.n = res.pending ? pendingAnswers.current.n + 1 : 0;
+      return res;
+    },
     staleTime: (q) => (q.state.data?.pending ? 0 : 10 * 60_000),
-    refetchInterval: (query) =>
-      query.state.data?.pending && query.state.dataUpdateCount < SOUNDTRACK_MAX_POLLS
-        ? SOUNDTRACK_POLL_MS
-        : false,
+    refetchInterval: (q) => (q.state.data?.pending && budgetLeft() ? SOUNDTRACK_POLL_MS : false),
   });
+  const waiting = query.isPending || (query.data?.pending === true && budgetLeft());
+  return { ...query, waiting };
 }
 
 /** The user's price watches with cached prices; asks again while the server is still looking prices up. */
@@ -274,6 +285,16 @@ export function useWatches() {
       query.state.data?.watches.some((w) => w.prices === null) && query.state.dataUpdateCount < 6
         ? 4000
         : false,
+  });
+}
+
+/** Turns the daily price-watch email on or off. */
+export function useSetWatchEmails() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (enabled: boolean) =>
+      api.put<{ enabled: boolean }>('/api/watches/emails', { enabled }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.watches }),
   });
 }
 

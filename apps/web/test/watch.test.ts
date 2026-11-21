@@ -33,7 +33,14 @@ describe('parseTargetPrice', () => {
     expect(parseTargetPrice('5')).toEqual({ ok: true, value: 5 });
     expect(parseTargetPrice('$4.5')).toEqual({ ok: true, value: 4.5 });
     expect(parseTargetPrice('4,99')).toEqual({ ok: true, value: 4.99 });
+    expect(parseTargetPrice('9,99')).toEqual({ ok: true, value: 9.99 });
     expect(parseTargetPrice('9.999')).toEqual({ ok: true, value: 10 });
+  });
+  it('reads thousands separators', () => {
+    expect(parseTargetPrice('1,000')).toEqual({ ok: true, value: 1000 });
+    expect(parseTargetPrice('$1,234.50')).toEqual({ ok: true, value: 1234.5 });
+    expect(parseTargetPrice('1.000,50')).toEqual({ ok: true, value: 1000.5 });
+    expect(parseTargetPrice('12,34,5').ok).toBe(false);
   });
   it('rejects zero, negatives and words', () => {
     for (const bad of ['0', '-3', 'free', '1e3x', '20000']) {

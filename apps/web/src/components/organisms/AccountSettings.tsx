@@ -253,7 +253,7 @@ export function AccountSettings() {
       <SocialLinks />
       <Section
         title="Price watch"
-        description="We email you at most once a day when a watched game hits your price. Stop watching a game to stop its emails."
+        description="Games you watch, with their current price against your target."
       >
         <Watchlist />
       </Section>

@@ -109,6 +109,7 @@ describe.skipIf(!testUrl)('price watch routes', () => {
   it.each([
     ['GET', '/api/watches'],
     ['PUT', `/api/watches/${A}`],
+    ['PUT', '/api/watches/emails'],
     ['DELETE', `/api/watches/${A}`],
   ])('%s %s needs a session', async (method, path) => {
     expect((await call(method, path, undefined, method === 'PUT' ? {} : undefined)).status).toBe(
@@ -141,6 +142,30 @@ describe.skipIf(!testUrl)('price watch routes', () => {
     expect((await call('DELETE', `/api/watches/${A}`, u.cookie)).status).toBe(200);
     const after = await (await call('GET', '/api/watches', u.cookie)).json();
     expect(after.watches.map((w: { igdbId: number }) => w.igdbId)).toEqual([B]);
+  });
+
+  it('toggles the price emails, and the job then skips the user', async () => {
+    const u = await newUser();
+    await call('PUT', `/api/watches/${A}`, u.cookie, { targetPrice: null });
+    expect((await (await call('GET', '/api/watches', u.cookie)).json()).emails).toBe(true);
+    const off = await call('PUT', '/api/watches/emails', u.cookie, { enabled: false });
+    expect(await off.json()).toEqual({ enabled: false });
+    expect((await (await call('GET', '/api/watches', u.cookie)).json()).emails).toBe(false);
+    expect((await call('PUT', '/api/watches/emails', u.cookie, {})).status).toBe(400);
+    const job = startPriceWatchJob({
+      db: ctx.db,
+      mailer: ctx.mailer,
+      webOrigin: 'https://perch.test',
+      prices: fakePrices,
+      intervalMs: 3_600_000,
+      firstRunDelayMs: 3_600_000,
+    });
+    try {
+      await job.runOnce();
+      expect(ctx.mailer.sent.filter((m) => m.to === u.email)).toHaveLength(0);
+    } finally {
+      job.stop();
+    }
   });
 
   it('keeps each user watches private', async () => {
