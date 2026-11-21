@@ -46,7 +46,7 @@ export function GlobalSearch() {
       <SheetTrigger
         aria-label="Search games"
         aria-keyshortcuts="/ Control+K Meta+K"
-        className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-md border border-line bg-surface-1 px-2.5 text-sm text-fg-subtle shadow-raised transition-colors duration-fast ease-out hover:text-fg sm:w-56"
+        className="inline-flex h-8 pointer-coarse:h-10 cursor-pointer items-center gap-2 rounded-md border border-line bg-surface-1 px-2.5 text-sm text-fg-subtle shadow-raised transition-colors duration-fast ease-out hover:text-fg sm:w-56"
       >
         <Search size={14} strokeWidth={1.75} aria-hidden />
         <span className="hidden flex-1 text-left sm:inline">Can I play...</span>
@@ -136,7 +136,7 @@ function SearchPanel({ onDone }: { onDone: () => void }) {
         />
         <SheetClose
           aria-label="Close"
-          className="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md text-fg-muted transition-colors duration-fast ease-out hover:bg-surface-2 hover:text-fg"
+          className="inline-flex size-8 pointer-coarse:size-10 shrink-0 cursor-pointer items-center justify-center rounded-md text-fg-muted transition-colors duration-fast ease-out hover:bg-surface-2 hover:text-fg"
         >
           <X size={16} strokeWidth={1.75} aria-hidden />
         </SheetClose>

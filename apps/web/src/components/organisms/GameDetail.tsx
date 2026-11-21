@@ -189,7 +189,7 @@ export function GameDetail({ igdbId }: { igdbId: number | null }) {
           </>
         }
       />
-      <div className="grid gap-x-12 gap-y-8 px-gutter lg:grid-cols-[minmax(0,1fr)_var(--container-rail)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-x-12 gap-y-8 px-gutter lg:grid-cols-[minmax(0,1fr)_var(--container-rail)]">
         <div className="flex min-w-0 flex-col gap-8">
           {add.isError && <Notice tone="error">{add.error.message}</Notice>}
           {feedbackError && <Notice tone="error">{feedbackError.message}</Notice>}

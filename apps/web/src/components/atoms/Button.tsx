@@ -18,12 +18,12 @@ export const buttonVariants = cva(
         link: 'rounded-sm text-fg underline underline-offset-4 hover:text-fg-muted',
       },
       size: {
-        sm: 'h-7 px-2.5',
-        md: 'h-8 px-3',
-        icon: 'size-8',
+        sm: 'h-7 px-2.5 pointer-coarse:h-10',
+        md: 'h-8 px-3 pointer-coarse:h-10',
+        icon: 'size-8 pointer-coarse:size-10',
       },
     },
-    compoundVariants: [{ variant: 'link', className: 'h-auto px-0' }],
+    compoundVariants: [{ variant: 'link', className: 'h-auto px-0 pointer-coarse:h-auto' }],
     defaultVariants: { variant: 'secondary', size: 'md' },
   },
 );

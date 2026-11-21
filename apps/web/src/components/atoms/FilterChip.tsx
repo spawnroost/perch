@@ -12,7 +12,7 @@ export function FilterChip({ active, className, ...props }: FilterChipProps) {
     <button
       type="button"
       className={cn(
-        'font-hud inline-flex h-8 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-md border px-3 text-sm transition-colors duration-fast ease-out',
+        'font-hud inline-flex h-8 pointer-coarse:h-10 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap rounded-md border px-3 text-sm transition-colors duration-fast ease-out',
         active
           ? 'border-accent bg-accent-soft text-fg'
           : 'border-line bg-surface-1 text-fg-muted hover:bg-surface-2 hover:text-fg',
