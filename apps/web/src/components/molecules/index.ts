@@ -53,3 +53,4 @@ export { WatchRow } from './WatchRow';
 export type { WatchRowProps } from './WatchRow';
 export { CheckField } from './CheckField';
 export type { CheckFieldProps } from './CheckField';
+export { SupportLink } from './SupportLink';

@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
 import { CircleUser } from 'lucide-react';
 import { Button, Notice, Sheet, SheetClose, SheetContent, SheetTrigger } from '../atoms';
+import { SupportLink } from '../molecules';
 import { useSignOut } from '@/hooks/useSignOut';
 import { authClient } from '@/lib/auth-client';
 
@@ -30,6 +31,7 @@ export function AccountMenu() {
             <Link to="/account">Account settings</Link>
           </Button>
         </SheetClose>
+        <SupportLink />
         <Button variant="secondary" loading={signOut.pending} onClick={() => void signOut.run()}>
           Sign out
         </Button>
