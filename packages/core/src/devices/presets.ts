@@ -9,6 +9,9 @@ export const IGDB_PLATFORM = {
   ps5: 167,
   xboxSeries: 169,
   switch2: 508,
+  /** Dead platforms, only used to ignore them. */
+  windowsPhone: 74,
+  windowsMobile: 405,
   ios: 39,
   android: 34,
 } as const;

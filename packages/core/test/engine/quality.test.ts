@@ -29,7 +29,7 @@ describe('meetsQualityFloor', () => {
     expect(meetsQualityFloor({ ...g, ratingCount: 19 })).toBe(false);
     expect(meetsQualityFloor({ ...g, ratingCount: null })).toBe(false);
     expect(meetsQualityFloor({ ...g, gameType: 1 })).toBe(false);
-    expect(meetsQualityFloor({ ...g, gameType: null })).toBe(false);
+    expect(meetsQualityFloor({ ...g, gameType: null })).toBe(true); // cached before game_type existed
   });
   it('games also on other platforms keep the existing floor (always passes here)', () => {
     expect(meetsQualityFloor({ platforms: [P.ios, P.windows] })).toBe(true);

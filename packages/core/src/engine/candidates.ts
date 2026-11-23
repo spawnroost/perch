@@ -1,7 +1,7 @@
 import type { TagQuery } from '../igdb/client.js';
 import { IGDB_PLATFORM } from '../devices/presets.js';
 import { isBacklog } from './visibility.js';
-import { meetsQualityFloor, MOBILE_MIN_RATING_COUNT } from './quality.js';
+import { isMobileOnly, meetsQualityFloor, MOBILE_MIN_RATING_COUNT } from './quality.js';
 import type { Candidate, EngineGame, LibraryItem, RawGame, TasteProfile, Vocab } from './types.js';
 
 export const CANDIDATE_CAP = 300;
@@ -87,11 +87,15 @@ export async function buildCandidates(input: CandidateInput): Promise<Candidate[
           limit: MOBILE_TAG_LIMIT,
         })
       : [];
+  // The lower mobile rating floor is only for mobile-only games; ports keep the tag floor.
+  const mobileOk = mobile.filter(
+    (g) => isMobileOnly(g) || (g.ratingCount ?? 0) >= TAG_MIN_RATING_COUNT,
+  );
 
   const out = [...backlog];
   const seen = new Set(out.map((c) => c.game.igdbId));
   const released = (g: RawGame) => !g.firstRelease || g.firstRelease.getTime() <= now.getTime();
-  for (const raw of [...similar, ...tagged, ...mobile]) {
+  for (const raw of [...similar, ...tagged, ...mobileOk]) {
     if (out.length >= CANDIDATE_CAP) break;
     if (seen.has(raw.igdbId) || inLibrary.has(raw.igdbId) || hidden.has(raw.igdbId)) continue;
     if (!released(raw) || !meetsQualityFloor(raw)) continue;

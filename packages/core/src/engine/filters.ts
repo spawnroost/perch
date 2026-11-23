@@ -115,9 +115,9 @@ function pcFit(device: FilterDevice, r: FitRequirements | null | undefined): Fit
 
 /** "Available on iOS" / "Available on Android", named from the device's own platform. */
 function mobileReason(device: Pick<FilterDevice, 'platformIds'>): string {
-  return device.platformIds.includes(IGDB_PLATFORM.ios)
-    ? 'Available on iOS'
-    : 'Available on Android';
+  if (device.platformIds.includes(IGDB_PLATFORM.ios)) return 'Available on iOS';
+  if (device.platformIds.includes(IGDB_PLATFORM.android)) return 'Available on Android';
+  return 'Available on this device';
 }
 
 const DECK_FIT: Record<DeckCategory, FitDetail> = {

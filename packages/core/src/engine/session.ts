@@ -25,14 +25,8 @@ export interface SessionOptions {
 }
 
 /** Handheld kinds (PC handhelds, phones, tablets), where low battery makes GPU-heavy games a poor pick. */
-const BATTERY_AWARE_KINDS = new Set([
-  'steam-deck',
-  'rog-ally',
-  'iphone',
-  'ipad',
-  'android-phone',
-  'android-tablet',
-]);
+// Phones/tablets left out: no GPU score, so the battery penalty can't apply to them.
+const BATTERY_AWARE_KINDS = new Set(['steam-deck', 'rog-ally']);
 const LOW_BATTERY_PCT = 40;
 
 /** True for kinds where battery level changes the ranking. */

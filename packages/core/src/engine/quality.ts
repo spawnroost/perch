@@ -2,7 +2,7 @@ import { IGDB_PLATFORM } from '../devices/presets.js';
 
 const MOBILE = new Set<number>([IGDB_PLATFORM.ios, IGDB_PLATFORM.android]);
 /** Windows Phone and Windows Mobile: dead platforms, ignored when deciding "mobile only". */
-const DEAD_MOBILE = new Set([74, 405]);
+const DEAD_MOBILE = new Set<number>([IGDB_PLATFORM.windowsPhone, IGDB_PLATFORM.windowsMobile]);
 /** IGDB `game_type` of a main game (not DLC, port, mod, ...). */
 export const MAIN_GAME_TYPE = 0;
 /** Mobile-only games need at least this many ratings (the store catalogs are full of shovelware). */
@@ -22,14 +22,15 @@ export function isMobileOnly(game: Pick<QualityGame, 'platforms'>): boolean {
 }
 
 /**
- * Candidate quality floor. Mobile-only games need a cover, 20+ ratings and to be a main game;
- * games that are also on other platforms keep the existing floor, applied by the IGDB query.
+ * Candidate quality floor. Mobile-only games need a cover, 20+ ratings and to be a main game
+ * (null game type = row cached before the column existed: let it through until it refreshes).
+ * Other games keep the floor of the IGDB query that returned them.
  */
 export function meetsQualityFloor(game: QualityGame): boolean {
   if (!isMobileOnly(game)) return true;
   return (
     !!game.coverUrl &&
     (game.ratingCount ?? 0) >= MOBILE_MIN_RATING_COUNT &&
-    game.gameType === MAIN_GAME_TYPE
+    (game.gameType ?? MAIN_GAME_TYPE) === MAIN_GAME_TYPE
   );
 }

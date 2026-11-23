@@ -137,7 +137,7 @@ describe('isBatteryAwareKind / batteryMatters', () => {
     expect(isBatteryAwareKind('steam-deck')).toBe(true);
     expect(isBatteryAwareKind('rog-ally')).toBe(true);
     for (const k of ['iphone', 'ipad', 'android-phone', 'android-tablet'])
-      expect(isBatteryAwareKind(k), k).toBe(true);
+      expect(isBatteryAwareKind(k), k).toBe(false);
     expect(isBatteryAwareKind('pc')).toBe(false);
     expect(isBatteryAwareKind('switch')).toBe(false);
   });

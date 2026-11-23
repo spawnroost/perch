@@ -187,7 +187,12 @@ describe('buildCandidates', () => {
       const phone = setup({ platformIds: [6, 39] });
       phone.queryByTags.mockImplementation(async (q: unknown) =>
         (q as { platforms?: number[] }).platforms
-          ? [mobile(600), mobile(601, { ratingCount: 3 })]
+          ? [
+              mobile(600),
+              mobile(601, { ratingCount: 3 }),
+              mobile(602, { platforms: [39, 6], ratingCount: 25 }),
+              mobile(603, { platforms: [39, 6], ratingCount: 500 }),
+            ]
           : [raw(500)],
       );
       const out = await phone.run();
@@ -201,6 +206,9 @@ describe('buildCandidates', () => {
       const ids = out.map((c) => c.game.igdbId);
       expect(ids).toContain(600);
       expect(ids).not.toContain(601);
+      // Ports from the mobile query still need the normal tag floor.
+      expect(ids).not.toContain(602);
+      expect(ids).toContain(603);
     });
   });
 });
