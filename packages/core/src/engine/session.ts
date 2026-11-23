@@ -24,8 +24,15 @@ export interface SessionOptions {
   device: SessionDevice | null;
 }
 
-/** PC handheld kinds, where low battery makes GPU-heavy games a poor pick (not every battery device). */
-const BATTERY_AWARE_KINDS = new Set(['steam-deck', 'rog-ally']);
+/** Handheld kinds (PC handhelds, phones, tablets), where low battery makes GPU-heavy games a poor pick. */
+const BATTERY_AWARE_KINDS = new Set([
+  'steam-deck',
+  'rog-ally',
+  'iphone',
+  'ipad',
+  'android-phone',
+  'android-tablet',
+]);
 const LOW_BATTERY_PCT = 40;
 
 /** True for kinds where battery level changes the ranking. */

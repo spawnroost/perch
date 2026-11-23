@@ -13,6 +13,7 @@ export {
   scoreCandidate,
 } from './rank.js';
 export type { RankedCandidate } from './rank.js';
+export { isMobileOnly, meetsQualityFloor } from './quality.js';
 export { bestFit, deviceFit, deviceFitDetail, deviceKind, platformMatches } from './filters.js';
 export type {
   BestFit,

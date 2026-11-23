@@ -41,6 +41,7 @@ const game = (igdbId: number): Game =>
     firstRelease: null,
     rating: null,
     ratingCount: null,
+    gameType: null,
     steamAppId: null,
     criticRating: null,
     criticRatingCount: null,

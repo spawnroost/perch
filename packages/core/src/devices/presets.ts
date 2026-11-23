@@ -9,6 +9,8 @@ export const IGDB_PLATFORM = {
   ps5: 167,
   xboxSeries: 169,
   switch2: 508,
+  ios: 39,
+  android: 34,
 } as const;
 
 export interface PresetHardware {
@@ -25,6 +27,8 @@ export interface DevicePreset {
   platformIds: number[];
   /** Fixed hardware for PC-like handhelds; consoles need none. */
   hardware?: PresetHardware;
+  /** Phones and tablets: platform-only fit, no GPU tier. */
+  form?: 'phone' | 'tablet';
   /** Filter PC games by Steam Deck compatibility. */
   deckCompat?: boolean;
 }
@@ -51,6 +55,10 @@ export const DEVICE_PRESETS: readonly DevicePreset[] = [
     hardware: { gpuName: 'AMD Radeon 780M', cpuName: 'AMD Ryzen Z1 Extreme', ramGb: 16 },
   },
   { id: 'mac', name: 'Mac', platformIds: [P.mac] },
+  { id: 'iphone', name: 'iPhone', platformIds: [P.ios], form: 'phone' },
+  { id: 'ipad', name: 'iPad', platformIds: [P.ios], form: 'tablet' },
+  { id: 'android-phone', name: 'Android phone', platformIds: [P.android], form: 'phone' },
+  { id: 'android-tablet', name: 'Android tablet', platformIds: [P.android], form: 'tablet' },
 ];
 
 export function getPreset(id: string): DevicePreset | undefined {

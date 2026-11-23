@@ -46,6 +46,7 @@ describe.skipIf(!url)('recs_version', () => {
       firstRelease: null,
       rating: null,
       ratingCount: null,
+      gameType: null,
       steamAppId: null,
       criticRating: null,
       criticRatingCount: null,

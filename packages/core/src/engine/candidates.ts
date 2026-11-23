@@ -1,5 +1,7 @@
 import type { TagQuery } from '../igdb/client.js';
+import { IGDB_PLATFORM } from '../devices/presets.js';
 import { isBacklog } from './visibility.js';
+import { meetsQualityFloor, MOBILE_MIN_RATING_COUNT } from './quality.js';
 import type { Candidate, EngineGame, LibraryItem, RawGame, TasteProfile, Vocab } from './types.js';
 
 export const CANDIDATE_CAP = 300;
@@ -7,6 +9,8 @@ export const SIMILAR_FROM_TOP = 25;
 export const TAG_TOP = 3;
 export const TAG_MIN_RATING_COUNT = 50;
 export const TAG_LIMIT = 100;
+export const MOBILE_TAG_LIMIT = 50;
+const MOBILE_PLATFORMS: readonly number[] = [IGDB_PLATFORM.ios, IGDB_PLATFORM.android];
 
 export interface CandidateDeps {
   getGames(ids: readonly number[]): Promise<RawGame[]>;
@@ -22,6 +26,8 @@ export interface CandidateInput {
   hidden: ReadonlySet<number>;
   deps: CandidateDeps;
   now: Date;
+  /** IGDB platform ids of the user's devices; a mobile one adds a mobile-only tag query. */
+  platformIds?: readonly number[];
 }
 
 const topKeys = (rec: Record<number, number>, n: number): number[] =>
@@ -33,10 +39,11 @@ const topKeys = (rec: Record<number, number>, n: number): number[] =>
 /**
  * Candidate pool: the user's backlog, `similar_games` of the 10 heaviest library games (those
  * recommended by several first), and IGDB's best-rated games for the top genres/themes.
- * Deduped and capped at 300; backlog games are never cut.
+ * Mobile-only games must pass the quality floor. With a mobile device, a mobile-platform tag
+ * query is added. Deduped and capped at 300; backlog games are never cut.
  */
 export async function buildCandidates(input: CandidateInput): Promise<Candidate[]> {
-  const { profile, library, hidden, deps, now } = input;
+  const { profile, library, hidden, deps, now, platformIds = [] } = input;
   const inLibrary = new Set(library.map((l) => l.game.igdbId));
   const byId = new Map(library.map((l) => [l.game.igdbId, l.game]));
 
@@ -68,14 +75,26 @@ export async function buildCandidates(input: CandidateInput): Promise<Candidate[
           limit: TAG_LIMIT,
         })
       : [];
+  // Mobile games rarely reach the top of an all-platform ranking, so ask for them directly.
+  const mobilePlatforms = MOBILE_PLATFORMS.filter((p) => platformIds.includes(p));
+  const mobile =
+    mobilePlatforms.length > 0 && genres.length + themes.length > 0
+      ? await deps.queryByTags({
+          genres,
+          themes,
+          platforms: mobilePlatforms,
+          minRatingCount: MOBILE_MIN_RATING_COUNT,
+          limit: MOBILE_TAG_LIMIT,
+        })
+      : [];
 
   const out = [...backlog];
   const seen = new Set(out.map((c) => c.game.igdbId));
   const released = (g: RawGame) => !g.firstRelease || g.firstRelease.getTime() <= now.getTime();
-  for (const raw of [...similar, ...tagged]) {
+  for (const raw of [...similar, ...tagged, ...mobile]) {
     if (out.length >= CANDIDATE_CAP) break;
     if (seen.has(raw.igdbId) || inLibrary.has(raw.igdbId) || hidden.has(raw.igdbId)) continue;
-    if (!released(raw)) continue;
+    if (!released(raw) || !meetsQualityFloor(raw)) continue;
     seen.add(raw.igdbId);
     const game: EngineGame = { ...raw, vocab: deps.mapVocab(raw) };
     out.push({ game, backlog: false });

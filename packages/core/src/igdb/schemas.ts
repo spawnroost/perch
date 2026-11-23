@@ -34,6 +34,7 @@ export const igdbGameSchema = z.object({
   first_release_date: z.number().optional(),
   total_rating: z.number().optional(),
   total_rating_count: z.number().optional(),
+  game_type: z.number().int().optional(),
   aggregated_rating: z.number().optional(),
   aggregated_rating_count: z.number().optional(),
   websites: z
@@ -167,6 +168,8 @@ export interface Game {
   /** IGDB `total_rating` (0-100). */
   rating: number | null;
   ratingCount: number | null;
+  /** IGDB `game_type` (0 = main game); null when unknown. */
+  gameType: number | null;
   steamAppId: number | null;
   /** IGDB `aggregated_rating` (critic average, 0-100) and how many critics. */
   criticRating: number | null;

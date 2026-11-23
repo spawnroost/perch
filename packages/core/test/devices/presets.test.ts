@@ -26,6 +26,25 @@ describe('device presets', () => {
     expect(deck?.hardware?.ramGb).toBe(16);
   });
 
+  it('has iOS and Android phone and tablet presets without hardware', () => {
+    expect(IGDB_PLATFORM.ios).toBe(39);
+    expect(IGDB_PLATFORM.android).toBe(34);
+    const want: [string, number, 'phone' | 'tablet'][] = [
+      ['iphone', IGDB_PLATFORM.ios, 'phone'],
+      ['ipad', IGDB_PLATFORM.ios, 'tablet'],
+      ['android-phone', IGDB_PLATFORM.android, 'phone'],
+      ['android-tablet', IGDB_PLATFORM.android, 'tablet'],
+    ];
+    for (const [id, platform, form] of want) {
+      const p = getPreset(id);
+      expect(p?.platformIds, id).toEqual([platform]);
+      expect(p?.form, id).toBe(form);
+      expect(p?.hardware, id).toBeUndefined();
+    }
+    expect(getPreset('iphone')?.name).toBe('iPhone');
+    expect(getPreset('android-tablet')?.name).toBe('Android tablet');
+  });
+
   it('returns undefined for unknown ids', () => {
     expect(getPreset('n64')).toBeUndefined();
   });

@@ -37,6 +37,7 @@ const LEAN = [
   'first_release_date',
   'total_rating',
   'total_rating_count',
+  'game_type',
   'aggregated_rating',
   'aggregated_rating_count',
   'websites.url',
@@ -102,6 +103,8 @@ export interface TagQuery {
    * selected genre (when any are given) and a selected theme (when any are given).
    */
   match?: 'any' | 'all';
+  /** Only games on one of these IGDB platforms; unset = any platform. */
+  platforms?: readonly number[];
   minRatingCount: number;
   /** Capped at 500 (the IGDB maximum per query). */
   limit: number;
@@ -160,6 +163,7 @@ function toGame(g: RawGame): Game {
     series: seriesIds(g),
     rating: g.total_rating ?? null,
     ratingCount: g.total_rating_count ?? null,
+    gameType: g.game_type ?? null,
     steamAppId: steam?.uid ? Number(steam.uid) : null,
     criticRating: g.aggregated_rating ?? null,
     criticRatingCount: g.aggregated_rating_count ?? null,
@@ -297,14 +301,14 @@ export function createIgdbClient(opts: IgdbClientOptions): IgdbClient {
       return out;
     },
 
-    async queryByTags({ genres, themes, match, minRatingCount, limit }) {
+    async queryByTags({ genres, themes, match, platforms, minRatingCount, limit }) {
       const tags: string[] = [];
       if (genres.length > 0) tags.push(`genres = (${idList(genres)})`);
       if (themes.length > 0) tags.push(`themes = (${idList(themes)})`);
       if (tags.length === 0) return [];
       const rows = await query(
         'games',
-        `fields ${LEAN_FIELDS}; where (${tags.join(match === 'all' ? ' & ' : ' | ')}) & total_rating_count >= ${Math.trunc(minRatingCount)} & game_type = 0; ` +
+        `fields ${LEAN_FIELDS}; where (${tags.join(match === 'all' ? ' & ' : ' | ')}) & total_rating_count >= ${Math.trunc(minRatingCount)} & game_type = 0${platforms?.length ? ` & platforms = (${idList(platforms)})` : ''}; ` +
           `sort total_rating desc; limit ${Math.min(Math.max(Math.trunc(limit), 1), IGDB_MAX_LIMIT)};`,
         igdbGamesResponseSchema,
       );

@@ -11,6 +11,8 @@ const NAMES: Record<keyof typeof IGDB_PLATFORM, string> = {
   ps5: 'PlayStation 5',
   xboxSeries: 'Xbox Series X|S',
   switch2: 'Switch 2',
+  ios: 'iOS',
+  android: 'Android',
 };
 
 const PLATFORM_NAMES = new Map<number, string>(

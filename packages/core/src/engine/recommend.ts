@@ -180,6 +180,7 @@ export async function recommend(
         hidden: hiddenIds(library, input.feedback),
         deps,
         now,
+        platformIds: (input.devices ?? []).flatMap((d) => d.platformIds),
       });
   // A backlog game is both a candidate and a library entry: count it once.
   const idfGames = new Map(

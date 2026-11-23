@@ -169,6 +169,8 @@ export const games = pgTable(
     series: intArray('series'),
     rating: real('rating'),
     ratingCount: integer('rating_count'),
+    /** IGDB `game_type` (0 = main game). */
+    gameType: integer('game_type'),
     steamAppId: integer('steam_app_id'),
     /** IGDB `aggregated_rating` (critic average, 0-100) and its review count. */
     criticRating: real('critic_rating'),

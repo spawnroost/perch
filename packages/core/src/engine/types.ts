@@ -21,6 +21,9 @@ export type EngineGame = Pick<
   /** IGDB platform ids; needed by device filters (missing = plays nowhere). */
   platforms?: number[];
   steamAppId?: number | null;
+  /** Cover and IGDB `game_type`, read by the quality floor (absent on library-loaded games). */
+  coverUrl?: string | null;
+  gameType?: number | null;
 };
 
 /** What IGDB (or the cache) returns before vocab is computed. */

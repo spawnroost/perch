@@ -469,6 +469,36 @@ describe('queryByTags', () => {
     expect(body).toContain('limit 100;');
   });
 
+  it('restricts to platforms when asked', async () => {
+    const net = fakeFetch({ intercept: () => json([]) });
+    await make(net).queryByTags({
+      genres: [12],
+      themes: [],
+      platforms: [39, 34],
+      minRatingCount: 20,
+      limit: 50,
+    });
+    const { body } = net.apiCalls()[0]!;
+    expect(body).toContain('platforms = (39,34)');
+    expect(body).toContain('total_rating_count >= 20');
+    expect(body).toContain('game_type = 0');
+  });
+
+  it('fetches game_type and maps it to gameType', async () => {
+    const hades = fixture('Hades');
+    const net = fakeFetch({
+      intercept: () => json(hades.game.map((g: object) => ({ ...g, game_type: 0 }))),
+    });
+    const [g] = await make(net).queryByTags({
+      genres: [12],
+      themes: [],
+      minRatingCount: 50,
+      limit: 5,
+    });
+    expect(net.apiCalls()[0]!.body).toContain('game_type');
+    expect(g!.gameType).toBe(0);
+  });
+
   it("match 'all' needs a genre and a theme at once", async () => {
     const net = fakeFetch({ intercept: () => json([]) });
     await make(net).queryByTags({

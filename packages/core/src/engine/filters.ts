@@ -1,4 +1,4 @@
-import { getPreset } from '../devices/presets.js';
+import { getPreset, IGDB_PLATFORM } from '../devices/presets.js';
 import type { DeckCategory } from '../requirements/steam.js';
 
 export type { DeckCategory };
@@ -45,11 +45,12 @@ type FitGame = { platforms?: readonly number[] };
 
 const RANK: Record<FitStatus, number> = { hidden: 0, unknown: 1, yellow: 2, green: 3 };
 
-export type DeviceKind = 'console' | 'deck' | 'pc';
+export type DeviceKind = 'console' | 'deck' | 'pc' | 'phone' | 'tablet';
 
 export function deviceKind(device: Pick<FilterDevice, 'kind'>): DeviceKind {
   const preset = getPreset(device.kind);
   if (!preset) return 'pc';
+  if (preset.form) return preset.form;
   return preset.deckCompat ? 'deck' : 'console';
 }
 
@@ -112,6 +113,13 @@ function pcFit(device: FilterDevice, r: FitRequirements | null | undefined): Fit
   return { status: 'unknown', reason: 'Not enough data to compare' };
 }
 
+/** "Available on iOS" / "Available on Android", named from the device's own platform. */
+function mobileReason(device: Pick<FilterDevice, 'platformIds'>): string {
+  return device.platformIds.includes(IGDB_PLATFORM.ios)
+    ? 'Available on iOS'
+    : 'Available on Android';
+}
+
 const DECK_FIT: Record<DeckCategory, FitDetail> = {
   verified: { status: 'green', reason: 'Steam Deck Verified' },
   playable: { status: 'yellow', reason: 'Playable on Steam Deck with some tweaks' },
@@ -132,6 +140,9 @@ export function deviceFitDetail(
   switch (deviceKind(device)) {
     case 'console':
       return { status: 'green', reason: 'Available on this console' };
+    case 'phone':
+    case 'tablet':
+      return { status: 'green', reason: mobileReason(device) };
     case 'deck': {
       const detail = DECK_FIT[info.deck ?? 'unknown'];
       return opts.allowUnsupported && detail.status === 'hidden'

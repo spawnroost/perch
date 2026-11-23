@@ -2,7 +2,16 @@
 import type { DeviceView } from '@perch/core';
 import { platformNames } from './platforms';
 
-const HANDHELDS = new Set(['steam-deck', 'rog-ally', 'switch', 'switch-2']);
+const HANDHELDS = new Set([
+  'steam-deck',
+  'rog-ally',
+  'switch',
+  'switch-2',
+  'iphone',
+  'ipad',
+  'android-phone',
+  'android-tablet',
+]);
 
 export type DeviceType = 'PC' | 'Mac' | 'Handheld' | 'Console';
 
@@ -31,6 +40,11 @@ const ART_BY_KIND: Record<string, DeviceArtType> = {
   mac: 'laptop',
   'steam-deck': 'handheld',
   'rog-ally': 'handheld',
+  // Placeholder until the mobile art (M5).
+  iphone: 'handheld',
+  ipad: 'handheld',
+  'android-phone': 'handheld',
+  'android-tablet': 'handheld',
   switch: 'hybrid',
   'switch-2': 'hybrid',
   ps5: 'console-slab',

@@ -3,6 +3,7 @@ import {
   bestFit,
   deviceFit,
   deviceFitDetail,
+  deviceKind,
   type FilterDevice,
   type FitRequirements,
 } from '../../src/engine/filters.js';
@@ -204,5 +205,37 @@ describe('deviceFitDetail', () => {
       'Steam Deck Unsupported',
     );
     expect(deviceFitDetail(pcGame, deck, {}).reason).toBe('No Steam Deck rating yet');
+  });
+});
+
+describe('mobile devices', () => {
+  const iphone = console_('m1', 'iphone', [P.ios]);
+  const androidTablet = console_('m2', 'android-tablet', [P.android]);
+  it('deviceKind tells phones and tablets apart', () => {
+    expect(deviceKind({ kind: 'iphone' })).toBe('phone');
+    expect(deviceKind({ kind: 'android-phone' })).toBe('phone');
+    expect(deviceKind({ kind: 'ipad' })).toBe('tablet');
+    expect(deviceKind({ kind: 'android-tablet' })).toBe('tablet');
+    expect(deviceKind({ kind: 'ps5' })).toBe('console');
+    expect(deviceKind({ kind: 'steam-deck' })).toBe('deck');
+    expect(deviceKind({ kind: 'pc' })).toBe('pc');
+  });
+  it('fit is platform-only, green with the store named', () => {
+    const game = { platforms: [P.ios, P.android] };
+    expect(deviceFitDetail(game, iphone, {})).toEqual({
+      status: 'green',
+      reason: 'Available on iOS',
+    });
+    expect(deviceFitDetail({ platforms: [P.android] }, androidTablet, {})).toEqual({
+      status: 'green',
+      reason: 'Available on Android',
+    });
+  });
+  it('hides a game not released on the platform', () => {
+    expect(deviceFitDetail({ platforms: [P.windows] }, iphone, {})).toEqual({
+      status: 'hidden',
+      reason: 'Not released on this device',
+    });
+    expect(deviceFit({ platforms: [P.android] }, iphone, {})).toBe('hidden');
   });
 });

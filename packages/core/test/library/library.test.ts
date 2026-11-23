@@ -170,6 +170,7 @@ describe('row builders', () => {
     series: [],
     rating: 90,
     ratingCount: 10,
+    gameType: 0,
     steamAppId: null,
     criticRating: null,
     criticRatingCount: null,

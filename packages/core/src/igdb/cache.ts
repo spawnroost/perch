@@ -79,6 +79,7 @@ function toGame(row: typeof games.$inferSelect): Game {
     series: row.series,
     rating: row.rating,
     ratingCount: row.ratingCount,
+    gameType: row.gameType,
     steamAppId: row.steamAppId,
     criticRating: row.criticRating,
     criticRatingCount: row.criticRatingCount,
@@ -215,6 +216,7 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
             series: sql`excluded.series`,
             rating: sql`excluded.rating`,
             ratingCount: sql`excluded.rating_count`,
+            gameType: sql`excluded.game_type`,
             steamAppId: sql`excluded.steam_app_id`,
             criticRating: sql`excluded.critic_rating`,
             criticRatingCount: sql`excluded.critic_rating_count`,
@@ -284,7 +286,7 @@ export function createIgdbCache(opts: IgdbCacheOptions): IgdbCache {
   const tagIds = (list: readonly number[]) => [...list].sort((a, b) => a - b).join(',');
 
   async function queryByTags(q: TagQuery): Promise<Game[]> {
-    const key = `${tagIds(q.genres)}|${tagIds(q.themes)}|${q.match ?? 'any'}|${q.minRatingCount}|${q.limit}`;
+    const key = `${tagIds(q.genres)}|${tagIds(q.themes)}|${q.match ?? 'any'}|${tagIds(q.platforms ?? [])}|${q.minRatingCount}|${q.limit}`;
     return tagPools.get(key, async () => upsertGames(await client.queryByTags(q)));
   }
 

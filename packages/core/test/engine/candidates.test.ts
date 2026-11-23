@@ -13,7 +13,7 @@ const raw = (id: number, extra = {}) => {
 
 function setup(over: Partial<Parameters<typeof buildCandidates>[0]> = {}) {
   const getGames = vi.fn(async (ids: readonly number[]) => ids.map((id) => raw(id)));
-  const queryByTags = vi.fn(async () => [raw(500), raw(501)]);
+  const queryByTags = vi.fn(async (_q?: unknown) => [raw(500), raw(501)]);
   const library = over.library ?? LIBRARY;
   const profile = buildProfile({ library, feedback: [], now: NOW });
   return {
@@ -144,5 +144,63 @@ describe('buildCandidates', () => {
     expect(await run()).toEqual([]);
     expect(getGames).not.toHaveBeenCalled();
     expect(queryByTags).not.toHaveBeenCalled();
+  });
+
+  describe('mobile', () => {
+    const mobile = (id: number, extra = {}) =>
+      raw(id, { platforms: [39], coverUrl: 'c', ratingCount: 30, gameType: 0, ...extra });
+
+    it('drops mobile-only games below the quality floor, keeps ports', async () => {
+      const getGames = vi.fn(async (ids: readonly number[]) =>
+        ids.map((id) => {
+          if (id === 101) return mobile(id);
+          if (id === 102) return mobile(id, { ratingCount: 5 });
+          if (id === 106) return mobile(id, { coverUrl: null });
+          return raw(id, { platforms: [39, 6], ratingCount: 1 });
+        }),
+      );
+      const { run } = setup();
+      const out = await buildCandidates({
+        profile: buildProfile({ library: LIBRARY, feedback: [], now: NOW }),
+        library: LIBRARY,
+        hidden: new Set(),
+        deps: { getGames, queryByTags: async () => [], mapVocab },
+        now: NOW,
+      });
+      void run;
+      const ids = out.map((c) => c.game.igdbId);
+      expect(ids).toContain(101);
+      expect(ids).toContain(108);
+      expect(ids).not.toContain(102);
+      expect(ids).not.toContain(106);
+    });
+
+    it('adds a mobile-platform query only when the user has a mobile device', async () => {
+      const none = setup();
+      await none.run();
+      expect(none.queryByTags).toHaveBeenCalledTimes(1);
+
+      const desk = setup({ platformIds: [6, 167] });
+      await desk.run();
+      expect(desk.queryByTags).toHaveBeenCalledTimes(1);
+
+      const phone = setup({ platformIds: [6, 39] });
+      phone.queryByTags.mockImplementation(async (q: unknown) =>
+        (q as { platforms?: number[] }).platforms
+          ? [mobile(600), mobile(601, { ratingCount: 3 })]
+          : [raw(500)],
+      );
+      const out = await phone.run();
+      expect(phone.queryByTags).toHaveBeenCalledTimes(2);
+      const q = (phone.queryByTags.mock.calls[1] as unknown[])[0] as {
+        platforms: number[];
+        minRatingCount: number;
+      };
+      expect(q.platforms).toEqual([39]);
+      expect(q.minRatingCount).toBe(20);
+      const ids = out.map((c) => c.game.igdbId);
+      expect(ids).toContain(600);
+      expect(ids).not.toContain(601);
+    });
   });
 });
