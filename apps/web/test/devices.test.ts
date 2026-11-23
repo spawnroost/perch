@@ -46,6 +46,8 @@ describe('deviceType', () => {
     expect(deviceType('steam-deck')).toBe('Handheld');
     expect(deviceType('mac')).toBe('Mac');
     expect(deviceType('ps5')).toBe('Console');
+    expect(deviceType('iphone')).toBe('Mobile');
+    expect(deviceType('android-tablet')).toBe('Mobile');
   });
   it('only PCs have editable hardware', () => {
     expect(canEditHardware(device({ kind: 'pc' }))).toBe(true);
@@ -80,6 +82,10 @@ describe('deviceArtType', () => {
     expect(deviceArtType('ps5')).toBe('console-slab');
     expect(deviceArtType('ps4')).toBe('console-slab');
     expect(deviceArtType('xbox-series')).toBe('console-box');
+    expect(deviceArtType('iphone')).toBe('phone');
+    expect(deviceArtType('android-phone')).toBe('phone');
+    expect(deviceArtType('ipad')).toBe('tablet');
+    expect(deviceArtType('android-tablet')).toBe('tablet');
   });
   it('falls back to generic for unknown kinds', () => {
     expect(deviceArtType('some-future-device')).toBe('generic');

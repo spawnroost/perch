@@ -2,16 +2,7 @@
 import type { DeviceView } from '@perch/core';
 import { platformNames } from './platforms';
 
-const HANDHELDS = new Set([
-  'steam-deck',
-  'rog-ally',
-  'switch',
-  'switch-2',
-  'iphone',
-  'ipad',
-  'android-phone',
-  'android-tablet',
-]);
+const HANDHELDS = new Set(['steam-deck', 'rog-ally', 'switch', 'switch-2']);
 
 const PHONE_KINDS = new Set(['iphone', 'android-phone']);
 const MOBILE_KINDS = new Set([...PHONE_KINDS, 'ipad', 'android-tablet']);
@@ -21,23 +12,34 @@ export const isMobileKind = (kind: string) => MOBILE_KINDS.has(kind);
 export const mobileDeviceIds = (devices: readonly DeviceView[]): Set<string> =>
   new Set(devices.filter((d) => isMobileKind(d.kind)).map((d) => d.id));
 
-export type DeviceType = 'PC' | 'Mac' | 'Handheld' | 'Console';
+export type DeviceType = 'PC' | 'Mac' | 'Handheld' | 'Mobile' | 'Console';
 
 export function deviceType(kind: string): DeviceType {
   if (kind === 'pc') return 'PC';
   if (kind === 'mac') return 'Mac';
+  if (isMobileKind(kind)) return 'Mobile';
   return HANDHELDS.has(kind) ? 'Handheld' : 'Console';
 }
 
 /** Which illustration a device gets: finer than DeviceType (a Switch and a Steam Deck are both handhelds, but look different). */
 export type DeviceArtType =
-  'desktop' | 'laptop' | 'handheld' | 'hybrid' | 'console-slab' | 'console-box' | 'generic';
+  | 'desktop'
+  | 'laptop'
+  | 'handheld'
+  | 'hybrid'
+  | 'phone'
+  | 'tablet'
+  | 'console-slab'
+  | 'console-box'
+  | 'generic';
 
 export const DEVICE_ART_TYPES: readonly DeviceArtType[] = [
   'desktop',
   'laptop',
   'handheld',
   'hybrid',
+  'phone',
+  'tablet',
   'console-slab',
   'console-box',
   'generic',
@@ -48,11 +50,10 @@ const ART_BY_KIND: Record<string, DeviceArtType> = {
   mac: 'laptop',
   'steam-deck': 'handheld',
   'rog-ally': 'handheld',
-  // Placeholder until the mobile art (M5).
-  iphone: 'handheld',
-  ipad: 'handheld',
-  'android-phone': 'handheld',
-  'android-tablet': 'handheld',
+  iphone: 'phone',
+  ipad: 'tablet',
+  'android-phone': 'phone',
+  'android-tablet': 'tablet',
   switch: 'hybrid',
   'switch-2': 'hybrid',
   ps5: 'console-slab',

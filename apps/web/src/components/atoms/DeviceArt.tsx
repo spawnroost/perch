@@ -16,6 +16,7 @@ export const DEVICE_BANNER: Record<DeviceType, string> = {
   PC: 'from-device-pc to-device-pc-end',
   Mac: 'from-device-mac to-device-mac-end',
   Handheld: 'from-device-handheld to-device-handheld-end',
+  Mobile: 'from-device-mobile to-device-mobile-end',
   Console: 'from-device-console to-device-console-end',
 };
 
@@ -265,6 +266,51 @@ function Hybrid({ ids }: { ids: Ids }) {
   );
 }
 
+/** Touch controls drawn over a screen: a faint stick ring on the left, two buttons on the right. */
+function TouchPad({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
+  const r = h * 0.16;
+  return (
+    <g stroke="none">
+      <circle
+        cx={x + w * 0.14}
+        cy={y + h * 0.7}
+        r={r}
+        fill="none"
+        className="stroke-fg/45"
+        strokeWidth={1.25}
+      />
+      <circle cx={x + w * 0.14} cy={y + h * 0.7} r={r * 0.4} className="fill-fg/45" />
+      <circle cx={x + w * 0.86} cy={y + h * 0.62} r={r * 0.42} className="fill-fg/45" />
+      <circle cx={x + w * 0.79} cy={y + h * 0.78} r={r * 0.42} className="fill-accent" />
+    </g>
+  );
+}
+
+/** A phone held sideways, game on screen. */
+function Phone({ ids }: { ids: Ids }) {
+  return (
+    <g strokeWidth={1.5} strokeLinejoin="round">
+      <rect x={88} y={20} width={22} height={4} rx={2} className={FACE} />
+      <rect x={34} y={24} width={172} height={80} rx={16} className={BODY} />
+      <Screen ids={ids} name="s" x={48} y={30} w={144} h={68} r={8} />
+      <circle cx={41.5} cy={64} r={2.2} className="fill-fg/45" stroke="none" />
+      <TouchPad x={48} y={30} w={144} h={68} />
+    </g>
+  );
+}
+
+/** A tablet held sideways, with a thin bezel and a front camera. */
+function Tablet({ ids }: { ids: Ids }) {
+  return (
+    <g strokeWidth={1.5} strokeLinejoin="round">
+      <rect x={22} y={8} width={196} height={96} rx={10} className={BODY} />
+      <Screen ids={ids} name="s" x={30} y={16} w={180} h={80} r={4} />
+      <circle cx={120} cy={12} r={1.4} className="fill-fg/50" stroke="none" />
+      <TouchPad x={30} y={16} w={180} h={80} />
+    </g>
+  );
+}
+
 function ConsoleSlab({ ids }: { ids: Ids }) {
   return (
     <g strokeWidth={1.5} strokeLinejoin="round">
@@ -328,6 +374,8 @@ const ART: Record<DeviceArtType, (p: { ids: Ids }) => ReactElement> = {
   laptop: Laptop,
   handheld: Handheld,
   hybrid: Hybrid,
+  phone: Phone,
+  tablet: Tablet,
   'console-slab': ConsoleSlab,
   'console-box': ConsoleBox,
   generic: Generic,
