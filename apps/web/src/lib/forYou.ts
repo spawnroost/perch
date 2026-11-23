@@ -2,7 +2,7 @@ import type { DeviceView, RecommendationsResponse } from '@perch/core';
 import { firstOfEach } from './motion';
 import { deckDisplay, fitDisplay, type Tone } from './fit';
 import { timeToBeatHours } from './timeToBeat';
-import { hasDeckDevice } from './devices';
+import { hasDeckDevice, isPhoneKind, mobileDeviceIds } from './devices';
 
 export const ALL_TAB = 'all';
 /** Picks per feed (the all-devices feed and each device's feed) on For you; its See all grids reuse them. */
@@ -38,6 +38,21 @@ export const SHORT_SESSION_MAX_HOURS = 12;
 export const SHORT_SESSIONS_ID = 'short';
 export const BACKLOG_ID = 'backlog';
 export const MORE_PICKS_ID = 'more';
+export const ON_THE_GO_ID = 'on-the-go';
+/** Fewest cross-device picks for the Play it on the go shelf to be worth showing. */
+export const ON_THE_GO_MIN = 3;
+
+/** Runs on one of the user's phones/tablets (green) and on one of their other devices (green or yellow). */
+export function isOnTheGo(
+  fits: readonly Pick<DeviceFit, 'deviceId' | 'status'>[],
+  mobileIds: ReadonlySet<string>,
+): boolean {
+  if (mobileIds.size === 0) return false;
+  return (
+    fits.some((f) => mobileIds.has(f.deviceId) && f.status === 'green') &&
+    fits.some((f) => !mobileIds.has(f.deviceId) && (f.status === 'green' || f.status === 'yellow'))
+  );
+}
 /** Fewest picks sharing a source game for a "Because you played" shelf; fewer go on More picks. */
 export const SOURCE_SHELF_MIN = 4;
 /** Cards on a shelf before the rest sit behind See all. */
@@ -47,7 +62,8 @@ export const sourceShelfKey = (igdbId: number) => `source-${igdbId}`;
 
 /** The shelf key from a route param; null unless it is one buildShelves can make. */
 export function parseShelfKey(param: string | undefined): string | null {
-  if (param === BACKLOG_ID || param === SHORT_SESSIONS_ID || param === MORE_PICKS_ID) return param;
+  if ([BACKLOG_ID, SHORT_SESSIONS_ID, ON_THE_GO_ID, MORE_PICKS_ID].includes(param ?? ''))
+    return param!;
   return param && /^source-([1-9]\d*)$/.test(param) ? param : null;
 }
 
@@ -69,15 +85,17 @@ export const similarPath = (igdbId: number, device: string): string =>
 /**
  * Shelves for the launcher, grouped by reason. Each game appears once and the hero game never.
  * Claim order, most specific first: From your backlog, Short sessions (at most
- * SHORT_SESSION_MAX_HOURS, shortest first), then "Because you played X" per source game with at
- * least SOURCE_SHELF_MIN picks; leftovers go on More picks. Shown order: Because shelves (largest
- * first), Short sessions, backlog, more. A shelf shows at most `cap` cards; the rest are only
+ * SHORT_SESSION_MAX_HOURS, shortest first), Play it on the go (isOnTheGo with `mobileIds`, at
+ * least ON_THE_GO_MIN), then "Because you played X" per source game with at least
+ * SOURCE_SHELF_MIN picks; leftovers go on More picks. Shown order: Because shelves (largest
+ * first), Short sessions, on the go, backlog, more. A shelf shows at most `cap` cards; the rest are only
  * counted in `total` (they stay claimed, so they never spill onto another shelf).
  */
 export function buildShelves(
   picks: readonly Recommendation[],
   heroId: number | null = null,
   cap: number = SHELF_CAP,
+  mobileIds: ReadonlySet<string> = new Set(),
 ): PickShelf[] {
   const seen = new Set<number>(heroId === null ? [] : [heroId]);
   const claim = (list: readonly Recommendation[]) =>
@@ -95,6 +113,9 @@ export function buildShelves(
     timed.length >= SHORT_SESSION_MIN
       ? claim(timed.sort((a, b) => a.hours - b.hours).map((t) => t.p))
       : [];
+
+  const portable = picks.filter((p) => !seen.has(p.game.igdbId) && isOnTheGo(p.fits, mobileIds));
+  const onTheGo = portable.length >= ON_THE_GO_MIN ? claim(portable) : [];
 
   const bySource = new Map<number, { name: string; picks: Recommendation[] }>();
   for (const p of picks) {
@@ -116,6 +137,7 @@ export function buildShelves(
   return [
     ...because,
     { id: SHORT_SESSIONS_ID, title: 'Short sessions', claimed: short },
+    { id: ON_THE_GO_ID, title: 'Play it on the go', claimed: onTheGo },
     { id: BACKLOG_ID, title: 'From your backlog', claimed: backlog },
     { id: MORE_PICKS_ID, title: 'More picks', claimed: more },
   ]
@@ -133,8 +155,9 @@ export function shelfPicks(
   picks: readonly Recommendation[],
   key: string,
   heroId: number | null = null,
+  mobileIds: ReadonlySet<string> = new Set(),
 ): { title: string; picks: Recommendation[] } | null {
-  const shelf = buildShelves(picks, heroId, Infinity).find((s) => s.id === key);
+  const shelf = buildShelves(picks, heroId, Infinity, mobileIds).find((s) => s.id === key);
   return shelf ? { title: shelf.title, picks: shelf.picks } : null;
 }
 
@@ -181,9 +204,24 @@ export const CARD_CHIP_LIMIT = 2;
  */
 export function pickChips(
   rec: Pick<Recommendation, 'fits' | 'backlog' | 'deck'>,
-  { hasDeckDevice = false, omitDeviceId }: { hasDeckDevice?: boolean; omitDeviceId?: string } = {},
+  {
+    hasDeckDevice = false,
+    omitDeviceId,
+    onTheGo,
+  }: {
+    hasDeckDevice?: boolean;
+    omitDeviceId?: string;
+    /** Cross-device pick: its green phone/tablet fits collapse into one leading chip with this label. */
+    onTheGo?: { label: string; mobileIds: ReadonlySet<string> };
+  } = {},
 ): PickChip[] {
-  const chips: PickChip[] = fitChips(rec.fits, omitDeviceId);
+  const fits = onTheGo
+    ? rec.fits.filter((f) => !(onTheGo.mobileIds.has(f.deviceId) && f.status === 'green'))
+    : rec.fits;
+  const chips: PickChip[] = [
+    ...(onTheGo ? [{ label: onTheGo.label, tone: fitDisplay('green').tone }] : []),
+    ...fitChips(fits, omitDeviceId),
+  ];
   if (rec.backlog) chips.push({ label: 'Backlog', tone: 'unknown', plain: true });
   const selectedFit = rec.fits.find((f) => f.deviceId === omitDeviceId);
   const deckCovered =
@@ -221,10 +259,18 @@ export function cardChips(
   selectedId: string,
 ): PickChip[] {
   const selected = devices.find((d) => d.id === selectedId);
+  const mobileIds = mobileDeviceIds(devices);
+  const goes = !(selected && mobileIds.has(selected.id)) && isOnTheGo(rec.fits, mobileIds);
+  const onPhone = devices.some(
+    (d) => isPhoneKind(d.kind) && rec.fits.some((f) => f.deviceId === d.id && f.status === 'green'),
+  );
   return capChips(
     pickChips(rec, {
       hasDeckDevice: selected ? selected.kind === 'steam-deck' : hasDeckDevice(devices),
       omitDeviceId: selected?.id,
+      ...(goes && {
+        onTheGo: { label: onPhone ? 'Also on your phone' : 'Also on your tablet', mobileIds },
+      }),
     }),
   );
 }

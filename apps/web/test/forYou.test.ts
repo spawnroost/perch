@@ -3,6 +3,8 @@ import {
   ALL_TAB,
   BACKLOG_ID,
   MORE_PICKS_ID,
+  ON_THE_GO_ID,
+  isOnTheGo,
   SHELF_CAP,
   SHORT_SESSIONS_ID,
   SHORT_SESSION_MAX_HOURS,
@@ -460,5 +462,57 @@ describe('likeMeta', () => {
   it('returns undefined when there are no shared tags or the reason is for another seed', () => {
     expect(likeMeta('Like Hades II', 'Hades II')).toBeUndefined();
     expect(likeMeta('Similar to Hades: Roguelike', 'Hades II')).toBeUndefined();
+  });
+});
+
+describe('Play it on the go', () => {
+  const fit = (deviceId: string, status: string) => ({
+    deviceId,
+    deviceName: deviceId,
+    status,
+    reason: '',
+  });
+  const mobile = new Set(['phone']);
+  const pick = (igdbId: number, fits: object[]) =>
+    ({
+      game: { igdbId, name: `G${igdbId}` },
+      fits,
+      backlog: false,
+      deck: null,
+      timeToBeat: null,
+      sourceGame: null,
+    }) as unknown as Recommendation;
+
+  it('isOnTheGo needs a green phone fit and a green/yellow fit elsewhere', () => {
+    expect(isOnTheGo([fit('phone', 'green'), fit('pc', 'yellow')] as never, mobile)).toBe(true);
+    expect(isOnTheGo([fit('phone', 'green'), fit('pc', 'red')] as never, mobile)).toBe(false);
+    expect(isOnTheGo([fit('phone', 'yellow'), fit('pc', 'green')] as never, mobile)).toBe(false);
+    expect(isOnTheGo([fit('phone', 'green'), fit('pc', 'green')] as never, new Set())).toBe(false);
+  });
+
+  it('builds the shelf from at least ON_THE_GO_MIN cross-device picks, after Short sessions', () => {
+    const both = [fit('phone', 'green'), fit('pc', 'green')];
+    const picks = [1, 2, 3].map((id) => pick(id, both)).concat(pick(4, [fit('pc', 'green')]));
+    const shelves = buildShelves(picks, null, SHELF_CAP, mobile);
+    expect(shelves.map((s) => s.id)).toEqual([ON_THE_GO_ID, MORE_PICKS_ID]);
+    expect(shelves[0]!.picks.map((p) => p.game.igdbId)).toEqual([1, 2, 3]);
+    expect(buildShelves(picks.slice(1), null, SHELF_CAP, mobile).map((s) => s.id)).toEqual([
+      MORE_PICKS_ID,
+    ]);
+    expect(parseShelfKey(ON_THE_GO_ID)).toBe(ON_THE_GO_ID);
+  });
+
+  it('cardChips collapses green phone fits into one leading chip unless the phone is selected', () => {
+    const devices = [
+      { id: 'phone', name: 'iPhone', kind: 'iphone' },
+      { id: 'pc', name: 'Laptop', kind: 'pc' },
+    ] as never;
+    const rec = pick(1, [fit('phone', 'green'), fit('pc', 'green')]);
+    expect(cardChips(rec, devices, ALL_TAB).map((c) => c.label)).toEqual([
+      'Also on your phone',
+      'pc',
+    ]);
+    expect(cardChips(rec, devices, 'pc').map((c) => c.label)).toEqual(['Also on your phone']);
+    expect(cardChips(rec, devices, 'phone').map((c) => c.label)).toEqual(['pc']);
   });
 });

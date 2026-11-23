@@ -3,6 +3,7 @@ import { PickGrid } from './PickGrid';
 import { PickGridPage } from './PickGridPage';
 import { useFeedback, useRecommendations } from '@/hooks/queries';
 import { useResolvedDevice } from '@/hooks/useResolvedDevice';
+import { mobileDeviceIds } from '@/lib/devices';
 import { ALL_TAB, deviceSearch, FOR_YOU_LIMIT, shelfPicks } from '@/lib/forYou';
 
 export type ForYouShelfProps = {
@@ -20,7 +21,9 @@ export function ForYouShelf({ shelfKey, device }: ForYouShelfProps) {
   const { feedback, send, error } = useFeedback();
   const ready = resolved && hero.isSuccess && feed.isSuccess;
   const heroId = hero.data?.[0]?.game.igdbId ?? null;
-  const shelf = ready ? shelfPicks(feed.data, shelfKey, heroId) : null;
+  const shelf = ready
+    ? shelfPicks(feed.data, shelfKey, heroId, mobileDeviceIds(devices.data ?? []))
+    : null;
   const failure = devices.isError ? devices : hero.isError ? hero : feed.isError ? feed : null;
 
   return (

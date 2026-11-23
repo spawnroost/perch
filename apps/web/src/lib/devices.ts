@@ -13,6 +13,14 @@ const HANDHELDS = new Set([
   'android-tablet',
 ]);
 
+const PHONE_KINDS = new Set(['iphone', 'android-phone']);
+const MOBILE_KINDS = new Set([...PHONE_KINDS, 'ipad', 'android-tablet']);
+export const isPhoneKind = (kind: string) => PHONE_KINDS.has(kind);
+export const isMobileKind = (kind: string) => MOBILE_KINDS.has(kind);
+/** Ids of the user's phones and tablets. */
+export const mobileDeviceIds = (devices: readonly DeviceView[]): Set<string> =>
+  new Set(devices.filter((d) => isMobileKind(d.kind)).map((d) => d.id));
+
 export type DeviceType = 'PC' | 'Mac' | 'Handheld' | 'Console';
 
 export function deviceType(kind: string): DeviceType {

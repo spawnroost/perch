@@ -24,9 +24,11 @@ import {
   deviceSearch,
   layoutOwners,
   parseDevice,
+  SHELF_CAP,
   shelfPath,
   similarPath,
 } from '@/lib/forYou';
+import { mobileDeviceIds } from '@/lib/devices';
 
 function LauncherSkeleton() {
   return (
@@ -87,7 +89,9 @@ function Launcher({ devices }: { devices: DeviceView[] }) {
   }
 
   const open = (igdbId: number) => void navigate(`/games/${igdbId}`);
-  const shelves = shelfFeed.data ? buildShelves(shelfFeed.data, top.game.igdbId) : [];
+  const shelves = shelfFeed.data
+    ? buildShelves(shelfFeed.data, top.game.igdbId, SHELF_CAP, mobileDeviceIds(devices))
+    : [];
   const owners = layoutOwners(shelves);
 
   return (
