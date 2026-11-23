@@ -4,3 +4,4 @@ data
 packages/core/test/fixtures
 **/dist
 packages/db/drizzle
+**/.impeccable

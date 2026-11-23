@@ -39,15 +39,17 @@ function Privacy() {
       <Section title="Who else sees anything">
         <ul className="list-disc pl-5">
           <li>
-            Game data comes from IGDB, Steam, OpenXBL, PlayStation, CheapShark and iTunes. We look up
-            your linked library on those services using the id you gave us.
+            Game data comes from IGDB, Steam, OpenXBL, PlayStation, CheapShark and iTunes. We look
+            up your linked library on those services using the id you gave us.
           </li>
           <li>
-            Recommendation reasons and review summaries are written by DeepSeek. It gets game titles,
-            tags and public Steam reviews, never your email, name or account id.
+            Recommendation reasons and review summaries are written by DeepSeek. It gets game
+            titles, tags and public Steam reviews, never your email, name or account id.
           </li>
           <li>Emails (verification, password reset, price digests) are sent through Resend.</li>
-          <li>Game covers load straight from IGDB&apos;s image servers, which see your IP address.</li>
+          <li>
+            Game covers load straight from IGDB&apos;s image servers, which see your IP address.
+          </li>
           <li>The app runs on a server we rent from OVH.</li>
         </ul>
       </Section>
@@ -59,7 +61,8 @@ function Privacy() {
       </Section>
       <Section title="Your control">
         <p>
-          You can edit or remove any game or device, and turn off price emails, from the app. Account settings → Delete account removes everything we store about you.
+          You can edit or remove any game or device, and turn off price emails, from the app.
+          Account settings → Delete account removes everything we store about you.
         </p>
       </Section>
     </>
@@ -72,8 +75,8 @@ function Terms() {
       <Section title="Using Perch">
         <p>
           Perch is a free hobby project. Use it for your own game picks, don&apos;t abuse it (no
-          scraping, spam or attempts to break it), and keep your password to yourself. We may suspend
-          accounts that cause trouble.
+          scraping, spam or attempts to break it), and keep your password to yourself. We may
+          suspend accounts that cause trouble.
         </p>
       </Section>
       <Section title="No guarantees">
@@ -92,7 +95,9 @@ function Terms() {
         </p>
       </Section>
       <Section title="Tips">
-        <p>Buy me a coffee tips are voluntary gifts. They don&apos;t buy any features or service.</p>
+        <p>
+          Buy me a coffee tips are voluntary gifts. They don&apos;t buy any features or service.
+        </p>
       </Section>
     </>
   );

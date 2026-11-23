@@ -94,7 +94,9 @@ export function createReasonService(o: ReasonServiceOptions): ReasonService {
       // Registered before the first await so concurrent requests see this batch.
       const flight = (async () => {
         try {
-          if (!(await reserveLlmBatch(db, userId, { globalCap, userCap: o.userDailyCap, now: now() }))) {
+          if (
+            !(await reserveLlmBatch(db, userId, { globalCap, userCap: o.userDailyCap, now: now() }))
+          ) {
             block(key, askedIds); // later requests skip the usage check for a while
             return;
           }
