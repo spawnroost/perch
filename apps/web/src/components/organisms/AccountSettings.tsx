@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
-import { Button, Notice } from '../atoms';
+import { Button, Notice, Switch } from '../atoms';
 import { ActionForm, FormField, ProviderButton } from '../molecules';
 import {
   SOCIAL_PROVIDERS,
@@ -9,7 +9,12 @@ import {
   canUnlinkSteam,
   socialProviderLabel,
 } from '@perch/core/browser';
-import { useAccount, useAuthProviders, useUnlinkSteam } from '@/hooks/queries';
+import {
+  useAccount,
+  useAuthProviders,
+  useSetHideFreeToPlay,
+  useUnlinkSteam,
+} from '@/hooks/queries';
 import { useAuthError } from '@/hooks/useAuthError';
 import { useAction } from '@/hooks/useAction';
 import { useSignOut } from '@/hooks/useSignOut';
@@ -85,6 +90,34 @@ function ChangePassword() {
           required
         />
       </ActionForm>
+    </Section>
+  );
+}
+
+function HideFreeToPlay() {
+  const account = useAccount();
+  const set = useSetHideFreeToPlay();
+  if (!account.data) return null;
+  // Show the pending choice at once; fall back to the server value when the save fails.
+  const checked = set.isPending ? set.variables : account.data.hideFreeToPlay;
+  return (
+    <Section title="Recommendations">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p id="hide-f2p-label" className="text-sm font-medium text-fg">
+            Hide free-to-play &amp; gacha
+          </p>
+          <p className="text-sm text-fg-muted">
+            Skips games with microtransactions, gacha or loot boxes.
+          </p>
+        </div>
+        <Switch
+          aria-labelledby="hide-f2p-label"
+          checked={checked}
+          onCheckedChange={(v) => set.mutate(v)}
+        />
+      </div>
+      {set.isError && <Notice tone="error">Could not save. Try again.</Notice>}
     </Section>
   );
 }
@@ -247,6 +280,7 @@ export function AccountSettings() {
         <p className="text-sm text-fg-muted">{accountSubtitle(email, account?.steamId)}</p>
       </div>
       {account?.hasPassword !== false && <ChangePassword />}
+      <HideFreeToPlay />
       <SteamLink />
       <XboxLink />
       <PsnLink />

@@ -26,6 +26,8 @@ export interface SimilarInput {
   /** Filter to games these devices can run. Omit for no filtering. */
   devices?: readonly FilterDevice[];
   fitOptions?: FitOptions;
+  /** Leave out free-to-play / gacha games. */
+  hideFreeToPlay?: boolean;
 }
 
 /** A profile made of one game, so candidate building and ranking aim at it alone. */
@@ -68,6 +70,7 @@ export async function similarTo(
     hidden,
     deps,
     now,
+    hideFreeToPlay: input.hideFreeToPlay,
   });
   const idf = computeIdf([seed, ...candidates.map((c) => c.game)]);
   // Cosine to the seed is the taste match (centroid = seed = the only source); no slots.

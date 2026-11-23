@@ -214,4 +214,25 @@ describe('createBrowseList', () => {
     expect(last.hasMore).toBe(false);
     expect(fetchRequirements).toHaveBeenCalledTimes(10);
   });
+
+  it('hides F2P/gacha games when hideFreeToPlay is set, but not otherwise', async () => {
+    const pool = [
+      mk(10, 90),
+      mk(11, 89, { keywords: [4400] }),
+      mk(12, 88, { slug: 'brawl-stars' }),
+    ];
+    const deps = {
+      getGames: async () => [],
+      queryByTags: async () => pool.map(toRaw),
+      mapVocab: () => ({ rpg: 1 }),
+      explain: createNoneProvider({ labels: {} }),
+      now: () => NOW,
+    };
+    const input = { library: [], feedback: [], genres: [12], themes: [], limit: 10, offset: 0 };
+    const ids = async (extra: object) =>
+      (await browse(deps, { ...input, ...extra })).items.map((r) => r.game.igdbId);
+    expect(await ids({ hideFreeToPlay: true })).toEqual([10]);
+    expect((await ids({ hideFreeToPlay: false })).sort()).toEqual([10, 11, 12]);
+    expect((await ids({})).sort()).toEqual([10, 11, 12]);
+  });
 });

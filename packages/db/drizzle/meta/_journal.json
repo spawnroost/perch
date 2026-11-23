@@ -197,6 +197,13 @@
       "when": 1795418497534,
       "tag": "0027_medical_avengers",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1795423782238,
+      "tag": "0028_awesome_power_man",
+      "breakpoints": true
     }
   ]
 }

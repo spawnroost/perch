@@ -10,6 +10,13 @@ export const libraryAffected = [
   queryKeys.tasteCard,
 ] as const;
 
+/** Query keys to refetch after the hide free-to-play setting changes (its picks and browse lists). */
+export const hideFreeToPlayAffected = [
+  queryKeys.account,
+  queryKeys.recommendationsAll,
+  ['browse'],
+] as const;
+
 /** Query keys to refetch after devices change: picks and fit on game pages depend on them. */
 export const devicesAffected = [
   queryKeys.devices,

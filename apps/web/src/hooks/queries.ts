@@ -61,7 +61,7 @@ import {
 import { BROWSE_LIMIT, nextOffset } from '@/lib/browse';
 import { ALL_TAB, FOR_YOU_LIMIT } from '@/lib/forYou';
 import { seedGameDetail } from '@/lib/gameSeed';
-import { devicesAffected, libraryAffected } from '@/lib/invalidation';
+import { devicesAffected, hideFreeToPlayAffected, libraryAffected } from '@/lib/invalidation';
 import { withGameRating } from '@/lib/library';
 import { resolveBodies, type ResolveBody } from '@/lib/playedBefore';
 import { shouldRetry } from '@/lib/retry';
@@ -608,6 +608,15 @@ export function useSyncSteamLibrary() {
   return useMutation({
     mutationFn: () => api.post<SteamSyncResult>('/api/library/steam/sync'),
     onSuccess: () => invalidateAll(qc, [...libraryAffected, queryKeys.account]),
+  });
+}
+
+export function useSetHideFreeToPlay() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (hideFreeToPlay: boolean) =>
+      api.patch<{ hideFreeToPlay: boolean }>('/api/account', { hideFreeToPlay }),
+    onSuccess: () => invalidateAll(qc, hideFreeToPlayAffected),
   });
 }
 

@@ -61,6 +61,7 @@ describe('steamSyncErrorText', () => {
 describe('autoSyncMayRun', () => {
   const none = {
     steamId: null,
+    hideFreeToPlay: true,
     steamSyncAvailable: false,
     steamSyncedAt: null,
     xboxGamertag: null,

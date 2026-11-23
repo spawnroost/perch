@@ -211,4 +211,37 @@ describe('buildCandidates', () => {
       expect(ids).toContain(603);
     });
   });
+
+  describe('hideFreeToPlay', () => {
+    const f2p = (id: number) => raw(id, { keywords: [25210] });
+    const run = async (hideFreeToPlay?: boolean, library = LIBRARY) => {
+      const s = setup({ library, ...(hideFreeToPlay === undefined ? {} : { hideFreeToPlay }) });
+      s.queryByTags.mockResolvedValue([raw(500), f2p(501), raw(502, { slug: 'clash-royale' })]);
+      s.getGames.mockImplementation(async (ids: readonly number[]) =>
+        ids.map((id) => (id === 101 ? f2p(id) : raw(id))),
+      );
+      return (await s.run()).map((c) => c.game.igdbId);
+    };
+
+    it('drops F2P/gacha games from tag and similar candidates when on', async () => {
+      const ids = await run(true);
+      expect(ids).toContain(500);
+      expect(ids).not.toContain(501);
+      expect(ids).not.toContain(502);
+      expect(ids).not.toContain(101);
+    });
+
+    it('keeps them when off or unset', async () => {
+      for (const flag of [false, undefined]) {
+        const ids = await run(flag);
+        expect(ids).toEqual(expect.arrayContaining([500, 501, 502, 101]));
+      }
+    });
+
+    it('never filters the backlog: the user owns those', async () => {
+      const owned = game(900, 'Owned F2P', { z: 1 }, { keywords: [2385] });
+      const library = [...LIBRARY, item(owned, 0, null, 'backlog')];
+      expect(await run(true, library)).toContain(900);
+    });
+  });
 });

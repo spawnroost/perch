@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "hide_free_to_play" boolean DEFAULT true NOT NULL;

@@ -28,6 +28,8 @@ export { Notice, noticeVariants } from './Notice';
 export type { NoticeProps } from './Notice';
 export { SectionHeading } from './SectionHeading';
 export { Select } from './Select';
+export { Switch } from './Switch';
+export type { SwitchProps } from './Switch';
 export { Textarea } from './Textarea';
 export { ProviderMark } from './ProviderMark';
 export { Reveal } from './Reveal';

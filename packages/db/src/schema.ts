@@ -38,6 +38,8 @@ export const users = pgTable('users', {
   plan: text('plan').default('free').notNull(),
   /** Bumped by every write that feeds the recommendations; the cache only serves its own version. */
   recsVersion: integer('recs_version').default(0).notNull(),
+  /** Leave free-to-play / gacha games out of recommendations and browse (owned games stay). */
+  hideFreeToPlay: boolean('hide_free_to_play').default(true).notNull(),
   /** When the Steam library was last imported; null until the first sync. */
   steamSyncedAt: ts('steam_synced_at'),
   /** Xbox account (xuid) linked by gamertag; cached so a resync costs one OpenXBL request. */

@@ -1,6 +1,7 @@
 import { closestGame } from './explain.js';
 import type { FilterDevice, FitOptions } from './filters.js';
 import { buildProfile } from './profile.js';
+import { isFreeToPlay } from './quality.js';
 import { computeIdf, rankCandidates } from './rank.js';
 import { TAG_MIN_RATING_COUNT } from './candidates.js';
 import {
@@ -26,6 +27,8 @@ export interface BrowseInput {
   /** Filter to games these devices can run. Omit for no filtering. */
   devices?: readonly FilterDevice[];
   fitOptions?: FitOptions;
+  /** Leave out free-to-play / gacha games (owned ones are already excluded). */
+  hideFreeToPlay?: boolean;
 }
 
 export interface BrowsePage {
@@ -72,6 +75,7 @@ export async function createBrowseList(
     if (seen.has(g.igdbId) || hidden.has(g.igdbId)) continue;
     if (g.firstRelease && g.firstRelease.getTime() > now.getTime()) continue;
     if (!hasAny(g.genres, genres) || !hasAny(g.themes, themes)) continue;
+    if (input.hideFreeToPlay && isFreeToPlay(g)) continue;
     seen.add(g.igdbId);
     candidates.push({ game: { ...g, vocab: deps.mapVocab(g) }, backlog: false });
   }

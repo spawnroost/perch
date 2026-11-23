@@ -152,3 +152,24 @@ describe('recommend', () => {
     void game;
   });
 });
+
+describe('recommend hideFreeToPlay', () => {
+  it('drops F2P/gacha candidates only when the option is on', async () => {
+    const all = await recommend(deps, { library: LIBRARY, feedback: [], limit: 50 });
+    const victim = all[0]!.game.igdbId;
+    const tag = (g: ReturnType<typeof toRaw>) =>
+      g.igdbId === victim ? { ...g, keywords: [2385] } : g;
+    const f2pDeps = {
+      ...deps,
+      getGames: async (ids: readonly number[]) => (await deps.getGames(ids)).map(tag),
+      queryByTags: async () => (await deps.queryByTags()).map(tag),
+    };
+    const ids = async (extra: object) =>
+      (await recommend(f2pDeps, { library: LIBRARY, feedback: [], limit: 50, ...extra })).map(
+        (r) => r.game.igdbId,
+      );
+    expect(await ids({})).toContain(victim);
+    expect(await ids({ hideFreeToPlay: false })).toContain(victim);
+    expect(await ids({ hideFreeToPlay: true })).not.toContain(victim);
+  });
+});

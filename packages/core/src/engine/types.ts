@@ -24,6 +24,9 @@ export type EngineGame = Pick<
   /** Cover and IGDB `game_type`, read by the quality floor (absent on library-loaded games). */
   coverUrl?: string | null;
   gameType?: number | null;
+  /** IGDB slug and keyword ids, read by `isFreeToPlay` (absent on some library-loaded games). */
+  slug?: string;
+  keywords?: number[];
 };
 
 /** What IGDB (or the cache) returns before vocab is computed. */

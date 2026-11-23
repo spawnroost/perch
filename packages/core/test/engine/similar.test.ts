@@ -174,4 +174,22 @@ describe('likeReason', () => {
   it('falls back to just the name when no tag is shared', () => {
     expect(likeReason(seed, far, { labels })).toBe('Like Hades');
   });
+
+  it('hides F2P/gacha non-owned games when hideFreeToPlay is set', async () => {
+    const gacha = game(20, 'Gacha', { roguelike: 1, action: 1 }, { keywords: [25210] });
+    const slugged = game(21, 'Slugged', { roguelike: 1, action: 1 }, { slug: 'clash-royale' });
+    const games = [...pool, gacha, slugged];
+    const ids = async (hide?: boolean) =>
+      (
+        await similarTo(mkDeps(games), {
+          ...base,
+          limit: 10,
+          ...(hide === undefined ? {} : { hideFreeToPlay: hide }),
+        })
+      ).map((r) => r.game.igdbId);
+    expect(await ids(true)).not.toContain(20);
+    expect(await ids(true)).not.toContain(21);
+    expect(await ids(false)).toEqual(expect.arrayContaining([20, 21]));
+    expect(await ids()).toEqual(expect.arrayContaining([20, 21]));
+  });
 });

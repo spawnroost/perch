@@ -5,6 +5,9 @@ import { getConnInfo } from '@hono/node-server/conninfo';
 import { HTTPException } from 'hono/http-exception';
 import {
   SteamAuthModeSchema,
+  accountPatchSchema,
+  getAccountSettings,
+  updateAccountSettings,
   buildSteamLoginUrl,
   canUnlinkSteam,
   linkedSocialProviders,
@@ -17,6 +20,7 @@ import {
 } from '@perch/core';
 import { schema } from '@perch/db';
 import type { AppVars, RouteDeps } from '../app.js';
+import { parseBody } from '../http.js';
 import { requireAuth } from '../middleware.js';
 import { createSteamOpenIdVerifier } from '../steam-openid.js';
 
@@ -186,6 +190,7 @@ export function accountRoutes({ db, env, steamSync, xboxSync, psnSync }: RouteDe
     psnSync.maybeAuto(id, psnAccountId, psnSyncedAt);
     return c.json({
       email,
+      ...(await getAccountSettings(db, id)),
       steamId: steamId ?? null,
       steamSyncedAt: steamSyncedAt ? new Date(steamSyncedAt).toISOString() : null,
       steamSyncAvailable: steamSync.configured,
@@ -197,6 +202,11 @@ export function accountRoutes({ db, env, steamSync, xboxSync, psnSync }: RouteDe
       psnSyncAvailable: psnSync.configured && !psnSync.authDown(),
       ...(await signInMethods(id)),
     });
+  });
+
+  r.patch('/', async (c) => {
+    const patch = await parseBody(c, accountPatchSchema);
+    return c.json(await updateAccountSettings(db, c.get('user').id, patch));
   });
 
   r.post('/steam/unlink', async (c) => {

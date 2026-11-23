@@ -33,6 +33,7 @@ import { similarTo, SIMILAR_LIMIT } from './similar.js';
 import { pickFromBacklog, type Mood, type Relaxed } from './roulette.js';
 import { batteryMatters, rankForSession, type SessionRanked } from './session.js';
 import { DeviceNotFoundError, selectDevices } from '../devices/store.js';
+import { getAccountSettings } from '../account/settings.js';
 import type { Recommendation, Vocab } from './types.js';
 
 export interface UserEngineDeps {
@@ -114,6 +115,7 @@ export async function browseForUser(
   const { db, cache, mapVocab, labels, steam } = deps;
   const allDevices = await loadDevices(db, userId);
   const devices = selectDevices(allDevices, opts.device); // throws for a device that is not theirs
+  const { hideFreeToPlay } = await getAccountSettings(db, userId);
   // Cached fits only: a browse never waits on Steam. A game without cached data has an unknown fit
   // (shown, never hidden); the page's missing data is fetched in the background below.
   const fetchers = createCachedFitFetchers(db);
@@ -127,7 +129,7 @@ export async function browseForUser(
         ...fetchers,
         explain: createNoneProvider({ labels }),
       },
-      { library, feedback, genres: opts.genres, themes: opts.themes, devices },
+      { library, feedback, genres: opts.genres, themes: opts.themes, devices, hideFreeToPlay },
     );
   };
   // The ranked, device-filtered list is remembered per user and tag set, and dropped whenever a
@@ -198,7 +200,10 @@ async function recommendPicks(
   },
 ): Promise<SessionPick[]> {
   const { db, cache, mapVocab, labels, steam } = deps;
-  const { library, feedback } = await loadRecommendInput(db, userId, mapVocab);
+  const [{ library, feedback }, { hideFreeToPlay }] = await Promise.all([
+    loadRecommendInput(db, userId, mapVocab),
+    getAccountSettings(db, userId),
+  ]);
   const allDevices = opts.allDevices ?? (await loadDevices(db, userId));
   const fetchers = opts.cachedFitsOnly ? createCachedFitFetchers(db) : createFitFetchers(db, steam);
   const recs = await recommend(
@@ -215,6 +220,7 @@ async function recommendPicks(
       feedback,
       limit: opts.limit,
       devices: selectDevices(allDevices, opts.device),
+      hideFreeToPlay,
       ...(opts.backlogOnly ? { pool: backlogPoolIds(library) } : {}),
     },
   );
@@ -285,10 +291,11 @@ export async function similarForUser(
   opts: { device?: string; limit?: number; warmTimeToBeat?: boolean } = {},
 ): Promise<{ game: { igdbId: number; name: string }; picks: UserRecommendation[] } | null> {
   const { db, cache, mapVocab, labels, steam } = deps;
-  const [seed, { library, feedback }, allDevices] = await Promise.all([
+  const [seed, { library, feedback }, allDevices, { hideFreeToPlay }] = await Promise.all([
     cache.getGame(igdbId),
     loadRecommendInput(db, userId, mapVocab),
     loadDevices(db, userId),
+    getAccountSettings(db, userId),
   ]);
   if (!seed) return null;
   const fetchers = createFitFetchers(db, steam);
@@ -307,6 +314,7 @@ export async function similarForUser(
       labels,
       limit: opts.limit ?? SIMILAR_LIMIT,
       devices: selectDevices(allDevices, opts.device),
+      hideFreeToPlay,
     },
   );
   const picks = await enrichPicks(deps, recs, allDevices, fetchers, {

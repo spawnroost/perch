@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { devicesAffected, libraryAffected } from '../src/lib/invalidation.js';
+import {
+  devicesAffected,
+  hideFreeToPlayAffected,
+  libraryAffected,
+} from '../src/lib/invalidation.js';
 import { queryKeys } from '../src/lib/queryKeys.js';
 
 describe('invalidation', () => {
@@ -20,6 +24,13 @@ describe('invalidation', () => {
       queryKeys.browseAll,
       queryKeys.gameDetailAll,
       queryKeys.gameFitsAll,
+    ]);
+  });
+  it('the hide free-to-play toggle refreshes the account, picks and every browse list', () => {
+    expect(hideFreeToPlayAffected).toEqual([
+      queryKeys.account,
+      queryKeys.recommendationsAll,
+      ['browse'],
     ]);
   });
   it('search fits are a sibling of the detail keys, keyed by sorted ids', () => {

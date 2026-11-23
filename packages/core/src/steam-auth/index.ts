@@ -87,6 +87,8 @@ export function steamErrorMessage(code: string | null | undefined): string | nul
 /** What `GET /api/account` returns for the signed-in user. */
 export const AccountResponseSchema = z.object({
   email: z.string(),
+  /** Leave free-to-play / gacha games out of picks and browse. */
+  hideFreeToPlay: z.boolean(),
   steamId: z.string().nullable(),
   /** ISO time of the last Steam library import; null if never. */
   steamSyncedAt: z.string().nullable(),

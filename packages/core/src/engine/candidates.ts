@@ -1,7 +1,12 @@
 import type { TagQuery } from '../igdb/client.js';
 import { IGDB_PLATFORM } from '../devices/presets.js';
 import { isBacklog } from './visibility.js';
-import { isMobileOnly, meetsQualityFloor, MOBILE_MIN_RATING_COUNT } from './quality.js';
+import {
+  isFreeToPlay,
+  isMobileOnly,
+  meetsQualityFloor,
+  MOBILE_MIN_RATING_COUNT,
+} from './quality.js';
 import type { Candidate, EngineGame, LibraryItem, RawGame, TasteProfile, Vocab } from './types.js';
 
 export const CANDIDATE_CAP = 300;
@@ -28,6 +33,8 @@ export interface CandidateInput {
   now: Date;
   /** IGDB platform ids of the user's devices; a mobile one adds a mobile-only tag query. */
   platformIds?: readonly number[];
+  /** Leave out free-to-play / gacha games (see `isFreeToPlay`); backlog games are never cut. */
+  hideFreeToPlay?: boolean;
 }
 
 const topKeys = (rec: Record<number, number>, n: number): number[] =>
@@ -43,7 +50,7 @@ const topKeys = (rec: Record<number, number>, n: number): number[] =>
  * query is added. Deduped and capped at 300; backlog games are never cut.
  */
 export async function buildCandidates(input: CandidateInput): Promise<Candidate[]> {
-  const { profile, library, hidden, deps, now, platformIds = [] } = input;
+  const { profile, library, hidden, deps, now, platformIds = [], hideFreeToPlay = false } = input;
   const inLibrary = new Set(library.map((l) => l.game.igdbId));
   const byId = new Map(library.map((l) => [l.game.igdbId, l.game]));
 
@@ -99,6 +106,7 @@ export async function buildCandidates(input: CandidateInput): Promise<Candidate[
     if (out.length >= CANDIDATE_CAP) break;
     if (seen.has(raw.igdbId) || inLibrary.has(raw.igdbId) || hidden.has(raw.igdbId)) continue;
     if (!released(raw) || !meetsQualityFloor(raw)) continue;
+    if (hideFreeToPlay && isFreeToPlay(raw)) continue;
     seen.add(raw.igdbId);
     const game: EngineGame = { ...raw, vocab: deps.mapVocab(raw) };
     out.push({ game, backlog: false });

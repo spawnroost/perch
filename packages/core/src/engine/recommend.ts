@@ -45,6 +45,8 @@ export interface RecommendInput {
    * fetched, and feedback still hides games. For "pick from my backlog".
    */
   pool?: readonly number[];
+  /** Leave out free-to-play / gacha games the user does not own. */
+  hideFreeToPlay?: boolean;
 }
 
 export type Fit = NonNullable<Recommendation['fit']>;
@@ -181,6 +183,7 @@ export async function recommend(
         deps,
         now,
         platformIds: (input.devices ?? []).flatMap((d) => d.platformIds),
+        hideFreeToPlay: input.hideFreeToPlay,
       });
   // A backlog game is both a candidate and a library entry: count it once.
   const idfGames = new Map(

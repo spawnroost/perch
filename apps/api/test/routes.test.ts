@@ -1597,6 +1597,70 @@ describe.skipIf(!testUrl)('api routes', () => {
     });
   });
 
+  describe('hide free-to-play setting', () => {
+    const version = async (id: string) =>
+      (await ctx.db.select().from(schema.users).where(eq(schema.users.id, id)))[0]!.recsVersion;
+    const account = async (cookie: string) => (await get('/api/account', cookie)).json();
+
+    it('defaults to on, shows on GET /api/account, and PATCH changes it', async () => {
+      const u = await newUser();
+      expect(await account(u.cookie)).toMatchObject({ hideFreeToPlay: true });
+      const off = await call('PATCH', '/api/account', u.cookie, { hideFreeToPlay: false });
+      expect(off.status).toBe(200);
+      expect(await off.json()).toEqual({ hideFreeToPlay: false });
+      expect(await account(u.cookie)).toMatchObject({ hideFreeToPlay: false });
+      await call('PATCH', '/api/account', u.cookie, { hideFreeToPlay: true });
+      expect(await account(u.cookie)).toMatchObject({ hideFreeToPlay: true });
+    });
+
+    it('bumps the recommendation version', async () => {
+      const u = await newUser();
+      const before = await version(u.id);
+      await call('PATCH', '/api/account', u.cookie, { hideFreeToPlay: false });
+      expect(await version(u.id)).toBeGreaterThan(before);
+    });
+
+    it('400s a bad body without bumping, and 401s when anonymous', async () => {
+      const u = await newUser();
+      const before = await version(u.id);
+      for (const body of [{}, { hideFreeToPlay: 'no' }, { hideFreeToPlay: null }]) {
+        expect((await call('PATCH', '/api/account', u.cookie, body)).status).toBe(400);
+      }
+      expect(await version(u.id)).toBe(before);
+      expect(
+        (await call('PATCH', '/api/account', undefined, { hideFreeToPlay: true })).status,
+      ).toBe(401);
+    });
+
+    it('filters F2P games out of the recommendations only while on', async () => {
+      const u = await newUser();
+      await call('POST', '/api/library', u.cookie, {
+        igdbId: A,
+        hoursPlayed: 5,
+        status: 'playing',
+      });
+      const recIds = async () =>
+        (
+          (await (await get('/api/recommendations?device=none&limit=10', u.cookie)).json()) as {
+            recommendations: { game: { igdbId: number } }[];
+          }
+        ).recommendations.map((r) => r.game.igdbId);
+      expect(await recIds()).toContain(B);
+      await ctx.db
+        .update(schema.games)
+        .set({ keywords: [25210] })
+        .where(eq(schema.games.igdbId, B));
+      try {
+        await call('PATCH', '/api/account', u.cookie, { hideFreeToPlay: true });
+        expect(await recIds()).not.toContain(B);
+        await call('PATCH', '/api/account', u.cookie, { hideFreeToPlay: false });
+        expect(await recIds()).toContain(B);
+      } finally {
+        await ctx.db.update(schema.games).set({ keywords: [] }).where(eq(schema.games.igdbId, B));
+      }
+    });
+  });
+
   describe('recommendation cache', () => {
     const cacheRows = (userId: string) =>
       ctx.db
@@ -1725,6 +1789,10 @@ describe.skipIf(!testUrl)('api routes', () => {
           await get('/api/recommendations?device=none', u.cookie);
           return call('DELETE', `/api/feedback/${B}/up`, u.cookie);
         },
+      ],
+      [
+        'hide free-to-play change',
+        (u) => call('PATCH', '/api/account', u.cookie, { hideFreeToPlay: false }),
       ],
       ['device add', (u) => call('POST', '/api/devices', u.cookie, { preset: 'ps5' })],
       [
