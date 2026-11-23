@@ -13,6 +13,8 @@ const NAMES: Record<keyof typeof IGDB_PLATFORM, string> = {
   switch2: 'Switch 2',
   ios: 'iOS',
   android: 'Android',
+  windowsPhone: 'Windows Phone',
+  windowsMobile: 'Windows Mobile',
 };
 
 const PLATFORM_NAMES = new Map<number, string>(
